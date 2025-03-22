@@ -31,7 +31,7 @@ class Buffer
             org: data[:org],
             precision: data[:precision],
           )
-        rescue StandardError
+        rescue SocketError, Timeout::Error, Errno::ECONNREFUSED => e
           add(data)
           success = false
         end

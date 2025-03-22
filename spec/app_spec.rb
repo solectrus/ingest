@@ -20,7 +20,7 @@ describe App do
   end
 
   it 'buffers on Influx failure' do
-    allow(InfluxWriter).to receive(:forward_influx_line).and_raise
+    allow(InfluxWriter).to receive(:forward_influx_line).and_raise(Errno::ECONNREFUSED.new)
     allow(Buffer).to receive(:add)
 
     post "/api/v2/write?#{params}",
@@ -32,6 +32,25 @@ describe App do
 
     expect(Buffer).to have_received(:add)
     expect(last_response.status).to eq 202
+  end
+
+  it 'returns 400 on InfluxDB parse error' do
+    allow(InfluxWriter).to receive(:forward_influx_line).and_raise(
+      InfluxDB2::InfluxError.new(
+        message: 'unable to parse line protocol',
+        code: 'invalid',
+        reference: '',
+        retry_after: 0,
+      ),
+    )
+
+    post "/api/v2/write?#{params}", line_protocol, {
+      'HTTP_AUTHORIZATION' => 'Token test-token',
+      'CONTENT_TYPE' => 'text/plain',
+    }
+
+    expect(last_response.status).to eq 400
+    expect(last_response.body).to include('unable to parse line protocol')
   end
 
   it 'healthcheck works' do

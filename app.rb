@@ -12,8 +12,8 @@ class App < Sinatra::Base
     precision = params['precision']
 
     influx_token = request.env['HTTP_AUTHORIZATION']&.sub(/^Token /, '')
-    halt 401, 'Missing InfluxDB token' unless influx_token
 
+    halt 401, 'Missing InfluxDB token' unless influx_token
     halt 400, 'Missing bucket' unless bucket
     halt 400, 'Missing org' unless org
 
@@ -25,8 +25,10 @@ class App < Sinatra::Base
         org:,
         precision:,
       )
-      status 204 # No Content
-    rescue StandardError => e
+      status 204 # No content
+    rescue InfluxDB2::InfluxError => e
+      halt 400, e.message # Bad request
+    rescue SocketError, Timeout::Error, Errno::ECONNREFUSED, OpenSSL::SSL::SSLError => e
       puts e
       Buffer.add({ influx_line:, influx_token:, bucket:, org:, precision: })
       status 202 # Accepted
