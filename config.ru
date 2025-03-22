@@ -1,4 +1,4 @@
-require_relative 'app'
+require_relative 'lib/app'
 
 Thread.new do
   loop do

@@ -1,5 +1,3 @@
-require 'spec_helper'
-
 describe Buffer do
   let(:entry) { { influx_line: 'test', influx_token: 'x', bucket: 'b', org: 'o', precision: 's' } }
 

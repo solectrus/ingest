@@ -1,5 +1,3 @@
-require 'spec_helper'
-
 describe App do
   let(:app) { described_class.new }
 
