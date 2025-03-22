@@ -1,4 +1,6 @@
-# ingest
+# SOLECTRUS Ingest
+
+[![Build & Push Docker Image](https://github.com/solectrus/ingest/actions/workflows/ci.yml/badge.svg)](https://github.com/solectrus/ingest/actions/workflows/ci.yml)
 
 Lightweight InfluxDB ingestion proxy with buffering and persistence.
 
