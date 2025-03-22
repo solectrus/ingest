@@ -15,6 +15,9 @@ gem 'influxdb-client'
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
 
+# Loads environment variables from `.env`. (https://github.com/bkeepers/dotenv)
+gem 'dotenv'
+
 group :development do
   # Launches an app, and restarts it whenever the filesystem changes. A no-frills, command-line alternative to Guard, Shotgun, Autotest, etc. (http://github.com/alexch/rerun/)
   gem 'rerun'

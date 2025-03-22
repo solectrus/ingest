@@ -5,6 +5,7 @@ GEM
     base64 (0.2.0)
     csv (3.3.3)
     diff-lcs (1.6.0)
+    dotenv (3.1.7)
     ffi (1.17.1)
     ffi (1.17.1-aarch64-linux-gnu)
     ffi (1.17.1-aarch64-linux-musl)
@@ -115,6 +116,7 @@ PLATFORMS
   x86_64-linux-musl
 
 DEPENDENCIES
+  dotenv
   influxdb-client
   json
   puma
