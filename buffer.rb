@@ -3,7 +3,6 @@ require 'json'
 class Buffer
   FILE = 'tmp/buffer.dump'.freeze
   REPLAY_FILE = 'tmp/buffer.replay'.freeze
-
   @mutex = Mutex.new
 
   class << self
@@ -14,30 +13,45 @@ class Buffer
     end
 
     def replay
-      return unless File.exist?(FILE) || File.exist?(REPLAY_FILE)
+      return unless prepare_replay
 
-      @mutex.synchronize { File.rename(FILE, REPLAY_FILE) } unless File.exist?(REPLAY_FILE)
-      lines = File.readlines(REPLAY_FILE)
-
-      success = true
-
-      lines.each do |line|
-        data = JSON.parse(line, symbolize_names: true)
-        begin
-          InfluxWriter.forward_influx_line(
-            data[:influx_line],
-            influx_token: data[:influx_token],
-            bucket: data[:bucket],
-            org: data[:org],
-            precision: data[:precision],
-          )
-        rescue SocketError, Timeout::Error, Errno::ECONNREFUSED => e
-          add(data)
-          success = false
-        end
-      end
+      success = process_replay_file
 
       File.delete(REPLAY_FILE) if success
+    end
+
+    private
+
+    def prepare_replay
+      return false unless File.exist?(FILE) || File.exist?(REPLAY_FILE)
+
+      @mutex.synchronize do
+        File.rename(FILE, REPLAY_FILE) if File.exist?(FILE) && !File.exist?(REPLAY_FILE)
+      end
+
+      File.exist?(REPLAY_FILE)
+    end
+
+    def process_replay_file
+      File.foreach(REPLAY_FILE).all? do |line|
+        process_line(line)
+      end
+    end
+
+    def process_line(line)
+      data = JSON.parse(line, symbolize_names: true)
+
+      InfluxWriter.forward_influx_line(
+        data[:influx_line],
+        influx_token: data[:influx_token],
+        bucket: data[:bucket],
+        org: data[:org],
+        precision: data[:precision],
+      )
+      true
+    rescue SocketError, Timeout::Error, Errno::ECONNREFUSED
+      add(data)
+      false
     end
   end
 end
