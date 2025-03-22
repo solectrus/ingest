@@ -1,0 +1,9 @@
+.dockerignore
+.git
+.gitignore
+.gitattributes
+buffer.dump
+buffer.replay
+Dockerfile
+README.md
+spec
