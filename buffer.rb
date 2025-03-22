@@ -1,8 +1,8 @@
 require 'json'
 
 class Buffer
-  FILE = 'buffer.dump'.freeze
-  REPLAY_FILE = 'buffer.replay'.freeze
+  FILE = 'tmp/buffer.dump'.freeze
+  REPLAY_FILE = 'tmp/buffer.replay'.freeze
 
   @mutex = Mutex.new
 

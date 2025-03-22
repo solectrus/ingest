@@ -2,9 +2,8 @@
 .git
 .gitignore
 .gitattributes
-buffer.dump
-buffer.replay
 .github
 Dockerfile
 README.md
 spec
+tmp
