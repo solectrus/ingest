@@ -1,8 +1,9 @@
 require 'json'
 
 class Buffer
-  FILE = 'buffer.dump'
-  REPLAY_FILE = 'buffer.replay'
+  FILE = 'buffer.dump'.freeze
+  REPLAY_FILE = 'buffer.replay'.freeze
+
   @mutex = Mutex.new
 
   class << self
@@ -15,12 +16,8 @@ class Buffer
     def replay
       return unless File.exist?(FILE) || File.exist?(REPLAY_FILE)
 
-      if File.exist?(REPLAY_FILE)
-        lines = File.readlines(REPLAY_FILE)
-      else
-        @mutex.synchronize { File.rename(FILE, REPLAY_FILE) }
-        lines = File.readlines(REPLAY_FILE)
-      end
+      @mutex.synchronize { File.rename(FILE, REPLAY_FILE) } unless File.exist?(REPLAY_FILE)
+      lines = File.readlines(REPLAY_FILE)
 
       success = true
 
@@ -32,9 +29,9 @@ class Buffer
             influx_token: data[:influx_token],
             bucket: data[:bucket],
             org: data[:org],
-            precision: data[:precision]
+            precision: data[:precision],
           )
-        rescue
+        rescue StandardError
           add(data)
           success = false
         end

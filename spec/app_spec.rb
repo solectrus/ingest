@@ -1,7 +1,7 @@
 require 'spec_helper'
 
 describe App do
-  let(:app) { App.new }
+  let(:app) { described_class.new }
 
   let(:params) { 'bucket=test-bucket&org=test-org' }
   let(:line_protocol) { 'test,location=spec value=1 1234567890000000000' }
@@ -20,10 +20,8 @@ describe App do
   end
 
   it 'buffers on Influx failure' do
-    allow(InfluxWriter).to receive(:forward_influx_line).and_raise(
-      'influx down',
-    )
-    expect(Buffer).to receive(:add)
+    allow(InfluxWriter).to receive(:forward_influx_line).and_raise
+    allow(Buffer).to receive(:add)
 
     post "/api/v2/write?#{params}",
          line_protocol,
@@ -32,6 +30,7 @@ describe App do
            'CONTENT_TYPE' => 'text/plain',
          }
 
+    expect(Buffer).to have_received(:add)
     expect(last_response.status).to eq 202
   end
 

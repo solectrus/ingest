@@ -1,7 +1,8 @@
 require 'sinatra/base'
 require 'json'
-require_relative './influx_writer'
-require_relative './buffer'
+
+require_relative 'influx_writer'
+require_relative 'buffer'
 
 class App < Sinatra::Base
   post '/api/v2/write' do
@@ -25,7 +26,7 @@ class App < Sinatra::Base
         precision:,
       )
       status 204 # No Content
-    rescue => e
+    rescue StandardError => e
       puts e
       Buffer.add({ influx_line:, influx_token:, bucket:, org:, precision: })
       status 202 # Accepted

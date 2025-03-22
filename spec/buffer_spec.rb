@@ -6,7 +6,7 @@ describe Buffer do
   before { FileUtils.rm_f(Buffer::FILE) }
 
   it 'adds an entry to the buffer' do
-    Buffer.add(entry)
+    described_class.add(entry)
     expect(File.read(Buffer::FILE)).to include('test')
   end
 end

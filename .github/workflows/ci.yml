@@ -20,6 +20,9 @@ jobs:
         with:
           bundler-cache: true
 
+      - name: Lint with Rubocop
+        run: bundle exec rubocop
+
       - name: Run RSpec tests
         run: bundle exec rspec
 
