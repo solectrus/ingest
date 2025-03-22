@@ -1,7 +1,9 @@
-name: Docker Build & Push
+name: CI and Docker Build
 
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 concurrency:
@@ -9,8 +11,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Run RSpec tests
+        run: bundle exec rspec
+
   docker:
     runs-on: ubuntu-latest
+    needs: test
     permissions:
       contents: read
       packages: write
