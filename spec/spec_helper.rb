@@ -1,5 +1,8 @@
 ENV['APP_ENV'] = 'test'
 
+require 'dotenv'
+Dotenv.load('.env.test.local', '.env.test')
+
 require 'boot'
 require 'rspec'
 require 'rack/test'
