@@ -96,7 +96,10 @@ class Store
     end
   end
 
-  def cleanup(older_than_ts)
+  def cleanup(older_than_ts = nil)
+    older_than_ts ||=
+      Time.now.to_i * 1_000_000_000 - 12 * 60 * 60 * 1_000_000_000 # 12h in ns
+
     @db[:sensor_data].where { timestamp < older_than_ts }.delete
   end
 end
