@@ -6,6 +6,8 @@ class LineProcessor
     @precision = precision
   end
 
+  attr_reader :influx_token, :bucket, :org, :precision
+
   def process(influx_line)
     lines = influx_line.split("\n")
     lines.each { |line| process_and_store(line) }
@@ -15,7 +17,6 @@ class LineProcessor
 
   def process_and_store(line)
     parsed = LineProtocolParser.parse(line)
-    raise 'Invalid Line Protocol' unless parsed
 
     parsed.fields.each do |field, value|
       STORE.save(
@@ -29,14 +30,17 @@ class LineProcessor
     # Check if this line is the house_power sensor trigger
     if house_power_trigger?(parsed)
       corrected = calculate_house_power(parsed.timestamp)
+
       if corrected
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
-        return write_influx(LineProtocolParser.build(parsed))
-      end
-    end
 
-    # Otherwise, forward unmodified
-    write_influx(LineProtocolParser.build(parsed))
+        corrected_line = LineProtocolParser.build(parsed)
+        write_influx(corrected_line)
+      end
+    else
+      # Otherwise, forward unmodified
+      write_influx(line)
+    end
   end
 
   def house_power_trigger?(parsed)
@@ -75,10 +79,10 @@ class LineProcessor
   def write_influx(line)
     InfluxWriter.forward_influx_line(
       line,
-      influx_token: @influx_token,
-      bucket: @bucket,
-      org: @org,
-      precision: @precision,
+      influx_token:,
+      bucket:,
+      org:,
+      precision:,
     )
   end
 end
