@@ -1,5 +1,5 @@
 class HousePowerCalculator
-  SENSOR_STORE = SensorDataStore.new
+  SENSOR_STORE = Store.new
 
   class << self
     def process_lines(lines)
