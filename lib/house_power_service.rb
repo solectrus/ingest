@@ -21,14 +21,14 @@ class HousePowerService
 
     # Store all numeric fields into SQLite
     parsed.fields.each do |field, value|
-      if numeric?(value)
-        SENSOR_STORE.store(
-          measurement: parsed.measurement,
-          field:,
-          timestamp: parsed.timestamp,
-          value:,
-        )
-      end
+      next unless numeric?(value)
+
+      SENSOR_STORE.store(
+        measurement: parsed.measurement,
+        field:,
+        timestamp: parsed.timestamp,
+        value:,
+      )
     end
 
     # Check if this line is the house_power sensor trigger

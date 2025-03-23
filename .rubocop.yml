@@ -17,6 +17,9 @@ Layout/LineLength:
 Layout/LineEndStringConcatenationIndentation:
   Enabled: false
 
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
 # Metrics
 
 Metrics/AbcSize:

@@ -14,14 +14,14 @@ class HousePowerCalculator
 
       # Store all numeric fields
       parsed.fields.each do |field, value|
-        if numeric?(value)
-          SENSOR_STORE.store(
-            measurement: parsed.measurement,
-            field:,
-            timestamp: parsed.timestamp,
-            value:,
-          )
-        end
+        next unless numeric?(value)
+
+        SENSOR_STORE.store(
+          measurement: parsed.measurement,
+          field:,
+          timestamp: parsed.timestamp,
+          value:,
+        )
       end
 
       if house_power_trigger?(parsed)
