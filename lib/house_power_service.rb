@@ -27,7 +27,14 @@ class HousePowerService
 
     # Store all numeric fields into SQLite
     parsed.fields.each do |field, value|
-      SENSOR_STORE.store(measurement: parsed.measurement, field:, timestamp: parsed.timestamp, value:) if numeric?(value)
+      if numeric?(value)
+        SENSOR_STORE.store(
+          measurement: parsed.measurement,
+          field:,
+          timestamp: parsed.timestamp,
+          value:,
+        )
+      end
     end
 
     # Check if this line is the house_power sensor trigger
@@ -50,15 +57,19 @@ class HousePowerService
   end
 
   def calculate_house_power(target_ts)
-    powers = SensorEnvConfig::SENSOR_KEYS.reject { _1 == :house_power }.to_h do |sensor_key|
-      config = SensorEnvConfig.send(sensor_key)
-      value = SENSOR_STORE.interpolate(
-        measurement: config[:measurement],
-        field: config[:field],
-        target_ts:,
-      )
-      [sensor_key, value]
-    end
+    powers =
+      SensorEnvConfig::SENSOR_KEYS
+        .reject { _1 == :house_power }
+        .to_h do |sensor_key|
+          config = SensorEnvConfig.send(sensor_key)
+          value =
+            SENSOR_STORE.interpolate(
+              measurement: config[:measurement],
+              field: config[:field],
+              target_ts:,
+            )
+          [sensor_key, value]
+        end
 
     HousePowerFormula.calculate(**powers)
   end
