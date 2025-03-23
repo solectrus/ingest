@@ -1,5 +1,3 @@
-require 'house_power_calculator'
-
 describe HousePowerCalculator do
   let(:now_ns) { 1_000_000_000_000_000_000 }
   let(:old_ns) { now_ns - ((5 * 60 * 1_000_000_000) + 1) }

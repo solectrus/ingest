@@ -14,7 +14,8 @@ DB_TEST = Sequel.sqlite
 
 RSpec.configure do |config|
   config.before do
-    DB_TEST.create_table! :sensor_data do
+    DB_TEST.drop_table?(:sensor_data)
+    DB_TEST.create_table :sensor_data do
       String :measurement, null: false
       String :field, null: false
       Integer :timestamp, null: false
