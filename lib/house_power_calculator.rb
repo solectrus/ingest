@@ -4,10 +4,17 @@ require_relative 'state_cache'
 
 class HousePowerCalculator
   @cache = StateCache.new
+  @last_house_power = nil
 
   class << self
+    attr_reader :last_house_power
+
     def process_lines(lines)
       lines.filter_map { |line| process_line(line) }
+    end
+
+    def cache_stats
+      @cache.stats
     end
 
     private
@@ -20,6 +27,7 @@ class HousePowerCalculator
 
       if house_power_sensor_match?(parsed)
         new_value = calculate_house_power(parsed.timestamp)
+        @last_house_power = new_value if new_value
         return new_value ? LineProtocolParser.build(update_house_power(parsed, new_value)) : line
       end
 

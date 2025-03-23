@@ -15,6 +15,27 @@ class App < Sinatra::Base
     handle_health_request
   end
 
+  get '/stats' do
+    content_type :html
+    cache = HousePowerCalculator.cache_stats
+    <<~HTML
+      <html>
+        <head><title>Ingest Stats</title></head>
+        <body>
+          <h1>Ingest Stats</h1>
+          <p><strong>Buffered Entries:</strong> #{Buffer.size}</p>
+          <p><strong>Last Replay Success:</strong> #{Buffer.last_replay_success?}</p>
+          <p><strong>Last House Power:</strong> #{HousePowerCalculator.last_house_power || 'n/a'}</p>
+          <h2>StateCache</h2>
+          <p><strong>Cached Keys (#{cache[:size]}):</strong></p>
+          <ul>
+            #{cache[:keys].map { |k| "<li>#{k}</li>" }.join}
+          </ul>
+        </body>
+      </html>
+    HTML
+  end
+
   private
 
   def handle_write_request

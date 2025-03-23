@@ -12,10 +12,19 @@ class Buffer
       end
     end
 
+    def size
+      File.exist?(FILE) ? File.readlines(FILE).size : 0
+    end
+
+    def last_replay_success?
+      @last_replay_success
+    end
+
     def replay
       return unless prepare_replay
 
       success = process_replay_file
+      @last_replay_success = success
 
       File.delete(REPLAY_FILE) if success
     end

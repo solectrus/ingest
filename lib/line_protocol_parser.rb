@@ -4,28 +4,56 @@ class LineProtocolParser
   class << self
     # Parses a single InfluxDB line protocol string
     def parse(line)
-      return unless line =~ /^(\w+),?([^ ]*) ([^ ]+) (\d+)$/
+      m = line.match(/^(\S+)\s(.+)\s(\d+)$/)
+      return nil unless m
 
-      measurement = Regexp.last_match(1)
-      tags = Regexp.last_match(2)
-      fields_str = Regexp.last_match(3)
-      timestamp = Regexp.last_match(4).to_i
+      measurement_and_tags = m[1]
+      fields_str = m[2]
+      timestamp = m[3].to_i
 
-      fields = fields_str.split(',').to_h do |f|
-        key, value = f.split('=')
-        [key, value.to_f]
-      end
+      measurement, *tag_parts = measurement_and_tags.split(',')
+      tags = tag_parts.to_h { |t| t.split('=', 2) }
 
+      fields = parse_fields(fields_str)
       ParsedLine.new(measurement, tags, fields, timestamp)
     end
 
     # Reconstructs a line protocol string from a ParsedLine object
-    def build(parsed_line)
-      field_str = parsed_line.fields.map { |k, v| "#{k}=#{v}" }.join(',')
-      if parsed_line.tags && !parsed_line.tags.empty?
-        "#{parsed_line.measurement},#{parsed_line.tags} #{field_str} #{parsed_line.timestamp}"
-      else
-        "#{parsed_line.measurement} #{field_str} #{parsed_line.timestamp}"
+    def build(parsed)
+      tag_str = parsed.tags&.map { |k, v| "#{k}=#{v}" }&.join(',')
+      tags_section = tag_str && !tag_str.empty? ? ",#{tag_str}" : ''
+
+      fields_str = parsed.fields.map { |k, v| "#{k}=#{format_field_value(v)}" }.join(',')
+      "#{parsed.measurement}#{tags_section} #{fields_str} #{parsed.timestamp}"
+    end
+
+    private
+
+    def parse_fields(str)
+      fields = {}
+      str.split(',').each do |pair|
+        key, value = pair.split('=', 2)
+        fields[key] = parse_value(value)
+      end
+      fields
+    end
+
+    def parse_value(val)
+      case val
+      when /\A"(.*)"\z/ then Regexp.last_match(1)
+      when /\A([-+]?\d+)i\z/ then Regexp.last_match(1).to_i
+      when /\Atrue\z/ then true
+      when /\Afalse\z/ then false
+      else val.to_f
+      end
+    end
+
+    def format_field_value(val)
+      case val
+      when String then "\"#{val}\""
+      when TrueClass, FalseClass then val.to_s
+      when Integer then "#{val}i"
+      else val
       end
     end
   end

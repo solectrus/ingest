@@ -6,15 +6,22 @@ class StateCache
     @mutex = Mutex.new
   end
 
-  # Stores a value with timestamp if newer
   def cache(key, value, timestamp)
+    timestamp = normalize_timestamp(timestamp)
     @mutex.synchronize do
-      @state[key] = { value:, timestamp: } if @state[key].nil? || timestamp > @state[key][:timestamp]
+      current = @state[key]
+      if current.nil? || timestamp > current[:timestamp]
+        puts "Caching: #{key} = #{value} @ #{timestamp}"
+        @state[key] = { value: value, timestamp: timestamp }
+      else
+        puts "Skip cache (older): #{key} = #{value} @ #{timestamp} (current ts: #{current[:timestamp]})"
+      end
     end
   end
 
   # Fetches a value if it is within the valid time window
   def fetch(key, reference_ts)
+    reference_ts = normalize_timestamp(reference_ts)
     @mutex.synchronize do
       data = @state[key]
       return nil unless data
@@ -24,8 +31,20 @@ class StateCache
     end
   end
 
-  # Clears the state (for testing or reset)
   def reset
     @mutex.synchronize { @state.clear }
+  end
+
+  def stats
+    @mutex.synchronize do
+      { size: @state.size, keys: @state.keys.sort }
+    end
+  end
+
+  private
+
+  def normalize_timestamp(time)
+    time = time.to_i
+    time < 1_000_000_000_000_000_000 ? time * 1_000_000_000 : time
   end
 end
