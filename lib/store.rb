@@ -1,107 +1,101 @@
-require 'sqlite3'
+require 'sequel'
 
 class Store
-  DB_FILE = 'db/sensor_data.db'.freeze
+  DB = Sequel.sqlite('db/sensor_data.db')
 
   def initialize
-    @db = SQLite3::Database.new(DB_FILE)
-    @db.results_as_hash = true
     create_table
   end
 
   def create_table
-    @db.execute <<-SQL
-      CREATE TABLE IF NOT EXISTS sensor_data (
-        measurement TEXT NOT NULL,
-        field TEXT NOT NULL,
-        timestamp INTEGER NOT NULL,
-        value_int INTEGER,
-        value_float REAL,
-        value_bool BOOLEAN,
-        value_string TEXT,
-        PRIMARY KEY (measurement, field, timestamp)
-      );
-    SQL
-    @db.execute(
-      'CREATE INDEX IF NOT EXISTS idx_sensor ON sensor_data (measurement, field, timestamp)',
-    )
+    DB.create_table? :sensor_data do
+      String :measurement, null: false
+      String :field, null: false
+      Integer :timestamp, null: false
+      Integer :value_int
+      Float :value_float
+      TrueClass :value_bool
+      String :value_string
+      primary_key %i[measurement field timestamp]
+      index %i[measurement field timestamp]
+    end
   end
 
   def save(measurement:, field:, timestamp:, value:)
+    raise 'Invalid measurement or field' if measurement.nil? || field.nil?
+
+    data = {
+      measurement: measurement.to_s.strip,
+      field: field.to_s.strip,
+      timestamp: timestamp,
+      value_int: nil,
+      value_float: nil,
+      value_bool: nil,
+      value_string: nil,
+    }
+
     case value
     when Integer
-      @db.execute(<<-SQL, [measurement, field, timestamp, value, nil, nil, nil])
-        INSERT OR REPLACE INTO sensor_data
-        (measurement, field, timestamp, value_int, value_float, value_bool, value_string)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      SQL
+      data[:value_int] = value
     when Float
-      @db.execute(<<-SQL, [measurement, field, timestamp, nil, value, nil, nil])
-        INSERT OR REPLACE INTO sensor_data
-        (measurement, field, timestamp, value_int, value_float, value_bool, value_string)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      SQL
+      data[:value_float] = value
     when TrueClass, FalseClass
-      @db.execute(
-        <<-SQL,
-        INSERT OR REPLACE INTO sensor_data
-        (measurement, field, timestamp, value_int, value_float, value_bool, value_string)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      SQL
-        [measurement, field, timestamp, nil, nil, value ? 1 : 0, nil],
-      )
+      data[:value_bool] = value
+    when String
+      data[:value_string] = value
     else
-      @db.execute(
-        <<-SQL,
-        INSERT OR REPLACE INTO sensor_data
-        (measurement, field, timestamp, value_int, value_float, value_bool, value_string)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      SQL
-        [measurement, field, timestamp, nil, nil, nil, value.to_s],
-      )
+      raise 'Invalid value type'
     end
+
+    DB[:sensor_data].insert_conflict(
+      target: %i[measurement field timestamp],
+      update: {
+        value_int: Sequel[:excluded][:value_int],
+        value_float: Sequel[:excluded][:value_float],
+        value_bool: Sequel[:excluded][:value_bool],
+        value_string: Sequel[:excluded][:value_string],
+      },
+    ).insert(data)
   end
 
   def interpolate(measurement:, field:, target_ts:)
-    prev = fetch_numeric_row(measurement, field, target_ts, '<=')
-    nxt = fetch_numeric_row(measurement, field, target_ts, '>=')
+    ds =
+      DB[:sensor_data].where(
+        Sequel[:measurement] => measurement,
+        Sequel[:field] => field,
+      )
 
-    return 0.0 unless prev || nxt
-    if prev && nxt && prev['timestamp'] != nxt['timestamp']
-      return interpolate_between(prev, nxt, target_ts)
+    prev =
+      ds
+        .where(Sequel[:timestamp] <= target_ts)
+        .order(Sequel.desc(:timestamp))
+        .first
+
+    nxt = ds.where(Sequel[:timestamp] >= target_ts).order(:timestamp).first
+
+    return unless prev || nxt
+
+    prev_val = prev[:value_float] || prev[:value_int]
+    nxt_val = nxt[:value_float] || nxt[:value_int]
+
+    return prev_val if prev && !nxt
+    return nxt_val if nxt && !prev
+
+    return unless prev_val && nxt_val
+
+    if prev[:timestamp] == nxt[:timestamp]
+      prev_val
+    else
+      t1 = prev[:timestamp]
+      t2 = nxt[:timestamp]
+      v1 = prev_val.to_f
+      v2 = nxt_val.to_f
+
+      v1 + ((v2 - v1) * ((target_ts - t1).to_f / (t2 - t1)))
     end
-    numeric_value(prev || nxt)
   end
 
   def cleanup(older_than_ts)
-    @db.execute('DELETE FROM sensor_data WHERE timestamp < ?', [older_than_ts])
-  end
-
-  private
-
-  def fetch_numeric_row(measurement, field, target_ts, operator)
-    @db.get_first_row(<<-SQL, [measurement, field, target_ts])
-      SELECT timestamp, value_int, value_float
-      FROM sensor_data
-      WHERE measurement = ? AND field = ? AND timestamp #{operator} ?
-      AND (value_int IS NOT NULL OR value_float IS NOT NULL)
-      ORDER BY timestamp #{operator == '<=' ? 'DESC' : 'ASC'}
-      LIMIT 1
-    SQL
-  end
-
-  def interpolate_between(prev, nxt, target_ts)
-    v1, t1 = numeric_value(prev), prev['timestamp']
-    v2, t2 = numeric_value(nxt), nxt['timestamp']
-    return v1 if t1 == t2 # Fallback safety
-
-    v1 + ((v2 - v1) * ((target_ts - t1).to_f / (t2 - t1)))
-  end
-
-  def numeric_value(row)
-    return row['value_float'].to_f if row['value_float']
-    return row['value_int'].to_f if row['value_int']
-
-    0.0
+    DB[:sensor_data].where { timestamp < older_than_ts }.delete
   end
 end

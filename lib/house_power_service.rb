@@ -51,19 +51,30 @@ class HousePowerService
   end
 
   def calculate_house_power(target_ts)
-    powers =
-      SensorEnvConfig::SENSOR_KEYS
-        .reject { _1 == :house_power }
-        .to_h do |sensor_key|
-          config = SensorEnvConfig.send(sensor_key)
-          value =
-            STORE.interpolate(
-              measurement: config[:measurement],
-              field: config[:field],
-              target_ts:,
-            )
-          [sensor_key, value]
-        end
+    sensor_keys = %i[
+      inverter_power
+      balcony_inverter_power
+      grid_import_power
+      grid_export_power
+      battery_discharging_power
+      battery_charging_power
+      wallbox_power
+      heatpump_power
+    ]
+
+    powers = {}
+
+    sensor_keys.each do |key|
+      config = SensorEnvConfig.public_send(key)
+      unless config.is_a?(Hash) &&
+               config[:measurement]&.strip&.empty? == false &&
+               config[:field]&.strip&.empty? == false
+        next
+      end
+
+      value = STORE.interpolate(**config, target_ts:)
+      powers[key] = value unless value.nil?
+    end
 
     HousePowerFormula.calculate(**powers)
   end

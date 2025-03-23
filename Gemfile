@@ -15,6 +15,9 @@ gem 'influxdb-client'
 # Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
 gem 'sqlite3'
 
+# The Database Toolkit for Ruby (https://sequel.jeremyevans.net)
+gem 'sequel'
+
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
 

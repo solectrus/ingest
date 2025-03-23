@@ -11,15 +11,20 @@ class SensorEnvConfig
     house_power
   ].freeze
 
-  @config = SENSOR_KEYS.to_h do |key|
-    env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}")
-    measurement, field = env_value.split(':')
-    [key, { measurement:, field: }]
-  end
+  @config =
+    SENSOR_KEYS.to_h do |key|
+      env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}", nil)
+      next key, nil unless env_value
+
+      measurement, field = env_value.split(':', 2)
+      [key, { measurement:, field: }]
+    end
 
   class << self
-    SENSOR_KEYS.each do |key|
-      define_method(key) { @config.fetch(key) }
+    SENSOR_KEYS.each { |key| define_method(key) { @config[key] } }
+
+    def all
+      @config
     end
   end
 end
