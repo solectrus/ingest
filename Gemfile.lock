@@ -90,6 +90,9 @@ GEM
     rubocop-rspec (3.5.0)
       lint_roller (~> 1.1)
       rubocop (~> 1.72, >= 1.72.1)
+    rubocop-sequel (0.4.1)
+      lint_roller (~> 1.1)
+      rubocop (>= 1.72.1, < 2)
     ruby-progressbar (1.13.0)
     ruby2_keywords (0.0.5)
     sequel (5.90.0)
@@ -143,6 +146,7 @@ DEPENDENCIES
   rubocop
   rubocop-performance
   rubocop-rspec
+  rubocop-sequel
   sequel
   sinatra
   sqlite3

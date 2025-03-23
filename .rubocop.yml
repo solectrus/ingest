@@ -1,6 +1,7 @@
 plugins:
   - rubocop-performance
   - rubocop-rspec
+  - rubocop-sequel
 
 AllCops:
   TargetRubyVersion: 3.4

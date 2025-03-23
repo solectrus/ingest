@@ -66,11 +66,9 @@ class HousePowerService
 
     sensor_keys.each do |key|
       config = SensorEnvConfig.public_send(key)
-      unless config.is_a?(Hash) &&
-               config[:measurement]&.strip&.empty? == false &&
-               config[:field]&.strip&.empty? == false
-        next
-      end
+      next unless config.is_a?(Hash)
+      next unless config.key?(:measurement) && config.key?(:field)
+      next if config[:measurement].empty? || config[:field].empty?
 
       value = STORE.interpolate(**config, target_ts:)
       powers[key] = value unless value.nil?

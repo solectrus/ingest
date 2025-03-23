@@ -36,6 +36,8 @@ group :development do
 
   # Code style checking for RSpec files (https://github.com/rubocop/rubocop-rspec)
   gem 'rubocop-rspec'
+
+  gem 'rubocop-sequel'
 end
 
 group :test do
