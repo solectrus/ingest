@@ -17,7 +17,7 @@ class HousePowerService
 
   def process_and_store(line)
     parsed = LineProtocolParser.parse(line)
-    return unless parsed
+    raise 'Invalid Line Protocol' unless parsed
 
     # Store all numeric fields into SQLite
     parsed.fields.each do |field, value|
@@ -67,7 +67,7 @@ class HousePowerService
     sensor_keys.each do |key|
       config = SensorEnvConfig.public_send(key)
       next unless config.is_a?(Hash)
-      next unless config.key?(:measurement) && config.key?(:field)
+      next unless config[:measurement] && config[:field]
       next if config[:measurement].empty? || config[:field].empty?
 
       value = STORE.interpolate(**config, target_ts:)

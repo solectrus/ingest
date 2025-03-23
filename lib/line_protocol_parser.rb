@@ -1,16 +1,22 @@
+class InvalidLineProtocolError < StandardError
+end
+
 class LineProtocolParser
   ParsedLine = Struct.new(:measurement, :tags, :fields, :timestamp)
 
   class << self
     # Parses a single InfluxDB line protocol string
     def parse(line)
-      match = line.match(/^(\S+)\s(.+)\s(\d+)$/)
-      return nil unless match
+      m = line.match(/^(\S+)\s(.+)\s(\d+)$/)
+      raise InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
 
-      measurement, *tag_parts = match[1].split(',')
-      fields = parse_fields(match[2])
+      measurement_and_tags = m[1]
+      fields_str = m[2]
+      timestamp = m[3].to_i
+
+      measurement, *tag_parts = measurement_and_tags.split(',')
       tags = tag_parts.to_h { |t| t.split('=', 2) }
-      timestamp = match[3].to_i
+      fields = parse_fields(fields_str)
 
       ParsedLine.new(measurement, tags, fields, timestamp)
     end

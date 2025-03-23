@@ -17,8 +17,10 @@ class App < Sinatra::Base
         influx_line,
       )
       status 204
+    rescue InvalidLineProtocolError
+      status 400
     rescue StandardError => e
-      warn "Processing error: #{e.message}\n#{e.backtrace.first(3).join("\n")}"
+      warn "Processing error: #{e}"
       status 500
     end
   end

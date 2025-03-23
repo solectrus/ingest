@@ -37,6 +37,19 @@ describe App do
     expect(last_response.status).to eq 400
   end
 
+  it 'returns 400 on invalid Line Protocol' do
+    invalid_line = 'invalid_line_without_fields_or_timestamp'
+
+    post "/api/v2/write?#{params}",
+         invalid_line,
+         {
+           'HTTP_AUTHORIZATION' => 'Token test-token',
+           'CONTENT_TYPE' => 'text/plain',
+         }
+
+    expect(last_response.status).to eq 400
+  end
+
   it 'healthcheck returns OK' do
     get '/health'
     expect(last_response.status).to eq 200
