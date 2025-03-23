@@ -46,8 +46,8 @@ class HousePowerCalculator
     def calculate_house_power(target_ts)
       powers =
         SensorEnvConfig::SENSOR_KEYS
-          .reject { _1 == :house_power }
-          .to_h do |sensor_key|
+          .reject { it == :house_power }
+          .filter_map do |sensor_key|
             config = SensorEnvConfig.send(sensor_key)
             value =
               STORE.interpolate(
@@ -55,8 +55,10 @@ class HousePowerCalculator
                 field: config[:field],
                 target_ts:,
               )
-            [sensor_key, value]
+
+            [sensor_key, value] if value
           end
+          .to_h
 
       HousePowerFormula.calculate(**powers)
     end
