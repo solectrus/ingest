@@ -14,3 +14,5 @@ require_relative 'house_power_service'
 require_relative 'house_power_formula'
 require_relative 'line_protocol_parser'
 require_relative 'sensor_env_config'
+
+STORE = Store.new(ENV['APP_ENV'] == 'test' ? ':memory:' : 'db/sensor_data.db')

@@ -1,5 +1,5 @@
 describe Store do
-  let(:store) { described_class.new(DB_TEST) }
+  let(:store) { STORE }
 
   it 'saves integer values correctly' do
     store.save(
@@ -8,7 +8,7 @@ describe Store do
       timestamp: 1000,
       value: 42,
     )
-    row = DB_TEST[:sensor_data].first
+    row = STORE.db[:sensor_data].first
     expect(row[:value_int]).to eq(42)
   end
 
@@ -19,7 +19,7 @@ describe Store do
       timestamp: 1000,
       value: 42.5,
     )
-    row = DB_TEST[:sensor_data].first
+    row = STORE.db[:sensor_data].first
     expect(row[:value_float]).to eq(42.5)
   end
 
@@ -77,7 +77,7 @@ describe Store do
     )
     store.cleanup(1500)
 
-    expect(DB_TEST[:sensor_data].count).to eq(1)
-    expect(DB_TEST[:sensor_data].first[:timestamp]).to eq(2000)
+    expect(STORE.db[:sensor_data].count).to eq(1)
+    expect(STORE.db[:sensor_data].first[:timestamp]).to eq(2000)
   end
 end

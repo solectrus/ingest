@@ -1,6 +1,4 @@
 class HousePowerService
-  STORE = Store.new
-
   def initialize(influx_token, bucket, org, precision)
     @influx_token = influx_token
     @bucket = bucket

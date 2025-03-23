@@ -1,6 +1,4 @@
 class HousePowerCalculator
-  STORE = Store.new
-
   class << self
     def process_lines(lines)
       lines.map { |line| process_line(line) }

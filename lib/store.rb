@@ -1,10 +1,12 @@
 require 'sequel'
 
 class Store
-  def initialize(db = Sequel.sqlite('db/sensor_data.db'))
-    @db = db
+  def initialize(db_url)
+    @db = Sequel.sqlite(db_url)
     create_table
   end
+
+  attr_reader :db
 
   def create_table
     @db.create_table? :sensor_data do

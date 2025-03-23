@@ -10,12 +10,10 @@ require_relative '../lib/app'
 
 RSpec.configure { |conf| conf.include Rack::Test::Methods }
 
-DB_TEST = Sequel.sqlite
-
 RSpec.configure do |config|
   config.before do
-    DB_TEST.drop_table?(:sensor_data)
-    DB_TEST.create_table :sensor_data do
+    STORE.db.drop_table?(:sensor_data)
+    STORE.db.create_table :sensor_data do
       String :measurement, null: false
       String :field, null: false
       Integer :timestamp, null: false
@@ -27,5 +25,5 @@ RSpec.configure do |config|
     end
   end
 
-  config.after { DB_TEST.drop_table?(:sensor_data) }
+  config.after { STORE.db.drop_table?(:sensor_data) }
 end
