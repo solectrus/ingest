@@ -40,14 +40,22 @@ describe HousePowerCalculator do
   it 'uses the latest cached value if fresh and valid' do
     described_class.process_lines(["SENEC inverter_power=100 #{old_ns}"])
 
-    described_class.process_lines(["SENEC inverter_power=500 #{now_ns}",
-                                   "SENEC grid_power_plus=200 #{now_ns}",
-                                   "SENEC bat_power_minus=300 #{now_ns}",])
+    described_class.process_lines(
+      [
+        "SENEC inverter_power=500 #{now_ns}",
+        "SENEC grid_power_plus=200 #{now_ns}",
+        "SENEC bat_power_minus=300 #{now_ns}",
+      ],
+    )
 
-    described_class.process_lines(["SENEC bat_power_plus=100 #{now_ns}",
-                                   "SENEC grid_power_minus=50 #{now_ns}",
-                                   "SENEC wallbox_charge_power=50 #{now_ns}",
-                                   "Heatpump power=50 #{now_ns}",])
+    described_class.process_lines(
+      [
+        "SENEC bat_power_plus=100 #{now_ns}",
+        "SENEC grid_power_minus=50 #{now_ns}",
+        "SENEC wallbox_charge_power=50 #{now_ns}",
+        "Heatpump power=50 #{now_ns}",
+      ],
+    )
 
     trigger = "SENEC house_power=0 #{now_ns}"
     result = described_class.process_lines([trigger])
