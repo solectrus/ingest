@@ -1,12 +1,34 @@
 ENV['APP_ENV'] = 'test'
 
-$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
+require 'dotenv'
+Dotenv.load('.env.test.local', '.env.test')
 
 require 'rspec'
 require 'rack/test'
+require 'active_record'
 
-require_relative '../lib/app'
+ENV['DB_FILE'] = ':memory:'
+require_relative '../lib/boot'
 
-RSpec.configure do |conf|
-  conf.include Rack::Test::Methods
+ActiveRecord::MigrationContext.new('db/migrate').up
+
+RSpec.configure { |conf| conf.include Rack::Test::Methods }
+
+RSpec.configure do |config|
+  config.before do
+    Incoming.delete_all
+    Outgoing.delete_all
+    Target.delete_all
+  end
+
+  config.around do |example|
+    original_stdout = $stdout
+    original_stderr = $stderr
+    $stdout = File.open(File::NULL, 'w')
+    $stderr = File.open(File::NULL, 'w')
+    example.run
+  ensure
+    $stdout = original_stdout
+    $stderr = original_stderr
+  end
 end

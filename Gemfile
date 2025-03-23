@@ -3,6 +3,9 @@ source 'https://rubygems.org'
 # Classy web-development dressed in a DSL (http://sinatrarb.com/)
 gem 'sinatra', require: 'sinatra/base'
 
+# Collection of useful Sinatra extensions. (http://sinatrarb.com/contrib/)
+gem 'sinatra-contrib'
+
 # A general server command for Rack applications. (https://github.com/rack/rackup)
 gem 'rackup'
 
@@ -12,11 +15,20 @@ gem 'puma'
 # Ruby library for InfluxDB 2. (https://github.com/influxdata/influxdb-client-ruby)
 gem 'influxdb-client'
 
+# Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
+gem 'sqlite3'
+
+# Object-relational mapper framework (part of Rails). (https://rubyonrails.org)
+gem 'activerecord'
+
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
 
 # Loads environment variables from `.env`. (https://github.com/bkeepers/dotenv)
 gem 'dotenv'
+
+# Rake is a Make-like program implemented in Ruby (https://github.com/ruby/rake)
+gem 'rake'
 
 group :development do
   # Launches an app, and restarts it whenever the filesystem changes. A no-frills, command-line alternative to Guard, Shotgun, Autotest, etc. (http://github.com/alexch/rerun/)
@@ -30,6 +42,12 @@ group :development do
 
   # Code style checking for RSpec files (https://github.com/rubocop/rubocop-rspec)
   gem 'rubocop-rspec'
+
+  # A RuboCop plugin for Rake (https://github.com/rubocop/rubocop-rake)
+  gem 'rubocop-rake'
+
+  # Automatic Rails code style checking tool. (https://github.com/rubocop/rubocop-rails)
+  gem 'rubocop-rails'
 end
 
 group :test do

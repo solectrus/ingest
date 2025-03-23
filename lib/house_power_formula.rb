@@ -1,5 +1,6 @@
 module HousePowerFormula
   INCOMING_SENSORS = %i[
+    balcony_inverter_power
     inverter_power
     grid_import_power
     battery_discharging_power
@@ -18,7 +19,7 @@ module HousePowerFormula
   public_constant :SENSORS
 
   class << self
-    # Calculates house power based on the given sensor values
+    # Calculates the corrected house power based on known sensor powers
     def calculate(**powers)
       validate_keys!(powers)
 

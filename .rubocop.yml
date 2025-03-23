@@ -1,6 +1,8 @@
 plugins:
   - rubocop-performance
   - rubocop-rspec
+  - rubocop-rails
+  - rubocop-rake
 
 AllCops:
   TargetRubyVersion: 3.4
@@ -17,13 +19,16 @@ Layout/LineLength:
 Layout/LineEndStringConcatenationIndentation:
   Enabled: false
 
+Layout/MultilineMethodCallIndentation:
+  EnforcedStyle: indented
+
 # Metrics
 
 Metrics/AbcSize:
-  Max: 18
+  Max: 20
 
 Metrics/MethodLength:
-  Max: 20
+  Max: 35
 
 # Style
 
@@ -48,10 +53,27 @@ RSpec/ExampleLength:
   Max: 20
 
 RSpec/MultipleExpectations:
-  Max: 3
+  Max: 5
 
 RSpec/NestedGroups:
   Max: 4
 
 RSpec/NoExpectationExample:
+  Enabled: false
+
+# Rails
+
+Rails/CreateTableWithTimestamps:
+  Enabled: false
+
+Rails/ThreeStateBooleanColumn:
+  Enabled: false
+
+Rails/Output:
+  Enabled: false
+
+Rails/RakeEnvironment:
+  Enabled: false
+
+Rails/SkipsModelValidations:
   Enabled: false

@@ -16,11 +16,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - uses: ruby/setup-ruby@v1
         with:
           bundler-cache: true
 
-      - name: Lint with Rubocop
+      - name: Lint with RuboCop
         run: bundle exec rubocop
 
       - name: Run RSpec tests
@@ -60,7 +61,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          key: ${{ runner.os }}-buildx-${{ hashFiles('**/Gemfile', '**/Gemfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-buildx-
 
@@ -73,5 +74,5 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,10 +1,8 @@
-require_relative 'lib/app'
+require_relative 'lib/boot'
 
-Thread.new do
-  loop do
-    sleep 60
-    Buffer.replay
-  end
-end
+ActiveRecord::MigrationContext.new('db/migrate').up
+
+Thread.new { OutboxWorker.run_loop }
+Thread.new { CleanupWorker.run_loop }
 
 run App

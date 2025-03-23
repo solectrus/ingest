@@ -1,9 +1,15 @@
 .dockerignore
+.env*
 .git
-.gitignore
 .gitattributes
 .github
+.gitignore
+.rspec
+.rubocop.yml
+.ruby-lsp
+**/.DS_Store
+**/.keep
+db/*.sqlite3*
 Dockerfile
 README.md
 spec
-tmp

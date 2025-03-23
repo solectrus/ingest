@@ -2,16 +2,14 @@
 
 [![Build & Push Docker Image](https://github.com/solectrus/ingest/actions/workflows/ci.yml/badge.svg)](https://github.com/solectrus/ingest/actions/workflows/ci.yml)
 
-Lightweight InfluxDB ingestion proxy with buffering and persistence.
+Lightweight InfluxDB ingestion proxy with **buffering**, **house power calculation**, and **reliable persistence**.
 
 ## Features
 
 - Accepts InfluxDB v2 `/api/v2/write` (Line Protocol)
-- Reads `Authorization` token, `bucket`, `org`, and `precision` from the request
-- Forwards data to InfluxDB (`INFLUX_URL` from environment)
-- Buffers failed writes to disk (`buffer.dump`)
-- Automatic replay of buffered data every 60 seconds
-- Crash-safe with `buffer.replay`
+- Reliable **retries** and **batch forwarding** to InfluxDB (`INFLUX_URL`)
+- Automatic **house power calculation** based on incoming sensor values (overrides incoming house_power)
+- Buffers all writes to SQLite
 
 ## Example Docker Compose
 
@@ -19,11 +17,51 @@ Lightweight InfluxDB ingestion proxy with buffering and persistence.
 services:
   ingest:
     image: ghcr.io/solectrus/ingest:latest
-    environment:
-      INFLUX_URL: http://influxdb:8086
+    env_file: .env
     ports:
       - '4567:4567'
 ```
+
+## Environment Variables
+
+| Variable                                  | Description                                           |
+| ----------------------------------------- | ----------------------------------------------------- |
+| `INFLUX_URL`                              | InfluxDB base URL (e.g., http://influxdb:8086)        |
+| `INFLUX_SENSOR_INVERTER_POWER`            | Sensor for inverter power (Format: measurement:field) |
+| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Sensor for grid import power                          |
+| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Sensor for grid export power                          |
+| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Sensor for battery discharging power                  |
+| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Sensor for battery charging power                     |
+| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Sensor for balcony inverter power                     |
+| `INFLUX_SENSOR_WALLBOX_POWER`             | Sensor for wallbox power                              |
+| `INFLUX_SENSOR_HEATPUMP_POWER`            | Sensor for heat pump power                            |
+| `INFLUX_SENSOR_HOUSE_POWER`               | Sensor for house power                                |
+| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation          |
+
+## API Endpoints
+
+### POST `/api/v2/write`
+
+- **Headers:**
+  - `Authorization: Token <token>`
+  - `Content-Type: text/plain`
+- **Query Params:**
+  - `bucket`: Target bucket
+  - `org`: Target organization
+  - `precision`: Timestamp precision (default: `ns`)
+- **Body:** InfluxDB Line Protocol
+- **Behavior:**
+  - Buffers incoming data
+  - Triggers house power recalculation if relevant
+  - Adds outgoing data to the write queue
+
+## Healthcheck
+
+```http
+GET /health
+```
+
+Returns `OK` if the service is running.
 
 ## Example cURL
 
@@ -34,32 +72,15 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
   --data-raw "test_measurement,location=office value=42 $(( $(date +%s) * 1000000000 ))"
 ```
 
-## Environment Variables
+## How it works
 
-| Variable     | Description                                    |
-| ------------ | ---------------------------------------------- |
-| `INFLUX_URL` | InfluxDB base URL (e.g., http://influxdb:8086) |
+- Incoming data is **persisted** in SQLite
+- An internal `OutboxWorker` forwards queued writes to InfluxDB in **batches**
+- `HousePowerCalculator` triggers on relevant sensor updates
+- `CleanupWorker` removes old incoming data after 12 hours
 
-## Buffering Details
+## Robust by Design
 
-- Failed writes are stored in `buffer.dump`
-- Replayed automatically every 60 seconds
-- Crash-safe: Replay uses `buffer.replay` to avoid data loss
-
-## API Example
-
-### POST `/api/v2/write`
-
-- **Headers:**
-  - `Authorization: Token <token>`
-  - `Content-Type: text/plain`
-- **Query Params:**
-  - `bucket`: Target bucket name
-  - `org`: Target organization
-  - `precision`: Timestamp precision (default: `s`)
-- **Body:**
-  - Raw InfluxDB Line Protocol
-
-## Healthcheck
-
-`GET /health` → Returns `OK`
+- Survives InfluxDB downtime
+- Retains all incoming data until confirmed write
+- Can be replayed or recalculated later
