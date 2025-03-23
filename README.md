@@ -8,10 +8,9 @@ Lightweight InfluxDB ingestion proxy with buffering and persistence.
 
 - Accepts InfluxDB v2 `/api/v2/write` (Line Protocol)
 - Reads `Authorization` token, `bucket`, `org`, and `precision` from the request
+- Buffers all writes to sqlite3 database
 - Forwards data to InfluxDB (`INFLUX_URL` from environment)
-- Buffers failed writes to disk (`buffer.dump`)
 - Automatic replay of buffered data every 60 seconds
-- Crash-safe with `buffer.replay`
 
 ## Example Docker Compose
 
@@ -39,12 +38,6 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
 | Variable     | Description                                    |
 | ------------ | ---------------------------------------------- |
 | `INFLUX_URL` | InfluxDB base URL (e.g., http://influxdb:8086) |
-
-## Buffering Details
-
-- Failed writes are stored in `buffer.dump`
-- Replayed automatically every 60 seconds
-- Crash-safe: Replay uses `buffer.replay` to avoid data loss
 
 ## API Example
 
