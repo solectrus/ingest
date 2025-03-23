@@ -4,10 +4,6 @@ describe HousePowerCalculator do
   let(:now_ns) { 1_000_000_000_000_000_000 }
   let(:old_ns) { now_ns - ((5 * 60 * 1_000_000_000) + 1) }
 
-  before do
-    described_class.instance_variable_set(:@cache, StateCache.new)
-  end
-
   it 'calculates house_power correctly when sufficient fresh data is available' do
     fresh = [
       "SENEC inverter_power=3000 #{now_ns}",

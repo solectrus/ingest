@@ -1,12 +1,14 @@
 class SensorEnvConfig
   SENSOR_KEYS = %i[
     inverter_power
+    balcony_inverter_power
     grid_import_power
+    grid_export_power
     battery_discharging_power
     battery_charging_power
-    grid_export_power
     wallbox_power
     heatpump_power
+    house_power
   ].freeze
 
   def self.load

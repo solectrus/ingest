@@ -1,7 +1,5 @@
 ENV['APP_ENV'] = 'test'
 
-$LOAD_PATH.unshift File.expand_path('../lib', __dir__)
-
 require 'rspec'
 require 'rack/test'
 

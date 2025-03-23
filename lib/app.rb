@@ -2,9 +2,9 @@ require 'dotenv/load'
 require 'sinatra/base'
 require 'json'
 
-require_relative 'influx_writer'
-require_relative 'sqlite'
-require_relative 'house_power_service'
+require 'influx_writer'
+require 'sensor_data_store'
+require 'house_power_service'
 
 class App < Sinatra::Base
   post '/api/v2/write' do
@@ -22,9 +22,8 @@ class App < Sinatra::Base
       HousePowerService.new(influx_token, bucket, org, precision).process(influx_line)
       status 204
     rescue StandardError => e
-      puts "Error: #{e}"
-      Buffer.add({ influx_line:, influx_token:, bucket:, org:, precision: })
-      status 202
+      warn "Processing error: #{e}"
+      status 500
     end
   end
 

@@ -1,8 +1,8 @@
-require_relative 'sqlite'
-require_relative 'influx_writer'
-require_relative 'house_power_formula'
-require_relative 'line_protocol_parser'
-require_relative 'sensor_env_config'
+require 'sensor_env_config'
+require 'sensor_data_store'
+require 'influx_writer'
+require 'house_power_formula'
+require 'line_protocol_parser'
 
 class HousePowerService
   SENSOR_STORE = SensorDataStore.new

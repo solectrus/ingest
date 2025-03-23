@@ -1,20 +1,16 @@
-require_relative 'house_power_formula'
-require_relative 'line_protocol_parser'
-require_relative 'state_cache'
+require 'house_power_formula'
+require 'line_protocol_parser'
+require 'sensor_env_config'
+require 'sensor_data_store'
 
 class HousePowerCalculator
-  @cache = StateCache.new
-  @last_house_power = nil
+  SENSOR_STORE = SensorDataStore.new
+  SENSOR_CONFIG = SensorEnvConfig.load
+  HOUSE_POWER_SENSOR = SensorEnvConfig.house_power_sensor
 
   class << self
-    attr_reader :last_house_power
-
     def process_lines(lines)
-      lines.filter_map { |line| process_line(line) }
-    end
-
-    def cache_stats
-      @cache.stats
+      lines.map { |line| process_line(line) }
     end
 
     private
@@ -23,48 +19,38 @@ class HousePowerCalculator
       parsed = LineProtocolParser.parse(line)
       return line unless parsed
 
-      cache_fields(parsed)
+      # Store all numeric fields
+      parsed.fields.each do |field, value|
+        SENSOR_STORE.store(measurement: parsed.measurement, field:, timestamp: parsed.timestamp, value:) if numeric?(value)
+      end
 
-      if house_power_sensor_match?(parsed)
-        new_value = calculate_house_power(parsed.timestamp)
-        @last_house_power = new_value if new_value
-        return new_value ? LineProtocolParser.build(update_house_power(parsed, new_value)) : line
+      if house_power_trigger?(parsed)
+        corrected = calculate_house_power(parsed.timestamp)
+        if corrected
+          parsed.fields = { HOUSE_POWER_SENSOR[:field] => corrected }
+          return LineProtocolParser.build(parsed)
+        end
       end
 
       line
     end
 
-    def cache_fields(parsed)
-      parsed.fields.each do |field, value|
-        key = "#{parsed.measurement}:#{field}"
-        @cache.cache(key, value, parsed.timestamp)
-      end
+    def house_power_trigger?(parsed)
+      return false unless HOUSE_POWER_SENSOR
+
+      parsed.measurement == HOUSE_POWER_SENSOR[:measurement] &&
+        parsed.fields.key?(HOUSE_POWER_SENSOR[:field])
     end
 
-    def house_power_sensor_match?(parsed)
-      sensor = ENV.fetch('INFLUX_SENSOR_HOUSE_POWER', nil)
-      return false unless sensor
-
-      expected_measurement, expected_field = sensor.split(':')
-      parsed.measurement == expected_measurement && parsed.fields.key?(expected_field)
-    end
-
-    def calculate_house_power(reference_ts)
-      powers = {}
-      HousePowerFormula::SENSORS.each do |sensor_key|
-        sensor_env = ENV.fetch("INFLUX_SENSOR_#{sensor_key.to_s.upcase}", nil)
-        next unless sensor_env
-
-        value = @cache.fetch(sensor_env, reference_ts)
-        powers[sensor_key] = value if value
+    def calculate_house_power(target_ts)
+      powers = SENSOR_CONFIG.transform_values do |config|
+        SENSOR_STORE.interpolate(measurement: config[:measurement], field: config[:field], target_ts:)
       end
       HousePowerFormula.calculate(**powers)
     end
 
-    def update_house_power(parsed, new_value)
-      field_key = parsed.fields.keys.first
-      parsed.fields = { field_key => new_value }
-      parsed
+    def numeric?(val)
+      val.is_a?(Integer) || val.is_a?(Float)
     end
   end
 end
