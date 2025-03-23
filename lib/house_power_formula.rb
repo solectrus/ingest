@@ -1,5 +1,6 @@
 module HousePowerFormula
   INCOMING_SENSORS = %i[
+    balcony_inverter_power
     inverter_power
     grid_import_power
     battery_discharging_power

@@ -8,7 +8,7 @@ require 'sqlite3'
 
 require_relative 'app'
 require_relative 'influx_writer'
-require_relative 'sensor_data_store'
+require_relative 'store'
 require_relative 'house_power_service'
 require_relative 'house_power_formula'
 require_relative 'line_protocol_parser'

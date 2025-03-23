@@ -1,5 +1,5 @@
 class HousePowerService
-  SENSOR_STORE = SensorDataStore.new
+  STORE = Store.new
 
   def initialize(influx_token, bucket, org, precision)
     @influx_token = influx_token
@@ -23,7 +23,7 @@ class HousePowerService
     parsed.fields.each do |field, value|
       next unless numeric?(value)
 
-      SENSOR_STORE.store(
+      STORE.save(
         measurement: parsed.measurement,
         field:,
         timestamp: parsed.timestamp,
@@ -57,7 +57,7 @@ class HousePowerService
         .to_h do |sensor_key|
           config = SensorEnvConfig.send(sensor_key)
           value =
-            SENSOR_STORE.interpolate(
+            STORE.interpolate(
               measurement: config[:measurement],
               field: config[:field],
               target_ts:,

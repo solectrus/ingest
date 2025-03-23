@@ -1,18 +1,18 @@
 require 'sqlite3'
 require 'time'
 
-describe SensorDataStore do
+describe Store do
   let(:store) { described_class.new }
   let(:now) { Time.now.to_i }
 
   it 'stores and interpolates int and float values' do
-    store.store(
+    store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: now,
       value: 1000,
     )
-    store.store(
+    store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: now + 60,
@@ -29,7 +29,7 @@ describe SensorDataStore do
   end
 
   it 'uses nearest value if only one side available' do
-    store.store(
+    store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: now,
@@ -56,7 +56,7 @@ describe SensorDataStore do
   end
 
   it 'cleans up old data' do
-    store.store(
+    store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: now - 5000,
