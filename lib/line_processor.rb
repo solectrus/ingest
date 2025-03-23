@@ -1,4 +1,4 @@
-class HousePowerService
+class LineProcessor
   def initialize(influx_token, bucket, org, precision)
     @influx_token = influx_token
     @bucket = bucket
@@ -17,10 +17,7 @@ class HousePowerService
     parsed = LineProtocolParser.parse(line)
     raise 'Invalid Line Protocol' unless parsed
 
-    # Store all numeric fields into SQLite
     parsed.fields.each do |field, value|
-      next unless numeric?(value)
-
       STORE.save(
         measurement: parsed.measurement,
         field:,
@@ -83,9 +80,5 @@ class HousePowerService
       org: @org,
       precision: @precision,
     )
-  end
-
-  def numeric?(val)
-    val.is_a?(Integer) || val.is_a?(Float)
   end
 end

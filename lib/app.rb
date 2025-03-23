@@ -13,7 +13,7 @@ class App < Sinatra::Base
     halt 400, { error: 'Missing org' }.to_json unless org
 
     begin
-      HousePowerService.new(influx_token, bucket, org, precision).process(
+      LineProcessor.new(influx_token, bucket, org, precision).process(
         influx_line,
       )
       status 204

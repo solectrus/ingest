@@ -5,9 +5,7 @@ describe App do
   let(:line_protocol) { 'SENEC inverter_power=500 1234567890000000000' }
 
   it 'responds with 204 on successful write' do
-    allow_any_instance_of(HousePowerService).to receive(:process).and_return(
-      true,
-    )
+    allow_any_instance_of(LineProcessor).to receive(:process).and_return(true)
 
     post "/api/v2/write?#{params}",
          line_protocol,
