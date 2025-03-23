@@ -1,14 +1,13 @@
 require 'sequel'
 
 class Store
-  DB = Sequel.sqlite('db/sensor_data.db')
-
-  def initialize
+  def initialize(db = Sequel.sqlite('db/sensor_data.db'))
+    @db = db
     create_table
   end
 
   def create_table
-    DB.create_table? :sensor_data do
+    @db.create_table? :sensor_data do
       String :measurement, null: false
       String :field, null: false
       Integer :timestamp, null: false
@@ -47,7 +46,7 @@ class Store
       raise 'Invalid value type'
     end
 
-    DB[:sensor_data].insert_conflict(
+    @db[:sensor_data].insert_conflict(
       target: %i[measurement field timestamp],
       update: {
         value_int: Sequel[:excluded][:value_int],
@@ -60,7 +59,7 @@ class Store
 
   def interpolate(measurement:, field:, target_ts:)
     ds =
-      DB[:sensor_data].where(
+      @db[:sensor_data].where(
         Sequel[:measurement] => measurement,
         Sequel[:field] => field,
       )
@@ -96,6 +95,6 @@ class Store
   end
 
   def cleanup(older_than_ts)
-    DB[:sensor_data].where { timestamp < older_than_ts }.delete
+    @db[:sensor_data].where { timestamp < older_than_ts }.delete
   end
 end
