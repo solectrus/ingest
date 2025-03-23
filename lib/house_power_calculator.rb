@@ -1,8 +1,3 @@
-require 'house_power_formula'
-require 'line_protocol_parser'
-require 'sensor_env_config'
-require 'sensor_data_store'
-
 class HousePowerCalculator
   SENSOR_STORE = SensorDataStore.new
 

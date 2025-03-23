@@ -1,12 +1,3 @@
-require 'dotenv/load'
-require 'sinatra/base'
-require 'json'
-
-require 'influx_writer'
-require 'sensor_data_store'
-require 'house_power_service'
-require 'sensor_env_config'
-
 class App < Sinatra::Base
   post '/api/v2/write' do
     content_type 'application/json'

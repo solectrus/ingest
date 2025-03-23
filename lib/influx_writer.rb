@@ -1,5 +1,3 @@
-require 'influxdb-client'
-
 class InfluxWriter
   INFLUX_URL = ENV.fetch('INFLUX_URL', 'http://localhost:8086')
 

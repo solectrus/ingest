@@ -1,9 +1,3 @@
-require 'sensor_env_config'
-require 'sensor_data_store'
-require 'influx_writer'
-require 'house_power_formula'
-require 'line_protocol_parser'
-
 class HousePowerService
   SENSOR_STORE = SensorDataStore.new
 

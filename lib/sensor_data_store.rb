@@ -1,5 +1,3 @@
-require 'sqlite3'
-
 class SensorDataStore
   DB_FILE = 'db/sensor_data.db'.freeze
 
