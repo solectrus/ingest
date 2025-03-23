@@ -24,8 +24,9 @@ class HousePowerCalculator
         )
       end
 
-      if house_power_trigger?(parsed)
+      if house_power?(parsed)
         corrected = calculate_house_power(parsed.timestamp)
+
         if corrected
           parsed.fields = { SensorEnvConfig.house_power[:field] => corrected }
           return LineProtocolParser.build(parsed)
@@ -35,8 +36,9 @@ class HousePowerCalculator
       line
     end
 
-    def house_power_trigger?(parsed)
+    def house_power?(parsed)
       house_sensor = SensorEnvConfig.house_power
+
       parsed.measurement == house_sensor[:measurement] &&
         parsed.fields.key?(house_sensor[:field])
     end
