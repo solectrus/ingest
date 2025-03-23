@@ -18,7 +18,7 @@ module HousePowerFormula
   public_constant :SENSORS
 
   class << self
-    # Calculates house power based on the given sensor values
+    # Calculates the corrected house power based on known sensor powers
     def calculate(**powers)
       validate_keys!(powers)
 
