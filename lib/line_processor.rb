@@ -45,7 +45,7 @@ class LineProcessor
       parsed.fields.key?(house_sensor[:field])
   end
 
-  def calculate_house_power(target_ts)
+  def calculate_house_power(target_ts) # rubocop:disable Metrics/CyclomaticComplexity
     sensor_keys = %i[
       inverter_power
       balcony_inverter_power

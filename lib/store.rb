@@ -22,7 +22,7 @@ class Store
     end
   end
 
-  def save(measurement:, field:, timestamp:, value:)
+  def save(measurement:, field:, timestamp:, value:) # rubocop:disable Metrics/AbcSize
     raise 'Invalid measurement or field' if measurement.nil? || field.nil?
 
     data = {
@@ -59,7 +59,7 @@ class Store
     ).insert(data)
   end
 
-  def interpolate(measurement:, field:, target_ts:)
+  def interpolate(measurement:, field:, target_ts:) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     ds =
       @db[:sensor_data].where(
         Sequel[:measurement] => measurement,
