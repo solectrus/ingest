@@ -17,13 +17,15 @@ class InfluxWriter
           influx_token,
           use_ssl: INFLUX_URL.start_with?('https'),
         )
+
       client.create_write_api.write(
         data: influx_line,
         bucket:,
         org:,
         precision:,
       )
-      client.close!
+    ensure
+      client&.close!
     end
   end
 end
