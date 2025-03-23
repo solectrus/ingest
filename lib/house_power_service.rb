@@ -6,8 +6,6 @@ require 'line_protocol_parser'
 
 class HousePowerService
   SENSOR_STORE = SensorDataStore.new
-  SENSOR_CONFIG = SensorEnvConfig.load
-  HOUSE_POWER_SENSOR = SensorEnvConfig.house_power_sensor
 
   def initialize(influx_token, bucket, org, precision)
     @influx_token = influx_token
@@ -36,7 +34,7 @@ class HousePowerService
     if house_power_trigger?(parsed)
       corrected = calculate_house_power(parsed.timestamp)
       if corrected
-        parsed.fields[HOUSE_POWER_SENSOR[:field]] = corrected
+        parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
         return write_influx(LineProtocolParser.build(parsed))
       end
     end
@@ -46,20 +44,22 @@ class HousePowerService
   end
 
   def house_power_trigger?(parsed)
-    return false unless HOUSE_POWER_SENSOR
-
-    parsed.measurement == HOUSE_POWER_SENSOR[:measurement] &&
-      parsed.fields.key?(HOUSE_POWER_SENSOR[:field])
+    house_sensor = SensorEnvConfig.house_power
+    parsed.measurement == house_sensor[:measurement] &&
+      parsed.fields.key?(house_sensor[:field])
   end
 
   def calculate_house_power(target_ts)
-    powers = SENSOR_CONFIG.transform_values do |config|
-      SENSOR_STORE.interpolate(
+    powers = SensorEnvConfig::SENSOR_KEYS.reject { _1 == :house_power }.to_h do |sensor_key|
+      config = SensorEnvConfig.send(sensor_key)
+      value = SENSOR_STORE.interpolate(
         measurement: config[:measurement],
         field: config[:field],
         target_ts:,
       )
+      [sensor_key, value]
     end
+
     HousePowerFormula.calculate(**powers)
   end
 
