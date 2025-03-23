@@ -74,8 +74,8 @@ class Store
 
     return unless prev || nxt
 
-    prev_val = prev[:value_float] || prev[:value_int]
-    nxt_val = nxt[:value_float] || nxt[:value_int]
+    prev_val = prev[:value_float] || prev[:value_int] if prev
+    nxt_val = nxt[:value_float] || nxt[:value_int] if nxt
 
     return prev_val if prev && !nxt
     return nxt_val if nxt && !prev
