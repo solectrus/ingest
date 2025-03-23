@@ -16,12 +16,16 @@ class App < Sinatra::Base
       LineProcessor.new(influx_token, bucket, org, precision).process(
         influx_line,
       )
-      status 204
+      status 204 # No Content
+    rescue InfluxDB2::InfluxError => e
+      warn e
+      status 202 # Accepted
     rescue InvalidLineProtocolError
-      status 400
+      warn e
+      status 400 # Bad Request
     rescue StandardError => e
-      warn "Processing error: #{e}"
-      status 500
+      warn e
+      status 500 # Internal Server Error
     end
   end
 
