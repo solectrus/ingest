@@ -12,6 +12,9 @@ gem 'puma'
 # Ruby library for InfluxDB 2. (https://github.com/influxdata/influxdb-client-ruby)
 gem 'influxdb-client'
 
+# Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
+gem 'sqlite3'
+
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
 
