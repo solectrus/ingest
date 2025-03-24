@@ -37,7 +37,7 @@ class LineProcessor
         corrected_line = parsed.to_s
         write_influx(corrected_line)
 
-        parsed.fields.each do |field, _|
+        parsed.fields.each_key do |field|
           STORE.mark_synced(
             measurement: parsed.measurement,
             field: field,
@@ -48,7 +48,7 @@ class LineProcessor
       end
     else
       write_influx(line)
-      parsed.fields.each do |field, _|
+      parsed.fields.each_key do |field|
         STORE.mark_synced(
           measurement: parsed.measurement,
           field:,
