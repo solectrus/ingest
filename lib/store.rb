@@ -8,7 +8,7 @@ class Store
 
   attr_reader :db
 
-  def create_tables
+  def create_tables # rubocop:disable Metrics/AbcSize
     db.create_table? :targets do
       primary_key :id
       String :influx_token, null: false

@@ -17,7 +17,7 @@ class LineProcessor
 
   private
 
-  def process_and_store(line, target_id)
+  def process_and_store(line, target_id) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
     parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|

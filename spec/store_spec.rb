@@ -33,7 +33,7 @@ describe Store do
     expect(row[:value_float]).to eq(42.5)
   end
 
-  it 'interpolates between two points' do
+  it 'interpolates between two points' do # rubocop:disable RSpec/ExampleLength
     store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
