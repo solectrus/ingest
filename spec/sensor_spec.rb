@@ -1,6 +1,4 @@
-describe Store do
-  let(:store) { STORE }
-
+describe Sensor do
   let(:target) do
     Target.create!(
       influx_token: 'test-token',
@@ -10,38 +8,38 @@ describe Store do
   end
 
   it 'saves integer values correctly' do
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 42,
     )
-    row = Sensor.first
+    row = described_class.first
     expect(row.value_int).to eq(42)
   end
 
   it 'saves float values correctly' do
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 42.5,
     )
-    row = Sensor.first
+    row = described_class.first
     expect(row.value_float).to eq(42.5)
   end
 
   it 'interpolates between two points' do # rubocop:disable RSpec/ExampleLength
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
     )
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
@@ -50,7 +48,7 @@ describe Store do
     )
 
     expect(
-      store.interpolate(
+      described_class.interpolate(
         measurement: 'SENEC',
         field: 'inverter_power',
         timestamp: 1500,
@@ -59,7 +57,7 @@ describe Store do
   end
 
   it 'returns exact value if timestamp matches' do
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
@@ -67,7 +65,7 @@ describe Store do
       value: 100,
     )
     expect(
-      store.interpolate(
+      described_class.interpolate(
         measurement: 'SENEC',
         field: 'inverter_power',
         timestamp: 1000,
@@ -76,23 +74,23 @@ describe Store do
   end
 
   it 'cleans up old data' do
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
     )
-    store.save_sensor(
+    described_class.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
       value: 200,
     )
-    store.cleanup(1500)
+    described_class.cleanup(1500)
 
-    expect(Sensor.count).to eq(1)
-    expect(Sensor.first.timestamp).to eq(2000)
+    expect(described_class.count).to eq(1)
+    expect(described_class.first.timestamp).to eq(2000)
   end
 end

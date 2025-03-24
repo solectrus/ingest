@@ -15,11 +15,8 @@ require_relative '../models/sensor'
 
 require_relative 'app'
 require_relative 'influx_writer'
-require_relative 'store'
 require_relative 'replay_worker'
 require_relative 'house_power_formula'
 require_relative 'line'
 require_relative 'processor'
 require_relative 'sensor_env_config'
-
-STORE = Store.new

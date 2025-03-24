@@ -9,7 +9,7 @@ describe ReplayWorker do
         org: 'test-org',
       )
 
-    STORE.save_sensor(
+    Sensor.save_sensor(
       target:,
       measurement: 'SENEC',
       field: 'inverter_power',
@@ -17,7 +17,7 @@ describe ReplayWorker do
       value: 100,
     )
 
-    STORE.save_sensor(
+    Sensor.save_sensor(
       target:,
       measurement: 'Heatpump',
       field: 'power',

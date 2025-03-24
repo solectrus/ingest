@@ -21,7 +21,7 @@ class Processor
     parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|
-      STORE.save_sensor(
+      Sensor.save_sensor(
         target:,
         measurement: parsed.measurement,
         field: field,
@@ -84,7 +84,7 @@ class Processor
       next unless config[:measurement] && config[:field]
       next if config[:measurement].empty? || config[:field].empty?
 
-      value = STORE.interpolate(**config, timestamp:)
+      value = Sensor.interpolate(**config, timestamp:)
       powers[key] = value unless value.nil?
     end
 

@@ -7,7 +7,7 @@ Thread.new do
     sleep 3600
 
     puts '[Cleanup] Deleting old entries'
-    STORE.cleanup
+    Sensor.cleanup
   rescue StandardError => e
     warn "[Cleanup] Error: #{e.message}"
   end
