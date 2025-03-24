@@ -40,10 +40,10 @@ class Sensor < ActiveRecord::Base
     return unless prev && nxt
     return prev.value if prev.timestamp == nxt.timestamp
 
-    t0 = prev.timestamp
     v0 = prev.value
-    t1 = nxt.timestamp
     v1 = nxt.value
+    t0 = prev.timestamp
+    t1 = nxt.timestamp
 
     v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end
