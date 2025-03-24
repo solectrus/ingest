@@ -9,7 +9,7 @@ class Processor
   attr_reader :influx_token, :bucket, :org, :precision
 
   def run(influx_line)
-    target = STORE.save_target(influx_token:, bucket:, org:, precision:)
+    target = Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
 
     lines = influx_line.split("\n")
     lines.each { |line| process_and_store(line, target) }

@@ -2,7 +2,7 @@ describe Store do
   let(:store) { STORE }
 
   let(:target) do
-    store.save_target(
+    Target.create!(
       influx_token: 'test-token',
       bucket: 'test-bucket',
       org: 'test-org',

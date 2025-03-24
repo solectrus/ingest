@@ -3,7 +3,7 @@ describe ReplayWorker do
 
   before do
     target =
-      STORE.save_target(
+      Target.create!(
         influx_token: 'test-token',
         bucket: 'test-bucket',
         org: 'test-org',

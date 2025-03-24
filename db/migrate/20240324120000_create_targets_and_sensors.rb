@@ -4,7 +4,7 @@ class CreateTargetsAndSensors < ActiveRecord::Migration[8.0]
       t.string :bucket, null: false
       t.string :org, null: false
       t.string :influx_token, null: false
-      t.string :precision, null: false
+      t.string :precision, null: false, default: 'ns'
     end
 
     create_table :sensors do |t|

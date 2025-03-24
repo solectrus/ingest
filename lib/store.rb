@@ -1,8 +1,4 @@
 class Store
-  def save_target(influx_token:, bucket:, org:, precision: 'ns')
-    Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
-  end
-
   def save_sensor(target:, measurement:, field:, timestamp:, value:)
     sensor_attrs = { measurement:, field:, timestamp:, synced: false }
 
