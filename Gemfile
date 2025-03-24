@@ -24,6 +24,9 @@ gem 'json'
 # Loads environment variables from `.env`. (https://github.com/bkeepers/dotenv)
 gem 'dotenv'
 
+# Rake is a Make-like program implemented in Ruby (https://github.com/ruby/rake)
+gem 'rake'
+
 group :development do
   # Launches an app, and restarts it whenever the filesystem changes. A no-frills, command-line alternative to Guard, Shotgun, Autotest, etc. (http://github.com/alexch/rerun/)
   gem 'rerun'
@@ -36,6 +39,9 @@ group :development do
 
   # Code style checking for RSpec files (https://github.com/rubocop/rubocop-rspec)
   gem 'rubocop-rspec'
+
+  # A RuboCop plugin for Rake (https://github.com/rubocop/rubocop-rake)
+  gem 'rubocop-rake'
 
   # Automatic Rails code style checking tool. (https://github.com/rubocop/rubocop-rails)
   gem 'rubocop-rails'

@@ -2,6 +2,7 @@ plugins:
   - rubocop-performance
   - rubocop-rspec
   - rubocop-rails
+  - rubocop-rake
 
 AllCops:
   TargetRubyVersion: 3.4
@@ -69,4 +70,7 @@ Rails/ThreeStateBooleanColumn:
   Enabled: false
 
 Rails/Output:
+  Enabled: false
+
+Rails/RakeEnvironment:
   Enabled: false

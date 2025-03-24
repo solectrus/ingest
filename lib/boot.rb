@@ -7,13 +7,9 @@ require 'influxdb-client'
 require 'sqlite3'
 require 'active_record'
 
-ActiveRecord::Base.establish_connection(
-  adapter: 'sqlite3',
-  database:
-    ENV.fetch('APP_ENV', '') == 'test' ? ':memory:' : 'db/development.sqlite3',
-)
+DB_FILE = ENV.fetch('DB_FILE', 'db/production.sqlite3')
+ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: DB_FILE)
 
-require_relative '../db/schema'
 require_relative '../models/target'
 require_relative '../models/sensor'
 

@@ -5,14 +5,18 @@ Dotenv.load('.env.test.local', '.env.test')
 
 require 'rspec'
 require 'rack/test'
+require 'active_record'
 
-require_relative '../lib/boot' # ⬅️ zentrales Boot
+ENV['DB_FILE'] = ':memory:'
+require_relative '../lib/boot'
+
+ActiveRecord::MigrationContext.new('db/migrate').up
 
 RSpec.configure { |conf| conf.include Rack::Test::Methods }
 
 RSpec.configure do |config|
   config.before do
-    Target.delete_all
     Sensor.delete_all
+    Target.delete_all
   end
 end
