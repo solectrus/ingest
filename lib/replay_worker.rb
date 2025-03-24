@@ -35,20 +35,25 @@ class ReplayWorker
 
   def build_lines(batch)
     batch.map do |row|
-      value = store.extract_value(row)
+      value = STORE.extract_value(row)
 
-      LineProtocolParser.build(
-        row[:measurement],
-        row[:field],
-        value,
-        row[:timestamp],
-      )
+      line =
+        LineProtocolParser::ParsedLine.new(
+          measurement: row[:measurement],
+          tags: nil,
+          fields: {
+            row[:field] => value,
+          },
+          timestamp: row[:timestamp],
+        )
+
+      LineProtocolParser.build(line)
     end
   end
 
   def mark_as_synced(batch)
     batch.each do |row|
-      store.db[:sensor_data].where(
+      STORE.db[:sensor_data].where(
         measurement: row[:measurement],
         field: row[:field],
         timestamp: row[:timestamp],
