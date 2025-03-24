@@ -5,29 +5,36 @@ class ReplayWorker
 
   attr_reader :batch_size
 
-  # Triggers the replay of all unsynced data from the store
   def replay!
-    loop do
-      batch = fetch_batch
-      break if batch.empty?
+    STORE.db[:targets].each do |target|
+      loop do
+        batch = fetch_batch(target[:id])
+        break if batch.empty?
 
-      lines = build_lines(batch)
+        lines = build_lines(batch)
 
-      begin
-        InfluxWriter.write(lines.join("\n"))
-        mark_as_synced(batch)
-      rescue StandardError => e
-        puts "Replay failed: #{e.message}"
-        break
+        begin
+          InfluxWriter.write(
+            lines.join("\n"),
+            influx_token: target[:influx_token],
+            bucket: target[:bucket],
+            org: target[:org],
+            precision: target[:precision],
+          )
+          mark_as_synced(batch)
+        rescue StandardError => e
+          puts "Replay failed for target #{target[:id]}: #{e.message}"
+          break
+        end
       end
     end
   end
 
   private
 
-  def fetch_batch
+  def fetch_batch(target_id)
     STORE.db[:sensor_data]
-      .where(synced: false)
+      .where(synced: false, target_id:)
       .order(:timestamp)
       .limit(batch_size)
       .all
@@ -36,7 +43,6 @@ class ReplayWorker
   def build_lines(batch)
     batch.map do |row|
       value = STORE.extract_value(row)
-
       Line.new(
         measurement: row[:measurement],
         fields: {
@@ -49,11 +55,12 @@ class ReplayWorker
 
   def mark_as_synced(batch)
     batch.each do |row|
-      STORE.db[:sensor_data].where(
+      STORE.mark_synced(
         measurement: row[:measurement],
         field: row[:field],
         timestamp: row[:timestamp],
-      ).update(synced: true)
+        target_id: row[:target_id],
+      )
     end
   end
 end

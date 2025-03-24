@@ -16,7 +16,18 @@ RSpec.configure { |conf| conf.include Rack::Test::Methods }
 RSpec.configure do |config|
   config.before do
     STORE.db.drop_table?(:sensor_data)
-    STORE.db.create_table :sensor_data do
+    STORE.db.drop_table?(:targets)
+
+    STORE.db.create_table? :targets do
+      primary_key :id
+      String :influx_token, null: false
+      String :bucket, null: false
+      String :org, null: false
+      String :precision, null: false
+      unique %i[influx_token bucket org precision]
+    end
+
+    STORE.db.create_table? :sensor_data do
       String :measurement, null: false
       String :field, null: false
       Integer :timestamp, null: false
@@ -25,10 +36,15 @@ RSpec.configure do |config|
       TrueClass :value_bool
       String :value_string
       TrueClass :synced, default: false
-      primary_key %i[measurement field timestamp]
-      index :synced
+      Integer :target_id, null: false
+      foreign_key [:target_id], :targets
+      primary_key %i[measurement field timestamp target_id]
+      index %i[synced target_id]
     end
   end
 
-  config.after { STORE.db.drop_table?(:sensor_data) }
+  config.after do
+    STORE.db.drop_table?(:sensor_data)
+    STORE.db.drop_table?(:targets)
+  end
 end

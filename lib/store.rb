@@ -3,13 +3,22 @@ require 'sequel'
 class Store
   def initialize(db_url)
     @db = Sequel.sqlite(db_url)
-    create_table
+    create_tables
   end
 
   attr_reader :db
 
-  def create_table
-    @db.create_table? :sensor_data do
+  def create_tables
+    db.create_table? :targets do
+      primary_key :id
+      String :influx_token, null: false
+      String :bucket, null: false
+      String :org, null: false
+      String :precision, null: false
+      unique %i[influx_token bucket org precision]
+    end
+
+    db.create_table? :sensor_data do
       String :measurement, null: false
       String :field, null: false
       Integer :timestamp, null: false
@@ -18,16 +27,22 @@ class Store
       TrueClass :value_bool
       String :value_string
       TrueClass :synced, default: false
-      primary_key %i[measurement field timestamp]
-      index %i[measurement field timestamp]
-      index :synced
+      Integer :target_id, null: false
+      foreign_key [:target_id], :targets
+      primary_key %i[measurement field timestamp target_id]
+      index %i[synced target_id]
     end
   end
 
-  # Saves a single measurement into SQLite, upserts on conflict
-  def save(measurement:, field:, timestamp:, value:) # rubocop:disable Metrics/AbcSize
-    raise 'Invalid measurement or field' if measurement.nil? || field.nil?
+  def save_target(influx_token:, bucket:, org:, precision:)
+    existing =
+      db[:targets].where(influx_token:, bucket:, org:, precision:).get(:id)
+    return existing if existing
 
+    db[:targets].insert(influx_token:, bucket:, org:, precision:)
+  end
+
+  def save(measurement:, field:, timestamp:, value:, target_id:) # rubocop:disable Metrics/AbcSize
     data = {
       measurement: measurement.to_s.strip,
       field: field.to_s.strip,
@@ -37,6 +52,7 @@ class Store
       value_bool: nil,
       value_string: nil,
       synced: false,
+      target_id: target_id,
     }
 
     case value
@@ -52,8 +68,8 @@ class Store
       raise 'Invalid value type'
     end
 
-    @db[:sensor_data].insert_conflict(
-      target: %i[measurement field timestamp],
+    db[:sensor_data].insert_conflict(
+      target: %i[measurement field timestamp target_id],
       update: {
         value_int: Sequel[:excluded][:value_int],
         value_float: Sequel[:excluded][:value_float],
@@ -64,9 +80,17 @@ class Store
     ).insert(data)
   end
 
-  # Interpolates a value for a given measurement, field, and timestamp
+  def mark_synced(measurement:, field:, timestamp:, target_id:)
+    db[:sensor_data].where(
+      measurement: measurement,
+      field: field,
+      timestamp: timestamp,
+      target_id: target_id,
+    ).update(synced: true)
+  end
+
   def interpolate(measurement:, field:, target_ts:) # rubocop:disable Metrics/AbcSize
-    ds = @db[:sensor_data].where(measurement: measurement, field: field)
+    ds = db[:sensor_data].where(measurement: measurement, field: field)
 
     prev =
       ds.where { timestamp <= target_ts }.order(Sequel.desc(:timestamp)).first
@@ -83,7 +107,6 @@ class Store
     v0 + ((v1 - v0) * (target_ts - t0) / (t1 - t0))
   end
 
-  # Extracts the correct value based on type
   def extract_value(row)
     row[:value_int] || row[:value_float] || row[:value_bool] ||
       row[:value_string].to_f
@@ -92,14 +115,6 @@ class Store
   def cleanup(older_than_ts = nil)
     older_than_ts ||=
       (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000) # 12h in ns
-    @db[:sensor_data].where { timestamp < older_than_ts }.delete
-  end
-
-  def mark_synced(measurement:, field:, timestamp:)
-    db[:sensor_data].where(
-      measurement: measurement,
-      field: field,
-      timestamp: timestamp,
-    ).update(synced: true)
+    db[:sensor_data].where { timestamp < older_than_ts }.delete
   end
 end

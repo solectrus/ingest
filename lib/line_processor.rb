@@ -9,13 +9,15 @@ class LineProcessor
   attr_reader :influx_token, :bucket, :org, :precision
 
   def process(influx_line)
+    target_id = STORE.save_target(influx_token:, bucket:, org:, precision:)
+
     lines = influx_line.split("\n")
-    lines.each { |line| process_and_store(line) }
+    lines.each { |line| process_and_store(line, target_id) }
   end
 
   private
 
-  def process_and_store(line)
+  def process_and_store(line, target_id)
     parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|
@@ -24,16 +26,14 @@ class LineProcessor
         field:,
         timestamp: parsed.timestamp,
         value:,
+        target_id:,
       )
     end
 
-    # Check if this line is the house_power sensor trigger
     if house_power_trigger?(parsed)
       corrected = calculate_house_power(parsed.timestamp)
-
       if corrected
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
-
         corrected_line = parsed.to_s
         write_influx(corrected_line)
 
@@ -42,18 +42,18 @@ class LineProcessor
             measurement: parsed.measurement,
             field: field,
             timestamp: parsed.timestamp,
+            target_id: target_id,
           )
         end
       end
     else
-      # Otherwise, forward unmodified
       write_influx(line)
-
       parsed.fields.each do |field, _|
         STORE.mark_synced(
           measurement: parsed.measurement,
           field:,
           timestamp: parsed.timestamp,
+          target_id:,
         )
       end
     end
