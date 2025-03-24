@@ -11,4 +11,6 @@ Thread.new do
   end
 end
 
+ReplayWorker.new.replay!
+
 run App

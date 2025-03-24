@@ -25,7 +25,7 @@ class Store
   end
 
   # Saves a single measurement into SQLite, upserts on conflict
-  def save(measurement:, field:, timestamp:, value:)
+  def save(measurement:, field:, timestamp:, value:) # rubocop:disable Metrics/AbcSize
     raise 'Invalid measurement or field' if measurement.nil? || field.nil?
 
     data = {
@@ -65,7 +65,7 @@ class Store
   end
 
   # Interpolates a value for a given measurement, field, and timestamp
-  def interpolate(measurement:, field:, target_ts:)
+  def interpolate(measurement:, field:, target_ts:) # rubocop:disable Metrics/AbcSize
     ds = @db[:sensor_data].where(measurement: measurement, field: field)
 
     prev =
@@ -87,44 +87,6 @@ class Store
   def extract_value(row)
     row[:value_int] || row[:value_float] || row[:value_bool] ||
       row[:value_string].to_f
-  end
-
-  # Replays all unsynced data to InfluxDB
-  def replay_unsynced_data(influx_writer, batch_size: 1000)
-    loop do
-      batch =
-        db[:sensor_data]
-          .where(synced: false)
-          .order(:timestamp)
-          .limit(batch_size)
-          .all
-
-      break if batch.empty?
-
-      lines =
-        batch.map do |row|
-          value = extract_value(row)
-          "#{row[:measurement]},field=#{row[:field]} value=#{value} #{row[:timestamp]}"
-        end
-
-      begin
-        influx_writer.write(lines.join("\n"))
-
-        # Mark as synced after successful write
-        ids =
-          batch.map { |row| [row[:measurement], row[:field], row[:timestamp]] }
-        ids.each do |measurement, field, timestamp|
-          db[:sensor_data].where(
-            measurement: measurement,
-            field: field,
-            timestamp: timestamp,
-          ).update(synced: true)
-        end
-      rescue StandardError => e
-        puts "Replay failed: #{e.message}"
-        break # stop replaying to avoid inconsistent state
-      end
-    end
   end
 
   def cleanup(older_than_ts = nil)
