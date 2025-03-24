@@ -14,6 +14,12 @@ Thread.new do
   end
 end
 
-ReplayWorker.new.replay!
+Thread.new do
+  loop do
+    ReplayWorker.new.replay!
+
+    sleep 60
+  end
+end
 
 run App

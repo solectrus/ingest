@@ -36,6 +36,8 @@ class Processor
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
         corrected_line = parsed.to_s
         write_influx(corrected_line)
+      else
+        write_influx(line)
       end
     else
       write_influx(line)

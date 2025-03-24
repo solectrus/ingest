@@ -11,7 +11,8 @@ class ReplayWorker
         batch = fetch_batch(target)
         break if batch.empty?
 
-        lines = build_lines(batch)
+        puts "Replaying #{batch.size} sensors for target #{target.id}"
+        lines = build_lines(target, batch)
 
         begin
           InfluxWriter.write(
@@ -37,14 +38,14 @@ class ReplayWorker
     target.sensors.where(synced: false).order(:timestamp).limit(batch_size)
   end
 
-  def build_lines(batch)
+  def build_lines(target, batch)
     batch.map do |sensor|
       Line.new(
         measurement: sensor.measurement,
         fields: {
           sensor.field => sensor.value,
         },
-        timestamp: sensor.timestamp,
+        timestamp: target.timestamp(sensor.timestamp),
       ).to_s
     end
   end

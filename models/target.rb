@@ -15,4 +15,17 @@ class Target < ActiveRecord::Base
       timestamp
     end
   end
+
+  def timestamp(timestamp_ns)
+    case precision
+    when 's'
+      timestamp_ns / 1_000_000_000
+    when 'ms'
+      timestamp_ns / 1_000_000
+    when 'us'
+      timestamp_ns / 1_000
+    else
+      timestamp_ns
+    end
+  end
 end
