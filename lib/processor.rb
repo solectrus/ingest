@@ -20,14 +20,15 @@ class Processor
   def process_and_store(line, target) # rubocop:disable Metrics/AbcSize
     parsed = Line.parse(line)
 
-    parsed.fields.each do |field, value|
-      target.sensors.create!(
-        measurement: parsed.measurement,
-        field:,
-        value:,
-        timestamp: parsed.timestamp,
-      )
-    end
+    sensors =
+      parsed.fields.map do |field, value|
+        target.sensors.create!(
+          measurement: parsed.measurement,
+          field:,
+          value:,
+          timestamp: target.timestamp_ns(parsed.timestamp),
+        )
+      end
 
     if house_power_trigger?(parsed)
       corrected = calculate_house_power(parsed.timestamp)
@@ -35,26 +36,12 @@ class Processor
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
         corrected_line = parsed.to_s
         write_influx(corrected_line)
-        mark_fields_synced(parsed, target)
       end
     else
       write_influx(line)
-      mark_fields_synced(parsed, target)
     end
-  end
 
-  def mark_fields_synced(parsed, target)
-    parsed.fields.each_key do |field|
-      sensor =
-        Sensor.find_by(
-          measurement: parsed.measurement,
-          field: field,
-          timestamp: parsed.timestamp,
-          target_id: target.id,
-        )
-
-      sensor&.update!(synced: true)
-    end
+    sensors.each(&:mark_synced!)
   end
 
   def house_power_trigger?(parsed)
