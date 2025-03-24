@@ -92,7 +92,14 @@ class Store
   def cleanup(older_than_ts = nil)
     older_than_ts ||=
       (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000) # 12h in ns
-
     @db[:sensor_data].where { timestamp < older_than_ts }.delete
+  end
+
+  def mark_synced(measurement:, field:, timestamp:)
+    db[:sensor_data].where(
+      measurement: measurement,
+      field: field,
+      timestamp: timestamp,
+    ).update(synced: true)
   end
 end
