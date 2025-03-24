@@ -24,7 +24,9 @@ RSpec.configure do |config|
       Float :value_float
       TrueClass :value_bool
       String :value_string
+      TrueClass :synced, default: false
       primary_key %i[measurement field timestamp]
+      index :synced
     end
   end
 

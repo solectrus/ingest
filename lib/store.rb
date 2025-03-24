@@ -17,12 +17,15 @@ class Store
       Float :value_float
       TrueClass :value_bool
       String :value_string
+      TrueClass :synced, default: false
       primary_key %i[measurement field timestamp]
       index %i[measurement field timestamp]
+      index :synced
     end
   end
 
-  def save(measurement:, field:, timestamp:, value:) # rubocop:disable Metrics/AbcSize
+  # Saves a single measurement into SQLite, upserts on conflict
+  def save(measurement:, field:, timestamp:, value:)
     raise 'Invalid measurement or field' if measurement.nil? || field.nil?
 
     data = {
@@ -33,6 +36,7 @@ class Store
       value_float: nil,
       value_bool: nil,
       value_string: nil,
+      synced: false,
     }
 
     case value
@@ -55,44 +59,71 @@ class Store
         value_float: Sequel[:excluded][:value_float],
         value_bool: Sequel[:excluded][:value_bool],
         value_string: Sequel[:excluded][:value_string],
+        synced: false,
       },
     ).insert(data)
   end
 
-  def interpolate(measurement:, field:, target_ts:) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-    ds =
-      @db[:sensor_data].where(
-        Sequel[:measurement] => measurement,
-        Sequel[:field] => field,
-      )
+  # Interpolates a value for a given measurement, field, and timestamp
+  def interpolate(measurement:, field:, target_ts:)
+    ds = @db[:sensor_data].where(measurement: measurement, field: field)
 
     prev =
-      ds
-        .where(Sequel[:timestamp] <= target_ts)
-        .order(Sequel.desc(:timestamp))
-        .first
+      ds.where { timestamp <= target_ts }.order(Sequel.desc(:timestamp)).first
+    nxt = ds.where { timestamp >= target_ts }.order(:timestamp).first
 
-    nxt = ds.where(Sequel[:timestamp] >= target_ts).order(:timestamp).first
+    return unless prev && nxt
+    return extract_value(prev) if prev[:timestamp] == nxt[:timestamp]
 
-    return unless prev || nxt
+    t0 = prev[:timestamp]
+    v0 = extract_value(prev)
+    t1 = nxt[:timestamp]
+    v1 = extract_value(nxt)
 
-    prev_val = prev[:value_float] || prev[:value_int] if prev
-    nxt_val = nxt[:value_float] || nxt[:value_int] if nxt
+    v0 + ((v1 - v0) * (target_ts - t0) / (t1 - t0))
+  end
 
-    return prev_val if prev && !nxt
-    return nxt_val if nxt && !prev
+  # Extracts the correct value based on type
+  def extract_value(row)
+    row[:value_int] || row[:value_float] || row[:value_bool] ||
+      row[:value_string].to_f
+  end
 
-    return unless prev_val && nxt_val
+  # Replays all unsynced data to InfluxDB
+  def replay_unsynced_data(influx_writer, batch_size: 1000)
+    loop do
+      batch =
+        db[:sensor_data]
+          .where(synced: false)
+          .order(:timestamp)
+          .limit(batch_size)
+          .all
 
-    if prev[:timestamp] == nxt[:timestamp]
-      prev_val
-    else
-      t1 = prev[:timestamp]
-      t2 = nxt[:timestamp]
-      v1 = prev_val.to_f
-      v2 = nxt_val.to_f
+      break if batch.empty?
 
-      v1 + ((v2 - v1) * ((target_ts - t1).to_f / (t2 - t1)))
+      lines =
+        batch.map do |row|
+          value = extract_value(row)
+          "#{row[:measurement]},field=#{row[:field]} value=#{value} #{row[:timestamp]}"
+        end
+
+      begin
+        influx_writer.write(lines.join("\n"))
+
+        # Mark as synced after successful write
+        ids =
+          batch.map { |row| [row[:measurement], row[:field], row[:timestamp]] }
+        ids.each do |measurement, field, timestamp|
+          db[:sensor_data].where(
+            measurement: measurement,
+            field: field,
+            timestamp: timestamp,
+          ).update(synced: true)
+        end
+      rescue StandardError => e
+        puts "Replay failed: #{e.message}"
+        break # stop replaying to avoid inconsistent state
+      end
     end
   end
 
