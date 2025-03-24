@@ -2,27 +2,27 @@ describe ReplayWorker do
   let(:influx_writer) { class_double(InfluxWriter).as_stubbed_const }
 
   before do
-    target_id =
+    target =
       STORE.save_target(
         influx_token: 'test-token',
         bucket: 'test-bucket',
         org: 'test-org',
       )
 
-    STORE.save(
+    STORE.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1_000_000_000,
       value: 100,
-      target_id:,
     )
 
-    STORE.save(
+    STORE.save_sensor(
+      target:,
       measurement: 'Heatpump',
       field: 'power',
       timestamp: 2_000_000_000,
       value: 200,
-      target_id:,
     )
   end
 
@@ -33,7 +33,7 @@ describe ReplayWorker do
 
     expect(InfluxWriter).to have_received(:write).once
 
-    synced = STORE.db[:sensor_data].exclude(synced: true).count
+    synced = Sensor.where(synced: false).count
     expect(synced).to eq(0)
   end
 end

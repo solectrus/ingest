@@ -1,127 +1,55 @@
-require 'sequel'
-
 class Store
-  def initialize(db_url)
-    @db = Sequel.sqlite(db_url)
-    create_tables
-  end
-
-  attr_reader :db
-
-  def create_tables # rubocop:disable Metrics/AbcSize
-    db.create_table? :targets do
-      primary_key :id
-      String :influx_token, null: false
-      String :bucket, null: false
-      String :org, null: false
-      String :precision, null: false
-      unique %i[influx_token bucket org precision]
-    end
-
-    db.create_table? :sensor_data do
-      String :measurement, null: false
-      String :field, null: false
-      Integer :timestamp, null: false
-      Integer :value_int
-      Float :value_float
-      TrueClass :value_bool
-      String :value_string
-      TrueClass :synced, default: false
-      Integer :target_id, null: false
-      foreign_key [:target_id], :targets
-      primary_key %i[measurement field timestamp target_id]
-      index %i[synced target_id]
-    end
+  def initialize
+    # ActiveRecord already initialized via schema
   end
 
   def save_target(influx_token:, bucket:, org:, precision: 'ns')
-    existing =
-      db[:targets].where(influx_token:, bucket:, org:, precision:).get(:id)
-    return existing if existing
-
-    db[:targets].insert(influx_token:, bucket:, org:, precision:)
+    Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
   end
 
-  def save(measurement:, field:, timestamp:, value:, target_id:) # rubocop:disable Metrics/AbcSize
-    data = {
-      measurement: measurement.to_s.strip,
-      field: field.to_s.strip,
-      timestamp: timestamp,
-      value_int: nil,
-      value_float: nil,
-      value_bool: nil,
-      value_string: nil,
-      synced: false,
-      target_id: target_id,
-    }
+  def save_sensor(target:, measurement:, field:, timestamp:, value:)
+    sensor_attrs = { measurement:, field:, timestamp:, synced: false }
 
     case value
     when Integer
-      data[:value_int] = value
+      sensor_attrs[:value_int] = value
     when Float
-      data[:value_float] = value
+      sensor_attrs[:value_float] = value
     when TrueClass, FalseClass
-      data[:value_bool] = value
+      sensor_attrs[:value_bool] = value
     when String
-      data[:value_string] = value
+      sensor_attrs[:value_string] = value
     else
       raise 'Invalid value type'
     end
 
-    db[:sensor_data].insert_conflict(
-      target: %i[measurement field timestamp target_id],
-      update: {
-        value_int: Sequel[:excluded][:value_int],
-        value_float: Sequel[:excluded][:value_float],
-        value_bool: Sequel[:excluded][:value_bool],
-        value_string: Sequel[:excluded][:value_string],
-        synced: false,
-      },
-    ).insert(data)
+    target.sensors.create!(sensor_attrs)
   end
 
-  def mark_synced(measurement:, field:, timestamp:, target_id:)
-    db[:sensor_data].where(
-      measurement: measurement,
-      field: field,
-      timestamp: timestamp,
-      target_id: target_id,
-    ).update(synced: true)
+  def mark_synced(sensor)
+    sensor.update!(synced: true)
   end
 
   def interpolate(measurement:, field:, timestamp:) # rubocop:disable Metrics/AbcSize
-    ds = db[:sensor_data].where(measurement: measurement, field: field)
+    sensors = Sensor.where(measurement:, field:).order(:timestamp)
 
-    prev =
-      ds
-        .where(Sequel[:timestamp] <= timestamp)
-        .order(Sequel.desc(:timestamp))
-        .first
-    nxt =
-      ds
-        .where(Sequel[:timestamp] >= timestamp)
-        .order(Sequel.asc(:timestamp))
-        .first
+    prev = sensors.where('timestamp <= ?', timestamp).last
+    nxt = sensors.where('timestamp >= ?', timestamp).first
 
     return unless prev && nxt
-    return extract_value(prev) if prev[:timestamp] == nxt[:timestamp]
+    return prev.extracted_value if prev.timestamp == nxt.timestamp
 
-    t0 = prev[:timestamp]
-    v0 = extract_value(prev)
-    t1 = nxt[:timestamp]
-    v1 = extract_value(nxt)
+    t0 = prev.timestamp
+    v0 = prev.extracted_value
+    t1 = nxt.timestamp
+    v1 = nxt.extracted_value
 
     v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end
 
-  def extract_value(row)
-    row[:value_int] || row[:value_float] || row[:value_bool] ||
-      row[:value_string].to_f
-  end
-
   def cleanup(older_than_ts = nil)
     older_than_ts ||=
-      (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000) # 12h in ns
-    db[:sensor_data].where { timestamp < older_than_ts }.delete
+      (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000)
+    Sensor.where('timestamp < ?', older_than_ts).delete_all
   end
 end

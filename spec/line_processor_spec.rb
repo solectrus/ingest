@@ -12,17 +12,16 @@ describe LineProcessor do
 
   before { allow(InfluxWriter).to receive(:write) }
 
-  it 'saves the parsed field to the store (SQLite)' do
+  it 'saves the parsed field to the store (ActiveRecord)' do
     processor.process(raw_line)
 
-    rows = STORE.db[:sensor_data].all
-    expect(rows.size).to eq(1)
-    expect(rows.first).to include(
+    sensor = Sensor.first
+    expect(sensor).to have_attributes(
       measurement: 'SENEC',
       field: 'inverter_power',
-      value_bool: nil,
-      value_float: nil,
       value_int: 123,
+      value_float: nil,
+      value_bool: nil,
       value_string: nil,
       timestamp: 1_711_122_334_455,
     )

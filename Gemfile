@@ -15,8 +15,8 @@ gem 'influxdb-client'
 # Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
 gem 'sqlite3'
 
-# The Database Toolkit for Ruby (https://sequel.jeremyevans.net)
-gem 'sequel'
+# Object-relational mapper framework (part of Rails). (https://rubyonrails.org)
+gem 'activerecord'
 
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
@@ -37,7 +37,8 @@ group :development do
   # Code style checking for RSpec files (https://github.com/rubocop/rubocop-rspec)
   gem 'rubocop-rspec'
 
-  gem 'rubocop-sequel'
+  # Automatic Rails code style checking tool. (https://github.com/rubocop/rubocop-rails)
+  gem 'rubocop-rails'
 end
 
 group :test do

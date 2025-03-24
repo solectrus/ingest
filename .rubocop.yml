@@ -1,7 +1,7 @@
 plugins:
   - rubocop-performance
   - rubocop-rspec
-  - rubocop-sequel
+  - rubocop-rails
 
 AllCops:
   TargetRubyVersion: 3.4
@@ -58,4 +58,15 @@ RSpec/NestedGroups:
   Max: 4
 
 RSpec/NoExpectationExample:
+  Enabled: false
+
+# Rails
+
+Rails/CreateTableWithTimestamps:
+  Enabled: false
+
+Rails/ThreeStateBooleanColumn:
+  Enabled: false
+
+Rails/Output:
   Enabled: false

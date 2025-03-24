@@ -9,24 +9,24 @@ class LineProcessor
   attr_reader :influx_token, :bucket, :org, :precision
 
   def process(influx_line)
-    target_id = STORE.save_target(influx_token:, bucket:, org:, precision:)
+    target = STORE.save_target(influx_token:, bucket:, org:, precision:)
 
     lines = influx_line.split("\n")
-    lines.each { |line| process_and_store(line, target_id) }
+    lines.each { |line| process_and_store(line, target) }
   end
 
   private
 
-  def process_and_store(line, target_id) # rubocop:disable Metrics/AbcSize,Metrics/MethodLength
+  def process_and_store(line, target)
     parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|
-      STORE.save(
+      STORE.save_sensor(
+        target:,
         measurement: parsed.measurement,
-        field:,
+        field: field,
         timestamp: parsed.timestamp,
-        value:,
-        target_id:,
+        value: value,
       )
     end
 
@@ -36,26 +36,25 @@ class LineProcessor
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
         corrected_line = parsed.to_s
         write_influx(corrected_line)
-
-        parsed.fields.each_key do |field|
-          STORE.mark_synced(
-            measurement: parsed.measurement,
-            field: field,
-            timestamp: parsed.timestamp,
-            target_id: target_id,
-          )
-        end
+        mark_fields_synced(parsed, target)
       end
     else
       write_influx(line)
-      parsed.fields.each_key do |field|
-        STORE.mark_synced(
+      mark_fields_synced(parsed, target)
+    end
+  end
+
+  def mark_fields_synced(parsed, target)
+    parsed.fields.each_key do |field|
+      sensor =
+        Sensor.find_by(
           measurement: parsed.measurement,
-          field:,
+          field: field,
           timestamp: parsed.timestamp,
-          target_id:,
+          target_id: target.id,
         )
-      end
+
+      sensor&.update!(synced: true)
     end
   end
 

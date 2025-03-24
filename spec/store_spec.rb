@@ -1,7 +1,7 @@
 describe Store do
   let(:store) { STORE }
 
-  let(:target_id) do
+  let(:target) do
     store.save_target(
       influx_token: 'test-token',
       bucket: 'test-bucket',
@@ -10,43 +10,43 @@ describe Store do
   end
 
   it 'saves integer values correctly' do
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 42,
-      target_id:,
     )
-    row = STORE.db[:sensor_data].first
-    expect(row[:value_int]).to eq(42)
+    row = Sensor.first
+    expect(row.value_int).to eq(42)
   end
 
   it 'saves float values correctly' do
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 42.5,
-      target_id:,
     )
-    row = STORE.db[:sensor_data].first
-    expect(row[:value_float]).to eq(42.5)
+    row = Sensor.first
+    expect(row.value_float).to eq(42.5)
   end
 
   it 'interpolates between two points' do # rubocop:disable RSpec/ExampleLength
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
-      target_id:,
     )
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
       value: 200,
-      target_id:,
     )
 
     expect(
@@ -59,12 +59,12 @@ describe Store do
   end
 
   it 'returns exact value if timestamp matches' do
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
-      target_id:,
     )
     expect(
       store.interpolate(
@@ -76,23 +76,23 @@ describe Store do
   end
 
   it 'cleans up old data' do
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
-      target_id:,
     )
-    store.save(
+    store.save_sensor(
+      target:,
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
       value: 200,
-      target_id:,
     )
     store.cleanup(1500)
 
-    expect(STORE.db[:sensor_data].count).to eq(1)
-    expect(STORE.db[:sensor_data].first[:timestamp]).to eq(2000)
+    expect(Sensor.count).to eq(1)
+    expect(Sensor.first.timestamp).to eq(2000)
   end
 end
