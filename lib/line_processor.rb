@@ -65,7 +65,7 @@ class LineProcessor
       parsed.fields.key?(house_sensor[:field])
   end
 
-  def calculate_house_power(target_ts) # rubocop:disable Metrics/CyclomaticComplexity
+  def calculate_house_power(timestamp) # rubocop:disable Metrics/CyclomaticComplexity
     sensor_keys = %i[
       inverter_power
       balcony_inverter_power
@@ -85,7 +85,7 @@ class LineProcessor
       next unless config[:measurement] && config[:field]
       next if config[:measurement].empty? || config[:field].empty?
 
-      value = STORE.interpolate(**config, target_ts:)
+      value = STORE.interpolate(**config, timestamp:)
       powers[key] = value unless value.nil?
     end
 

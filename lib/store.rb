@@ -89,12 +89,19 @@ class Store
     ).update(synced: true)
   end
 
-  def interpolate(measurement:, field:, target_ts:) # rubocop:disable Metrics/AbcSize
+  def interpolate(measurement:, field:, timestamp:) # rubocop:disable Metrics/AbcSize
     ds = db[:sensor_data].where(measurement: measurement, field: field)
 
     prev =
-      ds.where { timestamp <= target_ts }.order(Sequel.desc(:timestamp)).first
-    nxt = ds.where { timestamp >= target_ts }.order(:timestamp).first
+      ds
+        .where(Sequel[:timestamp] <= timestamp)
+        .order(Sequel.desc(:timestamp))
+        .first
+    nxt =
+      ds
+        .where(Sequel[:timestamp] >= timestamp)
+        .order(Sequel.asc(:timestamp))
+        .first
 
     return unless prev && nxt
     return extract_value(prev) if prev[:timestamp] == nxt[:timestamp]
@@ -104,7 +111,7 @@ class Store
     t1 = nxt[:timestamp]
     v1 = extract_value(nxt)
 
-    v0 + ((v1 - v0) * (target_ts - t0) / (t1 - t0))
+    v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end
 
   def extract_value(row)

@@ -53,7 +53,7 @@ describe Store do
       store.interpolate(
         measurement: 'SENEC',
         field: 'inverter_power',
-        target_ts: 1500,
+        timestamp: 1500,
       ),
     ).to eq(150.0)
   end
@@ -70,7 +70,7 @@ describe Store do
       store.interpolate(
         measurement: 'SENEC',
         field: 'inverter_power',
-        target_ts: 1000,
+        timestamp: 1000,
       ),
     ).to eq(100)
   end
