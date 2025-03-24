@@ -48,9 +48,14 @@ describe Sensor do
       expect(sensor.value_float).to eq(42.5)
     end
 
-    it 'sets the correct field when TrueClass or FalseClass' do
+    it 'sets the correct field when TrueClass' do
       sensor.value = true
       expect(sensor.value_bool).to be(true)
+    end
+
+    it 'sets the correct field when FalseClass' do
+      sensor.value = false
+      expect(sensor.value_bool).to be(false)
     end
 
     it 'sets the correct field when String' do

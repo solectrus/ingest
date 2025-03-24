@@ -1,7 +1,14 @@
 class Sensor < ActiveRecord::Base
   belongs_to :target, inverse_of: :sensors
 
-  validates :measurement, :field, :timestamp, :value, presence: true
+  validates :measurement, :field, :timestamp, presence: true
+
+  validate do
+    next if value_int || value_float || value_string
+    next if value_bool.in?([true, false])
+
+    errors.add(:value, :blank)
+  end
 
   def value=(val)
     case val
