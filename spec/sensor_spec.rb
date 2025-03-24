@@ -8,8 +8,7 @@ describe Sensor do
   end
 
   it 'saves integer values correctly' do
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
@@ -20,8 +19,7 @@ describe Sensor do
   end
 
   it 'saves float values correctly' do
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
@@ -31,16 +29,14 @@ describe Sensor do
     expect(row.value_float).to eq(42.5)
   end
 
-  it 'interpolates between two points' do # rubocop:disable RSpec/ExampleLength
-    described_class.save_sensor(
-      target:,
+  it 'interpolates between two points' do
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
     )
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
@@ -57,8 +53,7 @@ describe Sensor do
   end
 
   it 'returns exact value if timestamp matches' do
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
@@ -74,15 +69,13 @@ describe Sensor do
   end
 
   it 'cleans up old data' do
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
     )
-    described_class.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,

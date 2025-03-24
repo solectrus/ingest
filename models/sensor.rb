@@ -3,31 +3,27 @@ class Sensor < ActiveRecord::Base
 
   validates :measurement, :field, :timestamp, presence: true
 
+  def value=(value)
+    case value
+    when Integer
+      self.value_int = value
+    when Float
+      self.value_float = value
+    when TrueClass, FalseClass
+      self.value_bool = value
+    when String
+      self.value_string = value
+    else
+      errors.add(:value, 'Invalid value type')
+    end
+  end
+
   def value
     value_int || value_float || value_string || value_bool
   end
 
   def mark_synced!
     update!(synced: true)
-  end
-
-  def self.save_sensor(target:, measurement:, field:, timestamp:, value:)
-    sensor_attrs = { measurement:, field:, timestamp:, synced: false }
-
-    case value
-    when Integer
-      sensor_attrs[:value_int] = value
-    when Float
-      sensor_attrs[:value_float] = value
-    when TrueClass, FalseClass
-      sensor_attrs[:value_bool] = value
-    when String
-      sensor_attrs[:value_string] = value
-    else
-      raise 'Invalid value type'
-    end
-
-    target.sensors.create!(sensor_attrs)
   end
 
   def self.interpolate(measurement:, field:, timestamp:) # rubocop:disable Metrics/AbcSize

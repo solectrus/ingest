@@ -17,16 +17,15 @@ class Processor
 
   private
 
-  def process_and_store(line, target)
+  def process_and_store(line, target) # rubocop:disable Metrics/AbcSize
     parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|
-      Sensor.save_sensor(
-        target:,
+      target.sensors.create!(
         measurement: parsed.measurement,
-        field: field,
+        field:,
+        value:,
         timestamp: parsed.timestamp,
-        value: value,
       )
     end
 

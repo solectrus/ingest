@@ -9,16 +9,14 @@ describe ReplayWorker do
         org: 'test-org',
       )
 
-    Sensor.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1_000_000_000,
       value: 100,
     )
 
-    Sensor.save_sensor(
-      target:,
+    target.sensors.create!(
       measurement: 'Heatpump',
       field: 'power',
       timestamp: 2_000_000_000,
