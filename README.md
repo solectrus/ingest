@@ -10,7 +10,7 @@ Lightweight InfluxDB ingestion proxy with buffering and persistence.
 - Reads `Authorization` token, `bucket`, `org`, and `precision` from the request
 - Buffers all writes to sqlite3 database
 - Forwards data to InfluxDB (`INFLUX_URL` from environment)
-- Automatic replay of buffered data every 60 seconds
+- Automatic replay of buffered data
 
 ## Example Docker Compose
 
