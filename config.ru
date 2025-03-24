@@ -6,8 +6,9 @@ Thread.new do
   loop do
     sleep 3600
 
-    puts '[Cleanup] Deleting old entries'
-    Sensor.cleanup
+    puts '[Cleanup] Deleting old entries...'
+    count = Sensor.cleanup
+    puts "[Cleanup] Deleted #{count} entries"
   rescue StandardError => e
     warn "[Cleanup] Error: #{e.message}"
   end

@@ -153,8 +153,7 @@ describe Sensor do
 
   describe '.cleanup' do
     let!(:old_sensor) do
-      time_13h_ago =
-        (Time.now.to_i * 1_000_000_000) - (13 * 60 * 60 * 1_000_000_000)
+      time_13h_ago = (Time.now.to_i - (13 * 60 * 60)) * 1_000_000_000
 
       described_class.create!(
         target: target,

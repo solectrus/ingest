@@ -41,10 +41,16 @@ class Sensor < ActiveRecord::Base
     v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end
 
-  def self.cleanup(older_than_ts = nil)
-    older_than_ts ||=
-      (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000) # 12 hours ago
+  def self.cleanup(hours: 12)
+    count = 0
 
-    Sensor.where('timestamp < ?', older_than_ts).delete_all
+    Target.find_each do |target|
+      factor = Target::PRECISION_FACTOR[target.precision]
+      cutoff = (Time.now.to_i - (hours * 3600)) * factor
+
+      count += target.sensors.where('timestamp < ?', cutoff).delete_all
+    end
+
+    count
   end
 end
