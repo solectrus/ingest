@@ -21,7 +21,8 @@ class ReplayWorker
             org: target.org,
             precision: target.precision,
           )
-          mark_as_synced(batch)
+
+          batch.each(&:mark_synced!)
         rescue StandardError => e
           puts "Replay failed for target #{target.id}: #{e.message}"
           break
@@ -46,9 +47,5 @@ class ReplayWorker
         timestamp: sensor.timestamp,
       ).to_s
     end
-  end
-
-  def mark_as_synced(batch)
-    batch.each { |sensor| sensor.update!(synced: true) }
   end
 end

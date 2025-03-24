@@ -1,8 +1,4 @@
 class Store
-  def initialize
-    # ActiveRecord already initialized via schema
-  end
-
   def save_target(influx_token:, bucket:, org:, precision: 'ns')
     Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
   end
@@ -24,10 +20,6 @@ class Store
     end
 
     target.sensors.create!(sensor_attrs)
-  end
-
-  def mark_synced(sensor)
-    sensor.update!(synced: true)
   end
 
   def interpolate(measurement:, field:, timestamp:) # rubocop:disable Metrics/AbcSize
