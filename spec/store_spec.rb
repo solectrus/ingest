@@ -1,12 +1,21 @@
 describe Store do
   let(:store) { STORE }
 
+  let(:target_id) do
+    store.save_target(
+      influx_token: 'test-token',
+      bucket: 'test-bucket',
+      org: 'test-org',
+    )
+  end
+
   it 'saves integer values correctly' do
     store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 1000,
       value: 42,
+      target_id:,
     )
     row = STORE.db[:sensor_data].first
     expect(row[:value_int]).to eq(42)
@@ -18,6 +27,7 @@ describe Store do
       field: 'inverter_power',
       timestamp: 1000,
       value: 42.5,
+      target_id:,
     )
     row = STORE.db[:sensor_data].first
     expect(row[:value_float]).to eq(42.5)
@@ -29,12 +39,14 @@ describe Store do
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
+      target_id:,
     )
     store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
       value: 200,
+      target_id:,
     )
 
     expect(
@@ -52,6 +64,7 @@ describe Store do
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
+      target_id:,
     )
     expect(
       store.interpolate(
@@ -68,12 +81,14 @@ describe Store do
       field: 'inverter_power',
       timestamp: 1000,
       value: 100,
+      target_id:,
     )
     store.save(
       measurement: 'SENEC',
       field: 'inverter_power',
       timestamp: 2000,
       value: 200,
+      target_id:,
     )
     store.cleanup(1500)
 
