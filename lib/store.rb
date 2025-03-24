@@ -34,7 +34,7 @@ class Store
     end
   end
 
-  def save_target(influx_token:, bucket:, org:, precision:)
+  def save_target(influx_token:, bucket:, org:, precision: 'ns')
     existing =
       db[:targets].where(influx_token:, bucket:, org:, precision:).get(:id)
     return existing if existing

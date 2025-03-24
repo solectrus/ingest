@@ -3,7 +3,7 @@ class LineProcessor
     @influx_token = influx_token
     @bucket = bucket
     @org = org
-    @precision = precision
+    @precision = precision || 'ns'
   end
 
   attr_reader :influx_token, :bucket, :org, :precision

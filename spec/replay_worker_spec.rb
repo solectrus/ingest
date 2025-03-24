@@ -7,7 +7,6 @@ describe ReplayWorker do
         influx_token: 'test-token',
         bucket: 'test-bucket',
         org: 'test-org',
-        precision: 'ns',
       )
 
     STORE.save(
