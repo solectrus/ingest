@@ -42,30 +42,6 @@ class Line
 
   private
 
-  def self.parse_fields(str)
-    str
-      .split(',')
-      .to_h do |pair|
-        key, value = pair.split('=', 2)
-        [key, parse_value(value)]
-      end
-  end
-
-  def self.parse_value(val)
-    case val
-    when /^"(.*)"$/
-      Regexp.last_match(1)
-    when /^([-+]?\d+)i$/
-      Regexp.last_match(1).to_i
-    when 'true'
-      true
-    when 'false'
-      false
-    else
-      val.to_f
-    end
-  end
-
   def format_field_value(val)
     case val
     when String
@@ -77,5 +53,33 @@ class Line
     else
       val
     end
+  end
+
+  class << self
+    def parse_fields(str)
+      str
+        .split(',')
+        .to_h do |pair|
+          key, value = pair.split('=', 2)
+          [key, parse_value(value)]
+        end
+    end
+
+    def parse_value(val)
+      case val
+      when /^"(.*)"$/
+        Regexp.last_match(1)
+      when /^([-+]?\d+)i$/
+        Regexp.last_match(1).to_i
+      when 'true'
+        true
+      when 'false'
+        false
+      else
+        val.to_f
+      end
+    end
+
+    private :parse_fields, :parse_value
   end
 end
