@@ -1,4 +1,4 @@
-describe LineProcessor do
+describe Processor do
   subject(:processor) do
     described_class.new(influx_token, bucket, org, precision)
   end
@@ -13,7 +13,7 @@ describe LineProcessor do
   before { allow(InfluxWriter).to receive(:write) }
 
   it 'saves the parsed field to the store (ActiveRecord)' do
-    processor.process(raw_line)
+    processor.run(raw_line)
 
     sensor = Sensor.first
     expect(sensor).to have_attributes(
@@ -28,7 +28,7 @@ describe LineProcessor do
   end
 
   it 'forwards the original line to InfluxWriter' do
-    processor.process(raw_line)
+    processor.run(raw_line)
 
     expect(InfluxWriter).to have_received(:write).with(
       raw_line,

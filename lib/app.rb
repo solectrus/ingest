@@ -13,9 +13,7 @@ class App < Sinatra::Base
     halt 400, { error: 'Missing org' }.to_json unless org
 
     begin
-      LineProcessor.new(influx_token, bucket, org, precision).process(
-        influx_line,
-      )
+      Processor.new(influx_token, bucket, org, precision).run(influx_line)
       status 204 # No Content
     rescue InfluxDB2::InfluxError => e
       warn e

@@ -1,4 +1,4 @@
-class LineProcessor
+class Processor
   def initialize(influx_token, bucket, org, precision)
     @influx_token = influx_token
     @bucket = bucket
@@ -8,7 +8,7 @@ class LineProcessor
 
   attr_reader :influx_token, :bucket, :org, :precision
 
-  def process(influx_line)
+  def run(influx_line)
     target = STORE.save_target(influx_token:, bucket:, org:, precision:)
 
     lines = influx_line.split("\n")
