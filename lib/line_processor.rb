@@ -16,7 +16,7 @@ class LineProcessor
   private
 
   def process_and_store(line)
-    parsed = LineProtocolParser.parse(line)
+    parsed = Line.parse(line)
 
     parsed.fields.each do |field, value|
       STORE.save(
@@ -34,7 +34,7 @@ class LineProcessor
       if corrected
         parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
 
-        corrected_line = LineProtocolParser.build(parsed)
+        corrected_line = parsed.to_s
         write_influx(corrected_line)
       end
     else
@@ -77,12 +77,6 @@ class LineProcessor
   end
 
   def write_influx(line)
-    InfluxWriter.forward_influx_line(
-      line,
-      influx_token:,
-      bucket:,
-      org:,
-      precision:,
-    )
+    InfluxWriter.write(line, influx_token:, bucket:, org:, precision:)
   end
 end

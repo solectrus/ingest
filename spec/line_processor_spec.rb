@@ -10,7 +10,7 @@ describe LineProcessor do
 
   let(:raw_line) { 'SENEC inverter_power=123i 1711122334455' }
 
-  before { allow(InfluxWriter).to receive(:forward_influx_line) }
+  before { allow(InfluxWriter).to receive(:write) }
 
   it 'saves the parsed field to the store (SQLite)' do
     processor.process(raw_line)
@@ -31,7 +31,7 @@ describe LineProcessor do
   it 'forwards the original line to InfluxWriter' do
     processor.process(raw_line)
 
-    expect(InfluxWriter).to have_received(:forward_influx_line).with(
+    expect(InfluxWriter).to have_received(:write).with(
       raw_line,
       influx_token:,
       bucket:,

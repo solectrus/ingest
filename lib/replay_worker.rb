@@ -37,17 +37,13 @@ class ReplayWorker
     batch.map do |row|
       value = STORE.extract_value(row)
 
-      line =
-        LineProtocolParser::ParsedLine.new(
-          measurement: row[:measurement],
-          tags: nil,
-          fields: {
-            row[:field] => value,
-          },
-          timestamp: row[:timestamp],
-        )
-
-      LineProtocolParser.build(line)
+      Line.new(
+        measurement: row[:measurement],
+        fields: {
+          row[:field] => value,
+        },
+        timestamp: row[:timestamp],
+      ).to_s
     end
   end
 
