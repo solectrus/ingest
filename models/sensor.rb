@@ -1,7 +1,9 @@
 class Sensor < ActiveRecord::Base
-  belongs_to :target
+  belongs_to :target, inverse_of: :sensors
 
-  def extracted_value
+  validates :measurement, :field, :timestamp, presence: true
+
+  def value
     value_int || value_float || value_bool || value_string
   end
 

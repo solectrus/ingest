@@ -29,12 +29,12 @@ class Store
     nxt = sensors.where('timestamp >= ?', timestamp).first
 
     return unless prev && nxt
-    return prev.extracted_value if prev.timestamp == nxt.timestamp
+    return prev.value if prev.timestamp == nxt.timestamp
 
     t0 = prev.timestamp
-    v0 = prev.extracted_value
+    v0 = prev.value
     t1 = nxt.timestamp
-    v1 = nxt.extracted_value
+    v1 = nxt.value
 
     v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end

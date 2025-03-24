@@ -42,7 +42,7 @@ class ReplayWorker
       Line.new(
         measurement: sensor.measurement,
         fields: {
-          sensor.field => sensor.extracted_value,
+          sensor.field => sensor.value,
         },
         timestamp: sensor.timestamp,
       ).to_s
