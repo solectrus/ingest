@@ -1,20 +1,18 @@
 class Sensor < ActiveRecord::Base
   belongs_to :target, inverse_of: :sensors
 
-  validates :measurement, :field, :timestamp, presence: true
+  validates :measurement, :field, :timestamp, :value, presence: true
 
-  def value=(value)
-    case value
+  def value=(val)
+    case val
     when Integer
-      self.value_int = value
+      self.value_int = val
     when Float
-      self.value_float = value
+      self.value_float = val
     when TrueClass, FalseClass
-      self.value_bool = value
+      self.value_bool = val
     when String
-      self.value_string = value
-    else
-      errors.add(:value, 'Invalid value type')
+      self.value_string = val
     end
   end
 
@@ -45,7 +43,8 @@ class Sensor < ActiveRecord::Base
 
   def self.cleanup(older_than_ts = nil)
     older_than_ts ||=
-      (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000)
+      (Time.now.to_i * 1_000_000_000) - (12 * 60 * 60 * 1_000_000_000) # 12 hours ago
+
     Sensor.where('timestamp < ?', older_than_ts).delete_all
   end
 end
