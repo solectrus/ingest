@@ -16,7 +16,19 @@ RSpec.configure { |conf| conf.include Rack::Test::Methods }
 
 RSpec.configure do |config|
   config.before do
-    Sensor.delete_all
+    Incoming.delete_all
+    Outgoing.delete_all
     Target.delete_all
+  end
+
+  config.around do |example|
+    original_stdout = $stdout
+    original_stderr = $stderr
+    $stdout = File.open(File::NULL, 'w')
+    $stderr = File.open(File::NULL, 'w')
+    example.run
+  ensure
+    $stdout = original_stdout
+    $stderr = original_stderr
   end
 end

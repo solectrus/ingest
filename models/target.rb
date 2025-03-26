@@ -1,31 +1,21 @@
 class Target < ActiveRecord::Base
-  has_many :sensors, dependent: :destroy, inverse_of: :target
+  has_many :incomings, dependent: :delete_all, inverse_of: :target
+  has_many :outgoings, dependent: :delete_all, inverse_of: :target
 
   validates :influx_token, :bucket, :org, :precision, presence: true
 
+  PRECISION_FACTORS = {
+    's' => 1_000_000_000,
+    'ms' => 1_000_000,
+    'us' => 1_000,
+    'ns' => 1,
+  }.freeze
+
   def timestamp_ns(timestamp)
-    case precision
-    when 's'
-      timestamp * 1_000_000_000
-    when 'ms'
-      timestamp * 1_000_000
-    when 'us'
-      timestamp * 1_000
-    else
-      timestamp
-    end
+    timestamp * PRECISION_FACTORS[precision]
   end
 
   def timestamp(timestamp_ns)
-    case precision
-    when 's'
-      timestamp_ns / 1_000_000_000
-    when 'ms'
-      timestamp_ns / 1_000_000
-    when 'us'
-      timestamp_ns / 1_000
-    else
-      timestamp_ns
-    end
+    timestamp_ns / PRECISION_FACTORS[precision]
   end
 end

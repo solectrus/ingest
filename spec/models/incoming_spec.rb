@@ -1,5 +1,5 @@
-describe Sensor do
-  subject(:sensor) do
+describe Incoming do
+  subject(:incoming) do
     described_class.new(
       target: target,
       measurement: 'SENEC',
@@ -19,90 +19,77 @@ describe Sensor do
 
   describe 'validations' do
     it 'validates presence of measurement' do
-      sensor.measurement = nil
-      expect(sensor).not_to be_valid
-      expect(sensor.errors[:measurement]).to include("can't be blank")
+      incoming.measurement = nil
+      expect(incoming).not_to be_valid
+      expect(incoming.errors[:measurement]).to include("can't be blank")
     end
 
     it 'validates presence of field' do
-      sensor.field = nil
-      expect(sensor).not_to be_valid
-      expect(sensor.errors[:field]).to include("can't be blank")
+      incoming.field = nil
+      expect(incoming).not_to be_valid
+      expect(incoming.errors[:field]).to include("can't be blank")
     end
 
     it 'validates presence of timestamp' do
-      sensor.timestamp = nil
-      expect(sensor).not_to be_valid
-      expect(sensor.errors[:timestamp]).to include("can't be blank")
+      incoming.timestamp = nil
+      expect(incoming).not_to be_valid
+      expect(incoming.errors[:timestamp]).to include("can't be blank")
     end
   end
 
   describe '#value=' do
     it 'sets the correct field when Integer' do
-      sensor.value = 42
-      expect(sensor.value_int).to eq(42)
+      incoming.value = 42
+      expect(incoming.value_int).to eq(42)
     end
 
     it 'sets the correct field when Float' do
-      sensor.value = 42.5
-      expect(sensor.value_float).to eq(42.5)
+      incoming.value = 42.5
+      expect(incoming.value_float).to eq(42.5)
     end
 
     it 'sets the correct field when TrueClass' do
-      sensor.value = true
-      expect(sensor.value_bool).to be(true)
+      incoming.value = true
+      expect(incoming.value_bool).to be(true)
     end
 
     it 'sets the correct field when FalseClass' do
-      sensor.value = false
-      expect(sensor.value_bool).to be(false)
+      incoming.value = false
+      expect(incoming.value_bool).to be(false)
     end
 
     it 'sets the correct field when String' do
-      sensor.value = 'test'
-      expect(sensor.value_string).to eq('test')
+      incoming.value = 'test'
+      expect(incoming.value_string).to eq('test')
     end
 
     it 'adds an error if the value type is invalid' do
-      sensor.value = nil
+      incoming.value = nil
 
-      expect(sensor).not_to be_valid
-      expect(sensor.errors[:value]).to include("can't be blank")
+      expect(incoming).not_to be_valid
+      expect(incoming.errors[:value]).to include("can't be blank")
     end
   end
 
   describe '#value' do
     it 'returns the value_int when Integer' do
-      sensor.value_int = 42
-      expect(sensor.value).to eq(42)
+      incoming.value_int = 42
+      expect(incoming.value).to eq(42)
     end
 
     it 'returns the value_float when Float' do
-      sensor.value_float = 42.5
-      expect(sensor.value).to eq(42.5)
+      incoming.value_float = 42.5
+      expect(incoming.value).to eq(42.5)
     end
 
     it 'returns the value_string when String' do
-      sensor.value_string = 'test'
-      expect(sensor.value).to eq('test')
+      incoming.value_string = 'test'
+      expect(incoming.value).to eq('test')
     end
 
     it 'returns the value_bool when TrueClass or FalseClass' do
-      sensor.value_bool = true
-      expect(sensor.value).to be(true)
-    end
-  end
-
-  describe '#mark_synced!' do
-    before do
-      sensor.value = 42
-      sensor.save!
-    end
-
-    it 'marks the sensor as synced' do
-      expect(sensor.synced).to be(false)
-      sensor.mark_synced!
-      expect(sensor.synced).to be(true)
+      incoming.value_bool = true
+      expect(incoming.value).to be(true)
     end
   end
 
@@ -157,35 +144,33 @@ describe Sensor do
   end
 
   describe '.cleanup' do
-    let!(:old_sensor) do
-      time_13h_ago = (Time.now.to_i - (13 * 60 * 60)) * 1_000_000_000
-
+    let!(:old_incoming) do
       described_class.create!(
         target: target,
         measurement: 'SENEC',
         field: 'inverter_power',
-        timestamp: time_13h_ago,
+        timestamp: 13.hours.ago,
         value: 100,
       )
     end
 
-    let(:fresh_sensor) do
-      now = Time.now.to_i * 1_000_000_000
-
+    let(:fresh_incoming) do
       described_class.create!(
         target: target,
         measurement: 'SENEC',
         field: 'inverter_power',
-        timestamp: now,
+        timestamp: Time.current,
         value: 200,
       )
     end
 
     it 'deletes records older than the default timestamp' do
-      described_class.cleanup
+      described_class.cleanup(cutoff: 12.hours.ago)
 
-      expect(fresh_sensor.reload).to be_present
-      expect { old_sensor.reload }.to raise_error(ActiveRecord::RecordNotFound)
+      expect(fresh_incoming.reload).to be_present
+      expect { old_incoming.reload }.to raise_error(
+        ActiveRecord::RecordNotFound,
+      )
     end
   end
 end

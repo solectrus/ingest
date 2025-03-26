@@ -23,12 +23,7 @@ class Line
     tags = tag_parts.to_h { |t| t.split('=', 2) }
     fields = parse_fields(fields_str)
 
-    new(
-      measurement: measurement,
-      fields: fields,
-      tags: tags,
-      timestamp: timestamp,
-    )
+    new(measurement:, fields:, tags:, timestamp:)
   end
 
   def to_s
@@ -61,21 +56,21 @@ class Line
         .split(',')
         .to_h do |pair|
           key, value = pair.split('=', 2)
-          [key, parse_value(value)]
+          [key.to_sym, parse_value(value)]
         end
     end
 
     def parse_value(val)
       case val
-      when /^"(.*)"$/
+      when /^"(.*)"$/ # string
         Regexp.last_match(1)
-      when /^([-+]?\d+)i$/
+      when /^([-+]?\d+)i$/ # integer
         Regexp.last_match(1).to_i
-      when 'true'
+      when 'true' # boolean
         true
-      when 'false'
+      when 'false' # boolean
         false
-      else
+      else # float
         val.to_f
       end
     end

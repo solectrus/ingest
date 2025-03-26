@@ -21,9 +21,9 @@ describe Line do
     end
 
     it 'parses fields' do
-      expect(parsed.fields).to include('inverter_power' => 1249)
-      expect(parsed.fields).to include('ev_connected' => false)
-      expect(parsed.fields).to include('current_state' => 'AKKU VOLL')
+      expect(parsed.fields).to include(inverter_power: 1249)
+      expect(parsed.fields).to include(ev_connected: false)
+      expect(parsed.fields).to include(current_state: 'AKKU VOLL')
     end
   end
 end

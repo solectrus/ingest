@@ -1,85 +1,56 @@
 class Processor
-  def initialize(influx_token, bucket, org, precision)
-    @influx_token = influx_token
-    @bucket = bucket
-    @org = org
-    @precision = precision || 'ns'
+  def initialize(influx_token, bucket, org, precision = 'ns')
+    @target =
+      Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
   end
 
-  attr_reader :influx_token, :bucket, :org, :precision
+  attr_reader :target
 
-  def run(influx_line)
-    target = Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
+  def run(influx_lines)
+    influx_lines.each_line do |line|
+      parsed = Line.parse(line)
 
-    lines = influx_line.split("\n")
-    lines.each { |line| process_and_store(line, target) }
+      store_incoming(parsed)
+      enqueue_outgoing(parsed)
+      trigger_house_power_if_relevant(parsed)
+    end
   end
 
   private
 
-  def process_and_store(line, target) # rubocop:disable Metrics/AbcSize
-    parsed = Line.parse(line)
-
-    sensors =
-      parsed.fields.map do |field, value|
-        target.sensors.create!(
-          measurement: parsed.measurement,
-          field:,
-          value:,
-          timestamp: target.timestamp_ns(parsed.timestamp),
-        )
-      end
-
-    if house_power_trigger?(parsed)
-      corrected = calculate_house_power(parsed.timestamp)
-      if corrected
-        parsed.fields[SensorEnvConfig.house_power[:field]] = corrected
-        corrected_line = parsed.to_s
-        write_influx(corrected_line)
-      else
-        write_influx(line)
-      end
-    else
-      write_influx(line)
+  def store_incoming(parsed)
+    parsed.fields.each do |field, value|
+      target.incomings.create!(
+        timestamp: parsed.timestamp,
+        measurement: parsed.measurement,
+        field:,
+        value:,
+      )
     end
-
-    sensors.each(&:mark_synced!)
   end
 
-  def house_power_trigger?(parsed)
-    house_sensor = SensorEnvConfig.house_power
-    parsed.measurement == house_sensor[:measurement] &&
-      parsed.fields.key?(house_sensor[:field])
+  def enqueue_outgoing(parsed)
+    fields_without_house_power =
+      parsed.fields.reject do |field, _|
+        parsed.measurement == SensorEnvConfig.house_power[:measurement] &&
+          field.to_s == SensorEnvConfig.house_power[:field]
+      end
+    return if fields_without_house_power.empty?
+
+    line_without_house_power =
+      Line.new(
+        measurement: parsed.measurement,
+        tags: parsed.tags,
+        fields: fields_without_house_power,
+        timestamp: parsed.timestamp,
+      )
+
+    Outgoing.create!(target:, line_protocol: line_without_house_power.to_s)
   end
 
-  def calculate_house_power(timestamp) # rubocop:disable Metrics/CyclomaticComplexity
-    sensor_keys = %i[
-      inverter_power
-      balcony_inverter_power
-      grid_import_power
-      grid_export_power
-      battery_discharging_power
-      battery_charging_power
-      wallbox_power
-      heatpump_power
-    ]
+  def trigger_house_power_if_relevant(parsed)
+    return unless SensorEnvConfig.relevant_for_house_power?(parsed)
 
-    powers = {}
-
-    sensor_keys.each do |key|
-      config = SensorEnvConfig.public_send(key)
-      next unless config.is_a?(Hash)
-      next unless config[:measurement] && config[:field]
-      next if config[:measurement].empty? || config[:field].empty?
-
-      value = Sensor.interpolate(**config, timestamp:)
-      powers[key] = value unless value.nil?
-    end
-
-    HousePowerFormula.calculate(**powers)
-  end
-
-  def write_influx(line)
-    InfluxWriter.write(line, influx_token:, bucket:, org:, precision:)
+    HousePowerCalculator.new(target).recalculate(timestamp: parsed.timestamp)
   end
 end

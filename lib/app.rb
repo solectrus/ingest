@@ -5,9 +5,9 @@ class App < Sinatra::Base
     influx_line = request.body.read
     bucket = params['bucket']
     org = params['org']
-    precision = params['precision']
-
+    precision = params['precision'] || 'ns'
     influx_token = request.env['HTTP_AUTHORIZATION']&.sub(/^Token /, '')
+
     halt 401, { error: 'Missing InfluxDB token' }.to_json unless influx_token
     halt 400, { error: 'Missing bucket' }.to_json unless bucket
     halt 400, { error: 'Missing org' }.to_json unless org
@@ -18,7 +18,7 @@ class App < Sinatra::Base
     rescue InfluxDB2::InfluxError => e
       warn e
       status 202 # Accepted
-    rescue InvalidLineProtocolError
+    rescue InvalidLineProtocolError => e
       warn e
       status 400 # Bad Request
     rescue StandardError => e

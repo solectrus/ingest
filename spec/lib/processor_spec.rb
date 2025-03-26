@@ -8,34 +8,76 @@ describe Processor do
   let(:org) { 'test-org' }
   let(:precision) { 'ns' }
 
-  let(:raw_line) { 'SENEC inverter_power=123i 1711122334455' }
+  describe '#run' do
+    subject(:run) { processor.run(line_protocol) }
 
-  before { allow(InfluxWriter).to receive(:write) }
+    context 'when line contains inverter_power only' do
+      let(:line_protocol) { 'SENEC inverter_power=500.0 1000000000' }
 
-  it 'saves the parsed field to the store (ActiveRecord)' do
-    processor.run(raw_line)
+      it 'creates a target if it does not exist' do
+        expect { run }.to change(Target, :count).by(1)
 
-    sensor = Sensor.first
-    expect(sensor).to have_attributes(
-      measurement: 'SENEC',
-      field: 'inverter_power',
-      value_int: 123,
-      value_float: nil,
-      value_bool: nil,
-      value_string: nil,
-      timestamp: 1_711_122_334_455,
-    )
-  end
+        target = Target.last
+        expect(target.influx_token).to eq(influx_token)
+        expect(target.bucket).to eq(bucket)
+        expect(target.org).to eq(org)
+        expect(target.precision).to eq(precision)
+      end
 
-  it 'forwards the original line to InfluxWriter' do
-    processor.run(raw_line)
+      it 'stores the incoming data' do
+        expect { run }.to change(Incoming, :count).by(1)
 
-    expect(InfluxWriter).to have_received(:write).with(
-      raw_line,
-      influx_token:,
-      bucket:,
-      org:,
-      precision:,
-    )
+        incoming = Incoming.last
+        expect(incoming.measurement).to eq('SENEC')
+        expect(incoming.field).to eq('inverter_power')
+        expect(incoming.value_float).to eq(500.0)
+        expect(incoming.timestamp).to eq(1_000_000_000)
+      end
+
+      it 'queues the outgoing line' do
+        expect { run }.to change(Outgoing, :count).by(1)
+
+        outgoing = Outgoing.last
+        expect(outgoing.line_protocol).to eq(line_protocol)
+      end
+
+      it 'triggers house power recalculation if relevant' do
+        allow(SensorEnvConfig).to receive(
+          :relevant_for_house_power?,
+        ).and_return(true)
+
+        house_calc = instance_spy(HousePowerCalculator)
+        allow(HousePowerCalculator).to receive(:new).and_return(house_calc)
+
+        run
+
+        expect(house_calc).to have_received(:recalculate).with(
+          timestamp: 1_000_000_000,
+        )
+      end
+    end
+
+    context 'when line contains house_power and others' do
+      let(:line_protocol) do
+        'SENEC house_power=300i,grid_power_plus=500i 1000000000'
+      end
+
+      it 'filters out house_power field when enqueuing outgoing' do
+        run
+
+        outgoing = Outgoing.last
+        expect(outgoing.line_protocol).to eq(
+          'SENEC grid_power_plus=500i 1000000000',
+        )
+      end
+    end
+
+    context 'when line contains house_power only' do
+      let(:line_protocol) { 'SENEC house_power=300i 1000000000' }
+
+      it 'skips enqueue if only house_power is present' do
+        expect { run }.not_to change(Outgoing, :count)
+      end
+    end
   end
 end

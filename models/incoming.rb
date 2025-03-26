@@ -1,13 +1,12 @@
-class Sensor < ActiveRecord::Base
-  belongs_to :target, inverse_of: :sensors
+class Incoming < ActiveRecord::Base
+  belongs_to :target, inverse_of: :incomings, optional: false
 
   validates :measurement, :field, :timestamp, presence: true
+  validate { errors.add(:value, :blank) if blank_value? }
 
-  validate do
-    next if value_int || value_float || value_string
-    next if value_bool.in?([true, false])
-
-    errors.add(:value, :blank)
+  def blank_value?
+    value_int.nil? && value_float.nil? && value_string.nil? &&
+      !value_bool.in?([true, false])
   end
 
   def value=(val)
@@ -27,15 +26,11 @@ class Sensor < ActiveRecord::Base
     value_int || value_float || value_string || value_bool
   end
 
-  def mark_synced!
-    update!(synced: true)
-  end
-
   def self.interpolate(measurement:, field:, timestamp:) # rubocop:disable Metrics/AbcSize
-    sensors = Sensor.where(measurement:, field:).order(:timestamp)
+    incomings = where(measurement:, field:).order(:timestamp)
 
-    prev = sensors.where('timestamp <= ?', timestamp).last
-    nxt = sensors.where('timestamp >= ?', timestamp).first
+    prev = incomings.where('timestamp <= ?', timestamp).last
+    nxt = incomings.where('timestamp >= ?', timestamp).first
 
     return unless prev && nxt
     return prev.value if prev.timestamp == nxt.timestamp
@@ -48,9 +43,9 @@ class Sensor < ActiveRecord::Base
     v0 + ((v1 - v0) * (timestamp - t0) / (t1 - t0))
   end
 
-  def self.cleanup(hours: 12)
-    cutoff = (Time.now.to_i - (hours * 3600)) * 1_000_000_000
+  def self.cleanup(cutoff:)
+    cutoff_ns = cutoff.to_i * 1_000_000_000
 
-    where('timestamp < ?', cutoff).delete_all
+    where('timestamp < ?', cutoff_ns).delete_all
   end
 end
