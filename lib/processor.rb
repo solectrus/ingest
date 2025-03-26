@@ -23,6 +23,7 @@ class Processor
       target.incomings.create!(
         timestamp: parsed.timestamp,
         measurement: parsed.measurement,
+        tags: parsed.tags,
         field:,
         value:,
       )

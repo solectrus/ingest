@@ -1,5 +1,5 @@
 class CreateTargetsAndSensors < ActiveRecord::Migration[8.0]
-  def change
+  def change # rubocop:disable Metrics/AbcSize
     create_table :targets do |t|
       t.string :bucket, null: false
       t.string :org, null: false
@@ -12,6 +12,7 @@ class CreateTargetsAndSensors < ActiveRecord::Migration[8.0]
 
       t.string :measurement, null: false
       t.string :field, null: false
+      t.json :tags, null: false, default: {}
       t.bigint :timestamp, null: false
 
       t.integer :value_int
