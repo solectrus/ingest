@@ -8,7 +8,7 @@ class HousePowerCalculator
   def recalculate(timestamp:)
     powers = {}
 
-    SensorEnvConfig::SENSOR_KEYS_FOR_HOUSE_POWER.each do |key|
+    SensorEnvConfig.sensor_keys_for_house_power.each do |key|
       sensor = SensorEnvConfig.send(key)
       next unless sensor
 

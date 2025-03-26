@@ -1,5 +1,5 @@
 class SensorEnvConfig
-  SENSOR_KEYS_FOR_HOUSE_POWER = %i[
+  SENSOR_KEYS = %i[
     inverter_power
     balcony_inverter_power
     grid_import_power
@@ -8,9 +8,8 @@ class SensorEnvConfig
     battery_charging_power
     wallbox_power
     heatpump_power
+    house_power
   ].freeze
-
-  SENSOR_KEYS = SENSOR_KEYS_FOR_HOUSE_POWER + %i[house_power].freeze
 
   @config =
     SENSOR_KEYS.to_h do |key|
@@ -21,15 +20,25 @@ class SensorEnvConfig
       [key, { measurement:, field: }]
     end
 
+  @exclude_from_house_power_keys =
+    ENV
+      .fetch('INFLUX_EXCLUDE_FROM_HOUSE_POWER', '')
+      .split(',')
+      .map { it.strip.downcase }
+      .to_set(&:to_sym)
+
   class << self
     SENSOR_KEYS.each { |key| define_method(key) { @config[key] } }
 
+    def sensor_keys_for_house_power
+      @sensor_keys_for_house_power ||=
+        SENSOR_KEYS.reject do
+          it == :house_power || @exclude_from_house_power_keys.include?(it)
+        end
+    end
+
     def relevant_for_house_power?(parsed_line)
-      parsed_line
-        .fields
-        .keys
-        .map(&:to_sym)
-        .intersect?(SENSOR_KEYS_FOR_HOUSE_POWER)
+      sensor_keys_for_house_power.any? { parsed_line.fields.key?(it) }
     end
   end
 end

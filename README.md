@@ -36,6 +36,7 @@ services:
 | `INFLUX_SENSOR_WALLBOX_POWER`             | Sensor for wallbox power                              |
 | `INFLUX_SENSOR_HEATPUMP_POWER`            | Sensor for heat pump power                            |
 | `INFLUX_SENSOR_HOUSE_POWER`               | Sensor for house power                                |
+| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation          |
 
 ## API Endpoints
 
