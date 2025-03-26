@@ -12,12 +12,12 @@ class Line
   end
 
   def self.parse(line)
-    m = line.match(/^([^ ]+)\s(.+)\s(\d+)$/)
+    m = line.match(/^([^ ]+)\s(.+?)(?:\s(\d+))?$/)
     raise InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
 
     measurement_and_tags = m[1]
     fields_str = m[2]
-    timestamp = m[3].to_i
+    timestamp = m[3]&.to_i
 
     measurement, *tag_parts = measurement_and_tags.split(',')
     tags = tag_parts.to_h { |t| t.split('=', 2) }
@@ -32,7 +32,7 @@ class Line
 
     field_str = fields.map { |k, v| "#{k}=#{format_field_value(v)}" }.join(',')
 
-    "#{measurement}#{tag_section} #{field_str} #{timestamp}"
+    ["#{measurement}#{tag_section} #{field_str}", timestamp].compact.join(' ')
   end
 
   private

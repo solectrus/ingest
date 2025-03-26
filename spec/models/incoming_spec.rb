@@ -30,10 +30,10 @@ describe Incoming do
       expect(incoming.errors[:field]).to include("can't be blank")
     end
 
-    it 'validates presence of timestamp' do
+    it 'sets timestamp to default if missing' do
       incoming.timestamp = nil
-      expect(incoming).not_to be_valid
-      expect(incoming.errors[:timestamp]).to include("can't be blank")
+      incoming.valid?
+      expect(incoming.timestamp).to be_present
     end
   end
 

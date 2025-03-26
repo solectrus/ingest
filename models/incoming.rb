@@ -9,6 +9,10 @@ class Incoming < ActiveRecord::Base
       !value_bool.in?([true, false])
   end
 
+  before_validation do
+    self.timestamp ||= target.timestamp_ns(Time.current.to_i)
+  end
+
   def value=(val)
     case val
     when Integer
