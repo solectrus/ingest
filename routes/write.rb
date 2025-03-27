@@ -2,11 +2,20 @@ class WriteRoute < Sinatra::Base
   post '/api/v2/write' do # rubocop:disable Metrics/BlockLength
     content_type 'application/json'
 
+    puts 'Received write request'
+    $stdout.flush
+
     influx_line = request.body.read
+    puts "Influx line: #{influx_line}"
+    $stdout.flush
+
     bucket = params['bucket']
     org = params['org']
     precision = params['precision'] || 'ns'
     influx_token = request.env['HTTP_AUTHORIZATION']&.sub(/^Token /, '')
+
+    puts "to #{bucket} in #{org} with precision #{precision}"
+    $stdout.flush
 
     unless influx_token
       puts 'Missing InfluxDB token'
