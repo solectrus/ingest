@@ -1,4 +1,4 @@
-class HomeRoute < Sinatra::Base
+class StatsRoute < Sinatra::Base
   if ENV['STATS_USERNAME'] && ENV['STATS_PASSWORD']
     use Rack::Auth::Basic, 'Restricted Area' do |username, password|
       username == ENV['STATS_USERNAME'] && password == ENV['STATS_PASSWORD']
@@ -9,6 +9,6 @@ class HomeRoute < Sinatra::Base
   helpers StatsHelpers, ActiveSupport::NumberHelper
 
   get '/' do
-    erb :home
+    erb :stats
   end
 end
