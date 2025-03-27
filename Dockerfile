@@ -27,6 +27,9 @@ RUN apk add --no-cache tzdata
 # Decrease memory usage
 ENV MALLOC_ARENA_MAX=2
 
+ENV APP_ENV=production
+ENV RACK_ENV=production
+
 WORKDIR /app
 
 COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
