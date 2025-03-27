@@ -181,6 +181,7 @@ PLATFORMS
 
 DEPENDENCIES
   activerecord
+  activesupport
   dotenv
   influxdb-client
   json

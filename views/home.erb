@@ -1,0 +1,44 @@
+<div class="grid">
+  <div>
+    <h2>Incoming</h2>
+    <dl class="right">
+      <dt>Targets</dt>
+      <dd><%= number_to_delimited(Target.count) %></dd>
+
+      <dt>Total</dt>
+      <dd><%= number_to_delimited(Incoming.count) %></dd>
+
+      <dt>Newest</dt>
+      <dd><%= format_timestamp(Incoming.last&.timestamp) %></dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Outgoing</h2>
+    <dl class="right">
+      <dt>Queued</dt>
+      <dd><%= number_to_delimited(Outgoing.count) %></dd>
+
+      <dt>Queue age (oldest)</dt>
+      <dd><%= format_duration(queue_oldest_age) %></dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Measurements & Fields</h3>
+    <dl class="left">
+      <% incoming_measurement_fields_grouped.each do |measurement, fields| %>
+        <dt><%= measurement %></dt>
+        <dd><%= fields.join(', ') %></dd>
+      <% end %>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Database</h2>
+    <dl>
+      <dt>Size</dt>
+      <dd><%= database_size %></dd>
+    </dl>
+  </div>
+</div>

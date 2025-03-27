@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title><%= @title || 'SOLECTRUS :: Ingest' %></title>
+
+    <style>
+      html {
+        font-family: system-ui, sans-serif;
+        background-color: #f7f7f7;
+        color: #222;
+      }
+
+      body {
+        max-width: 800px;
+        margin: 4rem auto;
+        padding: 0 2rem;
+      }
+
+      h1 {
+        text-align: center;
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        color: #333;
+      }
+
+      .card {
+        background: #fff;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+
+      h2 {
+        margin-top: 0;
+        font-size: 1.2rem;
+        color: #444;
+      }
+
+      dl {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        row-gap: 1rem;
+        column-gap: 1rem;
+        justify-content: space-between;
+      }
+
+      dt {
+        font-weight: 600;
+        color: #555;
+        grid-column: 1;
+      }
+
+      dd {
+        margin: 0;
+        font-variant-numeric: tabular-nums;
+        grid-column: 3;
+      }
+
+      dl.left dd {
+        text-align: left;
+      }
+
+      dl.right dd {
+        text-align: right;
+      }
+
+      .grid {
+        display: flex;
+        gap: 3rem;
+        flex-wrap: wrap;
+      }
+
+      .grid > div {
+        flex: 1 1 300px;
+      }
+
+      @media (max-width: 600px) {
+        .grid {
+          flex-direction: column;
+        }
+
+        dd {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>SOLECTRUS :: Ingest</h1>
+
+    <div class="card">
+      <%= yield %>
+    </div>
+  </body>
+</html>

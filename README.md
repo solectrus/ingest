@@ -58,7 +58,7 @@ services:
 ## Healthcheck
 
 ```http
-GET /health
+GET /up
 ```
 
 Returns `OK` if the service is running.

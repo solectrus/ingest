@@ -1,5 +1,14 @@
 source 'https://rubygems.org'
 
+# Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
+gem 'sqlite3'
+
+# Object-relational mapper framework (part of Rails). (https://rubyonrails.org)
+gem 'activerecord'
+
+# A toolkit of support libraries and Ruby core extensions extracted from the Rails framework. (https://rubyonrails.org)
+gem 'activesupport'
+
 # Classy web-development dressed in a DSL (http://sinatrarb.com/)
 gem 'sinatra', require: 'sinatra/base'
 
@@ -14,12 +23,6 @@ gem 'puma'
 
 # Ruby library for InfluxDB 2. (https://github.com/influxdata/influxdb-client-ruby)
 gem 'influxdb-client'
-
-# Ruby library to interface with the SQLite3 database engine (http://www.sqlite.org). (https://github.com/sparklemotion/sqlite3-ruby)
-gem 'sqlite3'
-
-# Object-relational mapper framework (part of Rails). (https://rubyonrails.org)
-gem 'activerecord'
 
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
