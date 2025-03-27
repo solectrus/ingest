@@ -1,5 +1,9 @@
 class InfluxWriter
-  INFLUX_URL = ENV.fetch('INFLUX_URL', 'http://localhost:8086')
+  INFLUX_HOST = ENV.fetch('INFLUX_HOST')
+  INFLUX_PORT = ENV.fetch('INFLUX_PORT', '8086')
+  INFLUX_SCHEMA = ENV.fetch('INFLUX_SCHEMA', 'http')
+
+  INFLUX_URL = "#{INFLUX_SCHEMA}://#{INFLUX_HOST}:#{INFLUX_PORT}".freeze
 
   class << self
     # Supports single line (String) or multiple lines (Array of Strings)
