@@ -1,6 +1,4 @@
 class App < Sinatra::Base
-  set :logging, true
-
   use StatsRoute
   use WriteRoute
   use UpRoute
