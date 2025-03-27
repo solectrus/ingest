@@ -16,13 +16,13 @@ class WriteRoute < Sinatra::Base
       Processor.new(influx_token, bucket, org, precision).run(influx_line)
       status 204
     rescue InfluxDB2::InfluxError => e
-      warn e
+      warn "#{e}, #{e.backtrace.join("\n")}"
       status 202
     rescue InvalidLineProtocolError => e
-      warn e
+      warn "#{e}, #{e.backtrace.join("\n")}"
       status 400
     rescue StandardError => e
-      warn e
+      warn "#{e}, #{e.backtrace.join("\n")}"
       status 500
     end
   end
