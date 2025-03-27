@@ -77,3 +77,6 @@ Rails/RakeEnvironment:
 
 Rails/SkipsModelValidations:
   Enabled: false
+
+Rails/TimeZone:
+  Enabled: false
