@@ -1,5 +1,5 @@
 class App < Sinatra::Base
-  use HomeRoute
+  use StatsRoute
   use WriteRoute
   use UpRoute
 end

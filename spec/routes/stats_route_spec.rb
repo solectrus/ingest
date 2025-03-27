@@ -1,6 +1,6 @@
-describe HomeRoute do
+describe StatsRoute do
   def app
-    HomeRoute.new
+    StatsRoute.new
   end
 
   describe 'GET /' do
