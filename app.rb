@@ -2,7 +2,10 @@ require 'logger'
 
 class App < Sinatra::Base
   set :logging, true
-  set :logger, Logger.new($stdout)
+
+  logger = Logger.new($stdout)
+  logger.level = Logger::DEBUG
+  set :logger, logger
 
   before { env['rack.logger'] = settings.logger }
 
