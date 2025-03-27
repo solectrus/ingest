@@ -10,6 +10,7 @@ Lightweight InfluxDB ingestion proxy with **buffering**, **house power calculati
 - Reliable **retries** and **batch forwarding** to InfluxDB
 - Automatic **house power calculation** based on incoming sensor values (overrides incoming house_power)
 - Buffers all writes to SQLite
+- Stats endpoint for monitoring (protected by basic auth)
 
 ## Example Docker Compose
 
@@ -39,6 +40,8 @@ services:
 | `INFLUX_SENSOR_HEATPUMP_POWER`            | Sensor for heat pump power                            |
 | `INFLUX_SENSOR_HOUSE_POWER`               | Sensor for house power                                |
 | `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation          |
+| `STATS_USERNAME`                          | Username for stats endpoint (optional)                |
+| `STATS_PASSWORD`                          | Password for stats endpoint (optional)                |
 
 ## API Endpoints
 
