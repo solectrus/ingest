@@ -12,4 +12,8 @@ class App < Sinatra::Base
   use StatsRoute
   use WriteRoute
   use UpRoute
+
+  [StatsRoute, WriteRoute, UpRoute].each do |route|
+    route.set :logger, settings.logger
+  end
 end
