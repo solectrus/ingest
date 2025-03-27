@@ -9,7 +9,7 @@
 .ruby-lsp
 **/.DS_Store
 **/.keep
-db/*.sqlite3*
+data/*.sqlite3*
 Dockerfile
 README.md
 spec
