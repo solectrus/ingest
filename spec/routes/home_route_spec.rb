@@ -22,13 +22,40 @@ describe HomeRoute do
       )
     end
 
-    it 'renders the homepage with stats' do
-      get '/'
+    context 'without credentials' do
+      it 'returns 401 Unauthorized' do
+        get '/'
 
-      expect(last_response.status).to eq(200)
-      expect(last_response.body).to include('SOLECTRUS :: Ingest')
-      expect(last_response.body).to include('Incoming')
-      expect(last_response.body).to include('Outgoing')
+        expect(last_response.status).to eq(401)
+      end
+    end
+
+    context 'when credentials are invalid' do
+      before { basic_authorize('invalid_user', 'invalid_password') }
+
+      it 'returns 401 Unauthorized' do
+        get '/'
+
+        expect(last_response.status).to eq(401)
+      end
+    end
+
+    context 'when username and password are set' do
+      before do
+        basic_authorize(
+          ENV.fetch('STATS_USERNAME', nil),
+          ENV.fetch('STATS_PASSWORD', nil),
+        )
+      end
+
+      it 'renders the homepage with stats' do
+        get '/'
+
+        expect(last_response.status).to eq(200)
+        expect(last_response.body).to include('SOLECTRUS :: Ingest')
+        expect(last_response.body).to include('Incoming')
+        expect(last_response.body).to include('Outgoing')
+      end
     end
   end
 end
