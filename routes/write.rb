@@ -1,4 +1,4 @@
-class WriteRoute < Sinatra::Base
+class WriteRoute < BaseRoute
   post '/api/v2/write' do # rubocop:disable Metrics/BlockLength
     content_type 'application/json'
 

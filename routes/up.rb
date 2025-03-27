@@ -1,4 +1,4 @@
-class UpRoute < Sinatra::Base
+class UpRoute < BaseRoute
   set :views, File.expand_path('../views', __dir__)
 
   get '/up' do
