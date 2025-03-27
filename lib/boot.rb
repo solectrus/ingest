@@ -1,7 +1,8 @@
 $LOAD_PATH.unshift File.expand_path('..', __dir__)
 
 require 'dotenv/load'
-require 'sinatra/base'
+require 'sinatra'
+require 'sinatra/reloader' if ENV['APP_ENV'] == 'development'
 require 'json'
 require 'influxdb-client'
 require 'sqlite3'

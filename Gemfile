@@ -3,6 +3,9 @@ source 'https://rubygems.org'
 # Classy web-development dressed in a DSL (http://sinatrarb.com/)
 gem 'sinatra', require: 'sinatra/base'
 
+# Collection of useful Sinatra extensions. (http://sinatrarb.com/contrib/)
+gem 'sinatra-contrib'
+
 # A general server command for Rack applications. (https://github.com/rack/rackup)
 gem 'rackup'
 
