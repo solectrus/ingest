@@ -21,7 +21,7 @@ class Processor
   def store_incoming(parsed)
     parsed.fields.each do |field, value|
       target.incomings.create!(
-        timestamp: parsed.timestamp,
+        timestamp: target.timestamp_ns(parsed.timestamp),
         measurement: parsed.measurement,
         tags: parsed.tags,
         field:,
