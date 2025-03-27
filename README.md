@@ -7,7 +7,7 @@ Lightweight InfluxDB ingestion proxy with **buffering**, **house power calculati
 ## Features
 
 - Accepts InfluxDB v2 `/api/v2/write` (Line Protocol)
-- Reliable **retries** and **batch forwarding** to InfluxDB (`INFLUX_URL`)
+- Reliable **retries** and **batch forwarding** to InfluxDB
 - Automatic **house power calculation** based on incoming sensor values (overrides incoming house_power)
 - Buffers all writes to SQLite
 
@@ -26,7 +26,9 @@ services:
 
 | Variable                                  | Description                                           |
 | ----------------------------------------- | ----------------------------------------------------- |
-| `INFLUX_URL`                              | InfluxDB base URL (e.g., http://influxdb:8086)        |
+| `INFLUX_HOST`                             | InfluxDB host, e.g. "influxdb"                        |
+| `INFLUX_PORT`                             | InfluxDB port, e.g. "8086"                            |
+| `INFLUX_SCHEMA`                           | InfluxDB schema, e.g. "http"                          |
 | `INFLUX_SENSOR_INVERTER_POWER`            | Sensor for inverter power (Format: measurement:field) |
 | `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Sensor for grid import power                          |
 | `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Sensor for grid export power                          |

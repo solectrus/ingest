@@ -2,9 +2,13 @@ name: CI and Docker Build
 
 on:
   push:
-    branches: [main]
+    branches:
+      - develop
+    tags:
+      - v*
   pull_request:
-    branches: [main]
+    branches:
+      - develop
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,6 +54,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
 
       - name: Set up QEMU (for cross-platform builds)
         uses: docker/setup-qemu-action@v3
