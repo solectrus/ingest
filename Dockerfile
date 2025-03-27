@@ -35,6 +35,7 @@ WORKDIR /app
 COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
 COPY --from=builder /app /app
 
+# Expose Sinatra port
 EXPOSE 4567
 
 ENTRYPOINT ["bundle", "exec"]
