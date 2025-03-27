@@ -1,3 +1,5 @@
+$stdout.sync = true
+
 class App < Sinatra::Base
   set :logging, true
 

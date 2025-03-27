@@ -29,6 +29,7 @@ ENV MALLOC_ARENA_MAX=2
 
 ENV APP_ENV=production
 ENV RACK_ENV=production
+ENV RUBYOPT=--yjit
 
 WORKDIR /app
 
