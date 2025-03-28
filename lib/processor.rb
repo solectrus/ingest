@@ -19,14 +19,16 @@ class Processor
   private
 
   def store_incoming(parsed)
-    parsed.fields.each do |field, value|
-      target.incomings.create!(
-        timestamp: target.timestamp_ns(parsed.timestamp),
-        measurement: parsed.measurement,
-        tags: parsed.tags,
-        field:,
-        value:,
-      )
+    Incoming.transaction do
+      parsed.fields.each do |field, value|
+        target.incomings.create!(
+          timestamp: target.timestamp_ns(parsed.timestamp),
+          measurement: parsed.measurement,
+          tags: parsed.tags,
+          field:,
+          value:,
+        )
+      end
     end
   end
 
