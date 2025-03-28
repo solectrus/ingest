@@ -12,13 +12,15 @@ class SensorEnvConfig
   ].freeze
 
   @config =
-    SENSOR_KEYS.to_h do |key|
-      env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}", nil)
-      next key, nil unless env_value
+    SENSOR_KEYS
+      .filter_map do |key|
+        env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}", nil)
+        next if env_value.nil? || env_value.strip.empty?
 
-      measurement, field = env_value.split(':', 2)
-      [key, { measurement:, field: }]
-    end
+        measurement, field = env_value.split(':', 2)
+        [key, { measurement:, field: }]
+      end
+      .to_h
 
   @exclude_from_house_power_keys =
     ENV
