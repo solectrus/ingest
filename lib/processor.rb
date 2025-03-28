@@ -19,15 +19,17 @@ class Processor
   private
 
   def store_incoming(parsed)
-    Incoming.transaction do
-      parsed.fields.each do |field, value|
-        target.incomings.create!(
-          timestamp: target.timestamp_ns(parsed.timestamp),
-          measurement: parsed.measurement,
-          tags: parsed.tags,
-          field:,
-          value:,
-        )
+    DBConfig.thread_safe_db_write do
+      Incoming.transaction do
+        parsed.fields.each do |field, value|
+          target.incomings.create!(
+            timestamp: target.timestamp_ns(parsed.timestamp),
+            measurement: parsed.measurement,
+            tags: parsed.tags,
+            field:,
+            value:,
+          )
+        end
       end
     end
   end
@@ -48,7 +50,9 @@ class Processor
         timestamp: parsed.timestamp,
       )
 
-    Outgoing.create!(target:, line_protocol: line_without_house_power.to_s)
+    DBConfig.thread_safe_db_write do
+      Outgoing.create!(target:, line_protocol: line_without_house_power.to_s)
+    end
   end
 
   def trigger_house_power_if_relevant(parsed)

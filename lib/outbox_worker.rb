@@ -19,11 +19,12 @@ class OutboxWorker
           .group_by { |o| [o.target_id, extract_timestamp(o.line_protocol)] }
           .each_value do |outgoings|
             target = outgoings.first.target
+            next unless write_batch(outgoings, target)
 
-            if write_batch(outgoings, target)
+            DBConfig.thread_safe_db_write do
               Outgoing.where(id: outgoings).delete_all
-              total_processed += outgoings.size
             end
+            total_processed += outgoings.size
           end
       end
 
@@ -48,7 +49,7 @@ class OutboxWorker
     true
   rescue InfluxWriter::ClientError => e
     warn "[OutboxWorker] Permanent write failure (deleted): #{e.message}"
-    Outgoing.where(id: outgoings).delete_all
+    DBConfig.thread_safe_db_write { Outgoing.where(id: outgoings).delete_all }
     false
   rescue InfluxWriter::ServerError,
          SocketError,
