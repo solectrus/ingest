@@ -12,43 +12,72 @@ describe OutboxWorker do
     target.outgoings.create!(line_protocol: 'measurement1 field=1 1000')
     target.outgoings.create!(line_protocol: 'measurement2 field=2 1000')
     target.outgoings.create!(line_protocol: 'measurement3 field=3 2000')
-
-    allow(InfluxWriter).to receive(:write).and_return(true)
   end
 
   describe '.run_once' do
-    it 'writes batches to InfluxWriter' do
-      described_class.run_once
+    context 'when all writes succeed' do
+      before { allow(InfluxWriter).to receive(:write).and_return(true) }
 
-      expect(InfluxWriter).to have_received(:write).twice
+      it 'writes batches to InfluxWriter' do
+        described_class.run_once
 
-      # timestamp = 1000 => 2 entries
-      expect(InfluxWriter).to have_received(:write).with(
-        a_collection_including(
-          'measurement1 field=1 1000',
-          'measurement2 field=2 1000',
-        ),
-        influx_token: target.influx_token,
-        bucket: target.bucket,
-        org: target.org,
-        precision: target.precision,
-      )
+        expect(InfluxWriter).to have_received(:write).twice
 
-      # timestamp = 2000 => 1 entry
-      expect(InfluxWriter).to have_received(:write).with(
-        a_collection_including('measurement3 field=3 2000'),
-        influx_token: target.influx_token,
-        bucket: target.bucket,
-        org: target.org,
-        precision: target.precision,
-      )
+        # timestamp = 1000 => 2 entries
+        expect(InfluxWriter).to have_received(:write).with(
+          a_collection_including(
+            'measurement1 field=1 1000',
+            'measurement2 field=2 1000',
+          ),
+          influx_token: target.influx_token,
+          bucket: target.bucket,
+          org: target.org,
+          precision: target.precision,
+        )
+
+        # timestamp = 2000 => 1 entry
+        expect(InfluxWriter).to have_received(:write).with(
+          a_collection_including('measurement3 field=3 2000'),
+          influx_token: target.influx_token,
+          bucket: target.bucket,
+          org: target.org,
+          precision: target.precision,
+        )
+      end
+
+      it 'removes all outgoings after processing' do
+        expect do
+          processed = described_class.run_once
+          expect(processed).to eq(3)
+        end.to change(Outgoing, :count).by(-3)
+      end
     end
 
-    it 'removes outgoings after processing' do
-      expect do
-        processed = described_class.run_once
-        expect(processed).to eq(3)
-      end.to change(Outgoing, :count).by(-3)
+    context 'when a write fails' do
+      before do
+        allow(InfluxWriter).to receive(:write).and_return(true)
+        # Simulate a failure for the second batch
+        allow(InfluxWriter).to receive(:write).with(
+          a_collection_including(
+            'measurement1 field=1 1000',
+            'measurement2 field=2 1000',
+          ),
+          anything,
+        ).and_raise(StandardError.new('influx write failed'))
+      end
+
+      it 'removes only successfully written outgoings' do
+        expect do
+          processed = described_class.run_once
+          expect(processed).to eq(1)
+        end.to change(Outgoing, :count).by(-1)
+
+        remaining = Outgoing.pluck(:line_protocol)
+        expect(remaining).to contain_exactly(
+          'measurement1 field=1 1000',
+          'measurement2 field=2 1000',
+        )
+      end
     end
   end
 
