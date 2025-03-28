@@ -32,6 +32,8 @@ class HousePowerCalculator
         timestamp:,
       ).to_s
 
-    target.outgoings.create!(line_protocol: line)
+    DBConfig.thread_safe_db_write do
+      target.outgoings.create!(line_protocol: line)
+    end
   end
 end
