@@ -46,8 +46,15 @@ class OutboxWorker
     )
 
     true
-  rescue StandardError => e
-    warn "[OutboxWorker] Failed to write #{outgoings.size} lines to InfluxDB: #{e.class} - #{e.message}"
+  rescue InfluxWriter::ClientError => e
+    warn "[OutboxWorker] Permanent write failure (deleted): #{e.message}"
+    Outgoing.where(id: outgoings).delete_all
+    false
+  rescue InfluxWriter::ServerError,
+         SocketError,
+         Timeout::Error,
+         Errno::ECONNREFUSED => e
+    warn "[OutboxWorker] Temporary write failure (will retry): #{e.class} - #{e.message}"
     false
   end
 end
