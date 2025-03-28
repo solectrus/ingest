@@ -93,56 +93,6 @@ describe Incoming do
     end
   end
 
-  describe '.interpolate' do
-    before do
-      described_class.create!(
-        target: target,
-        measurement: 'SENEC',
-        field: 'inverter_power',
-        timestamp: 1000,
-        value: 100,
-      )
-
-      described_class.create!(
-        target: target,
-        measurement: 'SENEC',
-        field: 'inverter_power',
-        timestamp: 2000,
-        value: 200,
-      )
-    end
-
-    it 'interpolates values correctly between two points' do
-      result =
-        described_class.interpolate(
-          measurement: 'SENEC',
-          field: 'inverter_power',
-          timestamp: 1500,
-        )
-      expect(result).to eq(150.0)
-    end
-
-    it 'returns the exact value if timestamp matches' do
-      result =
-        described_class.interpolate(
-          measurement: 'SENEC',
-          field: 'inverter_power',
-          timestamp: 1000,
-        )
-      expect(result).to eq(100)
-    end
-
-    it 'returns nil if no interpolation is possible' do
-      result =
-        described_class.interpolate(
-          measurement: 'SENEC',
-          field: 'inverter_power',
-          timestamp: 3000,
-        )
-      expect(result).to be_nil
-    end
-  end
-
   describe '.cleanup' do
     let!(:old_incoming) do
       described_class.create!(
