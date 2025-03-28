@@ -5,8 +5,13 @@ class InfluxWriter
 
   INFLUX_URL = "#{INFLUX_SCHEMA}://#{INFLUX_HOST}:#{INFLUX_PORT}".freeze
 
+  class ClientError < StandardError
+  end
+
+  class ServerError < StandardError
+  end
+
   class << self
-    # Supports single line (String) or multiple lines (Array of Strings)
     def write(lines, influx_token:, bucket:, org:, precision:)
       client =
         InfluxDB2::Client.new(
@@ -18,6 +23,15 @@ class InfluxWriter
       payload = lines.is_a?(Array) ? lines.join("\n") : lines
 
       client.create_write_api.write(data: payload, bucket:, org:, precision:)
+    rescue InfluxDB2::InfluxError => e
+      case e.code
+      when 400..499
+        raise ClientError, "Client error (#{e.code}): #{e.message}"
+      when 500..599
+        raise ServerError, "Server error (#{e.code}): #{e.message}"
+      else
+        raise
+      end
     ensure
       client&.close!
     end

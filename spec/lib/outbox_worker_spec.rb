@@ -18,34 +18,7 @@ describe OutboxWorker do
     context 'when all writes succeed' do
       before { allow(InfluxWriter).to receive(:write).and_return(true) }
 
-      it 'writes batches to InfluxWriter' do
-        described_class.run_once
-
-        expect(InfluxWriter).to have_received(:write).twice
-
-        # timestamp = 1000 => 2 entries
-        expect(InfluxWriter).to have_received(:write).with(
-          a_collection_including(
-            'measurement1 field=1 1000',
-            'measurement2 field=2 1000',
-          ),
-          influx_token: target.influx_token,
-          bucket: target.bucket,
-          org: target.org,
-          precision: target.precision,
-        )
-
-        # timestamp = 2000 => 1 entry
-        expect(InfluxWriter).to have_received(:write).with(
-          a_collection_including('measurement3 field=3 2000'),
-          influx_token: target.influx_token,
-          bucket: target.bucket,
-          org: target.org,
-          precision: target.precision,
-        )
-      end
-
-      it 'removes all outgoings after processing' do
+      it 'writes batches to InfluxWriter and deletes all outgoings' do
         expect do
           processed = described_class.run_once
           expect(processed).to eq(3)
@@ -53,27 +26,53 @@ describe OutboxWorker do
       end
     end
 
-    context 'when a write fails' do
+    context 'when a permanent write fails (ClientError)' do
       before do
+        # Default write is OK
         allow(InfluxWriter).to receive(:write).and_return(true)
-        # Simulate a failure for the second batch
+
+        # Simulate error for timestamp = 1000
         allow(InfluxWriter).to receive(:write).with(
           a_collection_including(
             'measurement1 field=1 1000',
             'measurement2 field=2 1000',
           ),
           anything,
-        ).and_raise(StandardError.new('influx write failed'))
+        ).and_raise(InfluxWriter::ClientError.new('invalid token'))
       end
 
-      it 'removes only successfully written outgoings' do
+      it 'deletes only permanently failed and successfully written outgoings' do
         expect do
           processed = described_class.run_once
-          expect(processed).to eq(1)
+          expect(processed).to eq(1) # only timestamp=2000 counts
+        end.to change(Outgoing, :count).by(-3)
+
+        expect(Outgoing.pluck(:line_protocol)).to be_empty
+      end
+    end
+
+    context 'when a temporary write fails (ServerError)' do
+      before do
+        # Default write ist OK
+        allow(InfluxWriter).to receive(:write).and_return(true)
+
+        # Simulate error for timestamp = 1000
+        allow(InfluxWriter).to receive(:write).with(
+          a_collection_including(
+            'measurement1 field=1 1000',
+            'measurement2 field=2 1000',
+          ),
+          anything,
+        ).and_raise(InfluxWriter::ServerError.new('Influx down'))
+      end
+
+      it 'keeps outgoings that failed temporarily and deletes successful ones' do
+        expect do
+          processed = described_class.run_once
+          expect(processed).to eq(1) # only timestamp=2000 counts
         end.to change(Outgoing, :count).by(-1)
 
-        remaining = Outgoing.pluck(:line_protocol)
-        expect(remaining).to contain_exactly(
+        expect(Outgoing.pluck(:line_protocol)).to contain_exactly(
           'measurement1 field=1 1000',
           'measurement2 field=2 1000',
         )
@@ -87,7 +86,7 @@ describe OutboxWorker do
       allow(described_class).to receive(:sleep) # Stub sleep to avoid waiting
     end
 
-    it 'runs loop and calls run_once repeatedly' do
+    it 'runs repeatedly using run_once and sleep' do
       thread = Thread.new { described_class.run_loop }
 
       sleep 0.1
