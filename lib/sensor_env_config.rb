@@ -32,6 +32,8 @@ class SensorEnvConfig
   class << self
     SENSOR_KEYS.each { |key| define_method(key) { @config[key] } }
 
+    attr_reader :config, :exclude_from_house_power_keys
+
     def sensor_keys_for_house_power
       @sensor_keys_for_house_power ||=
         SENSOR_KEYS.reject do
