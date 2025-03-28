@@ -31,6 +31,16 @@ ENV APP_ENV=production
 ENV RACK_ENV=production
 ENV RUBYOPT=--yjit
 
+# Move build arguments to environment variables
+ARG BUILDTIME
+ENV BUILDTIME=${BUILDTIME}
+
+ARG VERSION
+ENV VERSION=${VERSION}
+
+ARG REVISION
+ENV REVISION=${REVISION}
+
 WORKDIR /app
 
 COPY --from=builder /usr/local/bundle/ /usr/local/bundle/
