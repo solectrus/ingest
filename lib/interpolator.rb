@@ -2,7 +2,12 @@ class Interpolator
   def initialize(sensor_keys:, timestamp:)
     @timestamp = timestamp
     @sensors =
-      sensor_keys.filter_map { |key| [key, SensorEnvConfig.send(key)] }.to_h
+      sensor_keys
+        .map { |key| [key, SensorEnvConfig.send(key)] }
+        .reject do |_, config|
+          config.nil? || config[:measurement].nil? || config[:field].nil?
+        end
+        .to_h
   end
 
   def run
