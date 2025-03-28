@@ -1,5 +1,5 @@
 class OutboxWorker
-  INTERVAL = 1.second
+  INTERVAL = 2.seconds
   BATCH_SIZE = 500
 
   def self.run_loop
