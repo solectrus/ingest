@@ -19,9 +19,11 @@ class OutboxWorker
           .group_by { |o| [o.target_id, extract_timestamp(o.line_protocol)] }
           .each_value do |outgoings|
             target = outgoings.first.target
-            write_batch(outgoings, target)
 
-            total_processed += outgoings.size
+            if write_batch(outgoings, target)
+              Outgoing.where(id: outgoings).delete_all
+              total_processed += outgoings.size
+            end
           end
       end
 
@@ -43,6 +45,9 @@ class OutboxWorker
       precision: target.precision,
     )
 
-    Outgoing.where(id: outgoings.map(&:id)).delete_all
+    true
+  rescue StandardError => e
+    warn "[OutboxWorker] Failed to write #{outgoings.size} lines to InfluxDB: #{e.class} - #{e.message}"
+    false
   end
 end
