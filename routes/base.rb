@@ -11,6 +11,7 @@ class BaseRoute < Sinatra::Base
 
   helpers do
     def protected!
+      return unless username && password
       return if authorized?
 
       headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
@@ -21,8 +22,15 @@ class BaseRoute < Sinatra::Base
       @auth ||= Rack::Auth::Basic::Request.new(request.env)
 
       @auth.provided? && @auth.basic? && @auth.credentials &&
-        @auth.credentials ==
-          [ENV.fetch('STATS_USERNAME', nil), ENV.fetch('STATS_PASSWORD', nil)]
+        @auth.credentials == [username, password]
+    end
+
+    def username
+      ENV.fetch('STATS_USERNAME', nil).presence
+    end
+
+    def password
+      ENV.fetch('STATS_PASSWORD', nil).presence
     end
   end
 end
