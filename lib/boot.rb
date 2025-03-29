@@ -11,7 +11,7 @@ $LOAD_PATH.unshift File.expand_path('..', __dir__)
   Dir[File.join(__dir__, '..', folder, '**', '*.rb')].each { require it }
 end
 
-require_relative '../db/setup'
-DatabaseSetup.run!
+require_relative '../db/database'
+Database.setup!
 
 require 'app'

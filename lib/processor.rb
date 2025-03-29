@@ -19,7 +19,7 @@ class Processor
   private
 
   def store_incoming(parsed)
-    DBConfig.thread_safe_db_write do
+    Database.thread_safe_write do
       Incoming.transaction do
         parsed.fields.each do |field, value|
           target.incomings.create!(
@@ -51,7 +51,7 @@ class Processor
         timestamp: parsed.timestamp,
       )
 
-    DBConfig.thread_safe_db_write do
+    Database.thread_safe_write do
       Outgoing.create!(target:, line_protocol: line_without_house_power.to_s)
     end
   end
