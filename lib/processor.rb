@@ -44,7 +44,7 @@ class Processor
       parsed.fields.reject do |field, _|
         parsed.measurement ==
           SensorEnvConfig.house_power_destination[:measurement] &&
-          field.to_s == SensorEnvConfig.house_power_destination[:field]
+          field == SensorEnvConfig.house_power_destination[:field]
       end
     return if fields_without_house_power.empty?
 

@@ -22,9 +22,11 @@ describe Line do
       end
 
       it 'parses fields' do
-        expect(parsed.fields).to include(inverter_power: 1249)
-        expect(parsed.fields).to include(ev_connected: false)
-        expect(parsed.fields).to include(current_state: 'AKKU VOLL')
+        expect(parsed.fields).to include('inverter_power' => 1249)
+        expect(parsed.fields).to include('ev_connected' => false)
+        expect(parsed.fields).to include('current_state_ok' => true)
+        expect(parsed.fields).to include('current_state' => 'AKKU VOLL')
+        expect(parsed.fields).to include('case_temp' => 32.5)
       end
     end
 
@@ -43,7 +45,7 @@ describe Line do
       end
 
       it 'parses fields' do
-        expect(parsed.fields).to include(mileage: 50_294.0)
+        expect(parsed.fields).to include('mileage' => 50_294.0)
       end
     end
   end

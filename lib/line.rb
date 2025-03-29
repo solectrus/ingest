@@ -1,56 +1,54 @@
 class InvalidLineProtocolError < StandardError
 end
 
-class Line
-  attr_reader :measurement, :tags, :fields, :timestamp
+LINE_PROTOCOL_REGEX = /^([^ ]+)\s(.+?)(?:\s(\d+))?$/
+INTEGER_REGEX = /\A[-+]?\d+i\z/
+INTEGER_SUFFIX = 'i'.freeze
+TRUE_STRING = 'true'.freeze
+FALSE_STRING = 'false'.freeze
+QUOTE = '"'.freeze
 
-  def initialize(measurement:, fields:, timestamp:, tags: {})
-    @measurement = measurement
-    @fields = fields
-    @tags = tags
-    @timestamp = timestamp
-  end
+Line =
+  Data.define(:measurement, :fields, :tags, :timestamp) do
+    def self.parse(line)
+      m = LINE_PROTOCOL_REGEX.match(line)
+      raise InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
 
-  def self.parse(line)
-    m = line.match(/^([^ ]+)\s(.+?)(?:\s(\d+))?$/)
-    raise InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
+      measurement_and_tags = m[1]
+      fields_str = m[2]
+      timestamp = m[3]&.to_i
 
-    measurement_and_tags = m[1]
-    fields_str = m[2]
-    timestamp = m[3]&.to_i
+      measurement, *tag_parts = measurement_and_tags.split(',')
+      tags = tag_parts.to_h { |t| t.split('=', 2) }
+      fields = parse_fields(fields_str)
 
-    measurement, *tag_parts = measurement_and_tags.split(',')
-    tags = tag_parts.to_h { |t| t.split('=', 2) }
-    fields = parse_fields(fields_str)
-
-    new(measurement:, fields:, tags:, timestamp:)
-  end
-
-  class << self
-    def parse_fields(str)
-      str
-        .split(',')
-        .to_h do |pair|
-          key, value = pair.split('=', 2)
-          [key.to_sym, parse_value(value)]
-        end
+      new(measurement:, fields:, tags:, timestamp:)
     end
 
-    def parse_value(val)
-      case val
-      when /^"(.*)"$/ # string
-        Regexp.last_match(1)
-      when /^([-+]?\d+)i$/ # integer
-        Regexp.last_match(1).to_i
-      when 'true' # boolean
-        true
-      when 'false' # boolean
-        false
-      else # float
-        val.to_f
+    class << self
+      def parse_fields(str)
+        str
+          .split(',')
+          .to_h do |pair|
+            key, value = pair.split('=', 2)
+            [key, parse_value(value)]
+          end
       end
-    end
 
-    private :parse_fields, :parse_value
+      def parse_value(val)
+        if val.start_with?(QUOTE) && val.end_with?(QUOTE)
+          val[1..-2]
+        elsif val.end_with?(INTEGER_SUFFIX) && val.match?(INTEGER_REGEX)
+          val[0..-2].to_i
+        elsif val == TRUE_STRING
+          true
+        elsif val == FALSE_STRING
+          false
+        else
+          val.to_f
+        end
+      end
+
+      private :parse_fields, :parse_value
+    end
   end
-end
