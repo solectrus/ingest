@@ -20,10 +20,12 @@ class BaseRoute < Sinatra::Base
     def authorized?
       return true unless username && password
 
-      @auth ||= Rack::Auth::Basic::Request.new(request.env)
+      auth.provided? && auth.basic? && auth.credentials &&
+        auth.credentials == [username, password]
+    end
 
-      @auth.provided? && @auth.basic? && @auth.credentials &&
-        @auth.credentials == [username, password]
+    def auth
+      @auth ||= Rack::Auth::Basic::Request.new(request.env)
     end
 
     def username
