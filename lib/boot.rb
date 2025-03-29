@@ -7,7 +7,7 @@ require 'active_record'
 
 $LOAD_PATH.unshift File.expand_path('..', __dir__)
 
-%w[models helpers routes lib].each do |folder|
+%w[models helpers lib routes].each do |folder|
   Dir[File.join(__dir__, '..', folder, '**', '*.rb')].each { require it }
 end
 
