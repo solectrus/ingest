@@ -31,6 +31,6 @@ class Incoming < ActiveRecord::Base
   end
 
   def self.cleanup(cutoff:)
-    DBConfig.thread_safe_db_write { where('created_at < ?', cutoff).delete_all }
+    Database.thread_safe_write { where('created_at < ?', cutoff).delete_all }
   end
 end

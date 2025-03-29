@@ -21,7 +21,7 @@ class OutboxWorker
             target = outgoings.first.target
             next unless write_batch(outgoings, target)
 
-            DBConfig.thread_safe_db_write do
+            Database.thread_safe_write do
               Outgoing.where(id: outgoings).delete_all
             end
             total_processed += outgoings.size
@@ -49,7 +49,7 @@ class OutboxWorker
     true
   rescue InfluxWriter::ClientError => e
     warn "[OutboxWorker] Permanent write failure (deleted): #{e.message}"
-    DBConfig.thread_safe_db_write { Outgoing.where(id: outgoings).delete_all }
+    Database.thread_safe_write { Outgoing.where(id: outgoings).delete_all }
     false
   rescue InfluxWriter::ServerError,
          SocketError,

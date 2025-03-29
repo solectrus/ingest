@@ -16,7 +16,7 @@ module StatsHelpers
   end
 
   def database_size
-    size_bytes = File.size?(DBConfig.file)
+    size_bytes = File.size?(Database.file)
     return '–' unless size_bytes
 
     size_mb = size_bytes.to_f / 1024 / 1024
