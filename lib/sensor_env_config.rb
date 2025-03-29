@@ -1,5 +1,5 @@
 class SensorEnvConfig
-  SENSOR_KEYS = %i[
+  KEYS = %i[
     inverter_power
     balcony_inverter_power
     grid_import_power
@@ -11,38 +11,52 @@ class SensorEnvConfig
     house_power
   ].freeze
 
-  @config =
-    SENSOR_KEYS
-      .filter_map do |key|
-        env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}", nil)
-        next if env_value.nil? || env_value.strip.empty?
-
-        measurement, field = env_value.split(':', 2)
-        [key, { measurement:, field: }]
-      end
-      .to_h
-
-  @exclude_from_house_power_keys =
-    ENV
-      .fetch('INFLUX_EXCLUDE_FROM_HOUSE_POWER', '')
-      .split(',')
-      .map { it.strip.downcase }
-      .to_set(&:to_sym)
-
   class << self
-    SENSOR_KEYS.each { |key| define_method(key) { @config[key] } }
+    KEYS.each { |key| define_method(key) { config[key] } }
 
-    attr_reader :config, :exclude_from_house_power_keys
+    def config
+      @config ||=
+        KEYS.each_with_object({}) do |key, hash|
+          env_value = ENV.fetch("INFLUX_SENSOR_#{key.to_s.upcase}", nil)
+          next if env_value.blank?
+
+          measurement, field = env_value.split(':', 2)
+          hash[key] = { measurement:, field: }
+        end
+    end
+
+    def exclude_from_house_power_keys
+      @exclude_from_house_power_keys ||=
+        ENV
+          .fetch('INFLUX_EXCLUDE_FROM_HOUSE_POWER', '')
+          .split(',')
+          .map(&:strip)
+          .reject(&:blank?)
+          .map(&:downcase)
+          .to_set(&:to_sym)
+    end
 
     def sensor_keys_for_house_power
       @sensor_keys_for_house_power ||=
-        SENSOR_KEYS.reject do
-          it == :house_power || @exclude_from_house_power_keys.include?(it)
+        KEYS.reject do
+          it == :house_power || exclude_from_house_power_keys.include?(it)
         end
     end
 
     def relevant_for_house_power?(parsed_line)
       sensor_keys_for_house_power.any? { parsed_line.fields.key?(it) }
+    end
+
+    def house_power_calculated
+      string = ENV.fetch('INFLUX_SENSOR_HOUSE_POWER_CALCULATED', nil)
+      return if string.blank?
+
+      measurement, field = string.split(':', 2)
+      { measurement:, field: }
+    end
+
+    def house_power_destination
+      @house_power_destination ||= house_power_calculated || house_power
     end
   end
 end

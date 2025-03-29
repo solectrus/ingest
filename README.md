@@ -102,23 +102,24 @@ services:
 
 ## Environment Variables
 
-| Variable                                  | Description                                           |
-| ----------------------------------------- | ----------------------------------------------------- |
-| `INFLUX_SENSOR_INVERTER_POWER`            | Sensor for inverter power (Format: measurement:field) |
-| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Sensor for balcony inverter power                     |
-| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Sensor for grid import power                          |
-| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Sensor for grid export power                          |
-| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Sensor for battery discharging power                  |
-| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Sensor for battery charging power                     |
-| `INFLUX_SENSOR_WALLBOX_POWER`             | Sensor for wallbox power                              |
-| `INFLUX_SENSOR_HEATPUMP_POWER`            | Sensor for heat pump power                            |
-| `INFLUX_SENSOR_HOUSE_POWER`               | Sensor for house power                                |
-| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation          |
-| `INFLUX_HOST`                             | InfluxDB host, e.g. "influxdb"                        |
-| `INFLUX_PORT`                             | InfluxDB port, e.g. "8086"                            |
-| `INFLUX_SCHEMA`                           | InfluxDB schema, e.g. "http"                          |
-| `STATS_USERNAME`                          | Username for stats endpoint (optional)                |
-| `STATS_PASSWORD`                          | Password for stats endpoint (optional)                |
+| Variable                                  | Description                                             |
+| ----------------------------------------- | ------------------------------------------------------- |
+| `INFLUX_SENSOR_INVERTER_POWER`            | Measurement/Field for inverter power                    |
+| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Measurement/Field for balcony inverter power            |
+| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Measurement/Field for grid import power                 |
+| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Measurement/Field for grid export power                 |
+| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Measurement/Field for battery discharging power         |
+| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Measurement/Field for battery charging power            |
+| `INFLUX_SENSOR_WALLBOX_POWER`             | Measurement/Field for wallbox power                     |
+| `INFLUX_SENSOR_HEATPUMP_POWER`            | Measurement/Field for heat pump power                   |
+| `INFLUX_SENSOR_HOUSE_POWER`               | Measurement/Field for house power                       |
+| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation            |
+| `INFLUX_SENSOR_HOUSE_POWER_CALCULATED`    | Measurement/Field for calculated house power (optional) |
+| `INFLUX_HOST`                             | InfluxDB host, e.g. "influxdb"                          |
+| `INFLUX_PORT`                             | InfluxDB port, e.g. "8086"                              |
+| `INFLUX_SCHEMA`                           | InfluxDB schema, e.g. "http"                            |
+| `STATS_USERNAME`                          | Username for stats endpoint (optional)                  |
+| `STATS_PASSWORD`                          | Password for stats endpoint (optional)                  |
 
 ## Endpoints
 

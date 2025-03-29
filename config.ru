@@ -16,13 +16,32 @@ puts "Version #{ENV.fetch('VERSION', '<unknown>')} " \
 puts 'https://github.com/solectrus/ingest'
 puts 'Copyright (c) 2025 Georg Ledermann'
 puts
-puts 'Sensors for calculating house_power:'
-SensorEnvConfig.config.each do |sensor, value|
-  next if sensor == :house_power
 
+puts 'Configured sensors:'
+SensorEnvConfig.config.each do |sensor, value|
   excluded = SensorEnvConfig.exclude_from_house_power_keys.include?(sensor)
-  puts "  #{sensor}: #{value[:measurement]}:#{value[:field]}#{excluded ? ' (excluded from house_power)' : nil}"
+  note = (excluded ? ' (excluded from house_power)' : '')
+
+  output =
+    format(
+      '  %<sensor>-25s → %<measurement>s:%<field>s%<note>s',
+      sensor:,
+      measurement: value[:measurement],
+      field: value[:field],
+      note:,
+    )
+
+  puts output
 end
+
+puts
+if (calculated = SensorEnvConfig.house_power_calculated)
+  puts "Result of house_power calculation → #{calculated[:measurement]}:#{calculated[:field]}"
+else
+  puts 'Calculated house_power OVERRIDES original!'
+end
+
+puts
 puts "Forwarding to #{InfluxWriter::INFLUX_URL}"
 puts
 
