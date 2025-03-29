@@ -26,10 +26,6 @@ describe Line do
         expect(parsed.fields).to include(ev_connected: false)
         expect(parsed.fields).to include(current_state: 'AKKU VOLL')
       end
-
-      it 'rebuilds the line' do
-        expect(parsed.to_s).to eq(line)
-      end
     end
 
     context 'without timestamp' do
@@ -48,10 +44,6 @@ describe Line do
 
       it 'parses fields' do
         expect(parsed.fields).to include(mileage: 50_294.0)
-      end
-
-      it 'rebuilds the line' do
-        expect(parsed.to_s).to eq(line)
       end
     end
   end

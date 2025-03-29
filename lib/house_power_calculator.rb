@@ -23,15 +23,18 @@ class HousePowerCalculator
   private
 
   def write_house_power(house_power, timestamp)
-    line =
-      Line.new(
-        measurement: SensorEnvConfig.house_power_destination[:measurement],
+    point =
+      InfluxDB2::Point.new(
+        name: SensorEnvConfig.house_power_destination[:measurement],
         fields: {
           SensorEnvConfig.house_power_destination[:field] => house_power.round,
         },
-        timestamp:,
-      ).to_s
+        time: timestamp,
+        precision: target.precision,
+      )
 
-    Database.thread_safe_write { target.outgoings.create!(line_protocol: line) }
+    Database.thread_safe_write do
+      target.outgoings.create!(line_protocol: point.to_line_protocol)
+    end
   end
 end

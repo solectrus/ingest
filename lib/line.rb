@@ -26,48 +26,6 @@ class Line
     new(measurement:, fields:, tags:, timestamp:)
   end
 
-  def to_s # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity
-    @to_s ||=
-      begin
-        io = StringIO.new
-        io << measurement
-
-        unless tags.empty?
-          io << ','
-          tags.each_with_index do |(k, v), i|
-            io << "#{k}=#{v}"
-            io << ',' unless i == tags.size - 1
-          end
-        end
-
-        io << ' '
-        fields.each_with_index do |(k, v), i|
-          io << "#{k}=#{format_field_value(v)}"
-          io << ',' unless i == fields.size - 1
-        end
-
-        io << " #{timestamp}" if timestamp
-        io.string
-      end
-  end
-
-  private
-
-  def format_field_value(val)
-    case val
-    when String
-      "\"#{val}\""
-    when true
-      'true'
-    when false
-      'false'
-    when Integer
-      val.to_s << 'i'
-    else
-      val.to_s
-    end
-  end
-
   class << self
     def parse_fields(str)
       str
