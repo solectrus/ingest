@@ -26,13 +26,29 @@ class Line
     new(measurement:, fields:, tags:, timestamp:)
   end
 
-  def to_s
-    tag_str = tags.map { |k, v| "#{k}=#{v}" }.join(',')
-    tag_section = tag_str.empty? ? '' : ",#{tag_str}"
+  def to_s # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity
+    @to_s ||=
+      begin
+        io = StringIO.new
+        io << measurement
 
-    field_str = fields.map { |k, v| "#{k}=#{format_field_value(v)}" }.join(',')
+        unless tags.empty?
+          io << ','
+          tags.each_with_index do |(k, v), i|
+            io << "#{k}=#{v}"
+            io << ',' unless i == tags.size - 1
+          end
+        end
 
-    ["#{measurement}#{tag_section} #{field_str}", timestamp].compact.join(' ')
+        io << ' '
+        fields.each_with_index do |(k, v), i|
+          io << "#{k}=#{format_field_value(v)}"
+          io << ',' unless i == fields.size - 1
+        end
+
+        io << " #{timestamp}" if timestamp
+        io.string
+      end
   end
 
   private
@@ -41,12 +57,14 @@ class Line
     case val
     when String
       "\"#{val}\""
-    when TrueClass, FalseClass
-      val.to_s
+    when true
+      'true'
+    when false
+      'false'
     when Integer
-      "#{val}i"
+      val.to_s << 'i'
     else
-      val
+      val.to_s
     end
   end
 
