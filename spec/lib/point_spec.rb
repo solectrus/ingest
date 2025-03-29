@@ -1,6 +1,6 @@
-describe Line do
+describe Point do
   describe '.parse' do
-    subject(:parsed) { described_class.parse(line) }
+    subject(:point) { described_class.parse(line) }
 
     context 'with timestamp' do
       let(:line) do
@@ -13,20 +13,20 @@ describe Line do
           'wallbox_charge_power1=0i,wallbox_charge_power2=0i,wallbox_charge_power3=0i 1742655477'
       end
 
-      it 'parses measurement' do
-        expect(parsed.measurement).to eq('SENEC')
+      it 'parses name' do
+        expect(point.name).to eq('SENEC')
       end
 
-      it 'parses timestamp' do
-        expect(parsed.timestamp).to eq(1_742_655_477)
+      it 'parses time' do
+        expect(point.time).to eq(1_742_655_477)
       end
 
       it 'parses fields' do
-        expect(parsed.fields).to include('inverter_power' => 1249)
-        expect(parsed.fields).to include('ev_connected' => false)
-        expect(parsed.fields).to include('current_state_ok' => true)
-        expect(parsed.fields).to include('current_state' => 'AKKU VOLL')
-        expect(parsed.fields).to include('case_temp' => 32.5)
+        expect(point.fields).to include('inverter_power' => 1249)
+        expect(point.fields).to include('ev_connected' => false)
+        expect(point.fields).to include('current_state_ok' => true)
+        expect(point.fields).to include('current_state' => 'AKKU VOLL')
+        expect(point.fields).to include('case_temp' => 32.5)
       end
     end
 
@@ -36,16 +36,16 @@ describe Line do
           'charging_status=0.0,max_range=266i,mileage=50294.0,plug_status=0i'
       end
 
-      it 'parses measurement' do
-        expect(parsed.measurement).to eq('Car')
+      it 'parses name' do
+        expect(point.name).to eq('Car')
       end
 
-      it 'parses timestamp' do
-        expect(parsed.timestamp).to be_nil
+      it 'parses time' do
+        expect(point.time).to be_nil
       end
 
       it 'parses fields' do
-        expect(parsed.fields).to include('mileage' => 50_294.0)
+        expect(point.fields).to include('mileage' => 50_294.0)
       end
     end
   end
