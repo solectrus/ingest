@@ -10,6 +10,14 @@ class BaseRoute < Sinatra::Base
   before { env['rack.logger'] = settings.logger }
 
   helpers do
+    def build_info
+      BuildInfo.to_s
+    end
+
+    def h(text)
+      Rack::Utils.escape_html(text)
+    end
+
     def protected!
       return if authorized?
 

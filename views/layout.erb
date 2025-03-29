@@ -81,6 +81,13 @@
         flex: 1 1 300px;
       }
 
+      footer {
+        margin-top: 1rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #888;
+      }
+
       @media (max-width: 600px) {
         .grid {
           flex-direction: column;
@@ -99,5 +106,9 @@
     <div class="card">
       <%= yield %>
     </div>
+
+    <footer>
+      <%=h build_info %>
+    </footer>
   </body>
 </html>
