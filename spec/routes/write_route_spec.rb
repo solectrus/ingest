@@ -15,47 +15,86 @@ describe WriteRoute do
     "SENEC inverter_power=500 #{Time.now.to_i * 1_000_000_000}"
   end
 
-  let(:processor) { instance_double(Processor, run: true) }
-
   describe 'POST /api/v2/write' do
-    it 'returns 204 on success and stores data' do
-      expect do
+    context 'with valid request' do
+      it 'returns 204 on success and stores data' do
+        expect do
+          post "/api/v2/write?#{params}", line_protocol, headers
+        end.to change(Incoming, :count).by(1).and change(Outgoing, :count).by(1)
+
+        expect(last_response.status).to eq(204)
+      end
+    end
+
+    context 'when token is missing' do
+      it 'returns 401' do
+        post "/api/v2/write?#{params}",
+             line_protocol,
+             { 'CONTENT_TYPE' => 'text/plain' }
+
+        expect(last_response.status).to eq(401)
+        expect(last_response.body).to include('Missing InfluxDB token')
+      end
+    end
+
+    context 'when bucket is missing' do
+      it 'returns 400' do
+        post '/api/v2/write?org=test-org', line_protocol, headers
+
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to include('Missing bucket')
+      end
+    end
+
+    context 'when org is missing' do
+      it 'returns 400' do
+        post '/api/v2/write?bucket=test-bucket', line_protocol, headers
+
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to include('Missing org')
+      end
+    end
+
+    context 'when line protocol is invalid' do
+      it 'returns 400 with error message' do
+        post "/api/v2/write?#{params}", 'invalid_line', headers
+
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to include('Invalid line protocol')
+      end
+    end
+
+    context 'when InfluxDB2::InfluxError is raised' do
+      before do
+        stub_const('InfluxDB2::InfluxError', Class.new(StandardError))
+        processor = instance_double(Processor)
+        allow(processor).to receive(:run).and_raise(
+          InfluxDB2::InfluxError.new('influx boom'),
+        )
+        allow(Processor).to receive(:new).and_return(processor)
+      end
+
+      it 'returns 202 with error message' do
         post "/api/v2/write?#{params}", line_protocol, headers
-      end.to change(Incoming, :count).by(1).and change(Outgoing, :count).by(1)
 
-      expect(last_response.status).to eq(204)
+        expect(last_response.status).to eq(202)
+        expect(last_response.body).to include('influx boom')
+      end
     end
 
-    it 'returns 401 if token is missing' do
-      post "/api/v2/write?#{params}",
-           line_protocol,
-           { 'CONTENT_TYPE' => 'text/plain' }
-      expect(last_response.status).to eq(401)
-    end
+    context 'when unknown error occurs' do
+      before do
+        processor = instance_double(Processor)
+        allow(processor).to receive(:run).and_raise(StandardError, 'boom')
+        allow(Processor).to receive(:new).and_return(processor)
+      end
 
-    it 'returns 400 if bucket is missing' do
-      post '/api/v2/write?org=test-org', line_protocol, headers
-      expect(last_response.status).to eq(400)
-    end
+      it 'returns 500 with error message' do
+        post "/api/v2/write?#{params}", line_protocol, headers
 
-    it 'returns 400 if org is missing' do
-      post '/api/v2/write?bucket=test-bucket', line_protocol, headers
-      expect(last_response.status).to eq(400)
-    end
-
-    it 'returns 400 if line protocol is invalid' do
-      post "/api/v2/write?#{params}", 'invalid_line', headers
-      expect(last_response.status).to eq(400)
-    end
-
-    it 'returns 500 on unexpected error' do
-      processor = instance_double(Processor)
-      allow(processor).to receive(:run).and_raise(StandardError, 'boom')
-      allow(Processor).to receive(:new).and_return(processor)
-
-      post "/api/v2/write?#{params}", line_protocol, headers
-
-      expect(last_response.status).to eq(500)
+        expect(last_response.status).to eq(500)
+        expect(last_response.body).to include('boom')
+      end
     end
   end
 end
