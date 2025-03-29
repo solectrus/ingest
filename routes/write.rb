@@ -5,7 +5,7 @@ class WriteRoute < BaseRoute
     influx_line = request.body.read
     bucket = params['bucket']
     org = params['org']
-    precision = params['precision'] || 'ns'
+    precision = params['precision'] || InfluxDB2::WritePrecision::NANOSECOND
     influx_token = request.env['HTTP_AUTHORIZATION']&.sub(/^Token /, '')
 
     halt 401, { error: 'Missing InfluxDB token' }.to_json unless influx_token

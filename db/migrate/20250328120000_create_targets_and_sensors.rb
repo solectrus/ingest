@@ -4,7 +4,9 @@ class CreateTargetsAndSensors < ActiveRecord::Migration[8.0]
       t.string :bucket, null: false
       t.string :org, null: false
       t.string :influx_token, null: false
-      t.string :precision, null: false, default: 'ns'
+      t.string :precision,
+               null: false,
+               default: InfluxDB2::WritePrecision::NANOSECOND
     end
 
     create_table :incomings do |t|

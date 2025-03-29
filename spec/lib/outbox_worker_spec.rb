@@ -4,7 +4,7 @@ describe OutboxWorker do
       influx_token: 'test-token',
       bucket: 'test-bucket',
       org: 'test-org',
-      precision: 'ns',
+      precision: InfluxDB2::WritePrecision::NANOSECOND,
     )
   end
 

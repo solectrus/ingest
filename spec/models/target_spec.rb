@@ -4,7 +4,7 @@ describe Target do
       influx_token: 'test-token',
       bucket: 'test-bucket',
       org: 'test-org',
-      precision: 'ms',
+      precision: InfluxDB2::WritePrecision::MILLISECOND,
     )
   end
 

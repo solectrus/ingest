@@ -1,5 +1,10 @@
 class Processor
-  def initialize(influx_token, bucket, org, precision = 'ns')
+  def initialize(
+    influx_token,
+    bucket,
+    org,
+    precision = InfluxDB2::WritePrecision::NANOSECOND
+  )
     @target =
       Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
   end
