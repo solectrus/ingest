@@ -19,9 +19,12 @@ class CreateTargetsAndSensors < ActiveRecord::Migration[8.0]
       t.float :value_float
       t.boolean :value_bool
       t.string :value_string
+
+      t.datetime :created_at, null: false
     end
 
     add_index :incomings, %i[measurement field timestamp]
+    add_index :incomings, %i[created_at]
 
     create_table :outgoings do |t|
       t.references :target, null: false, foreign_key: true

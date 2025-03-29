@@ -2,14 +2,11 @@
   <div>
     <h2>Incoming</h2>
     <dl class="right">
-      <dt>Targets</dt>
-      <dd><%= number_to_delimited(Target.count) %></dd>
-
       <dt>Total</dt>
       <dd><%= number_to_delimited(Incoming.count) %></dd>
 
-      <dt>Newest</dt>
-      <dd><%= format_timestamp(Incoming.last&.timestamp) %></dd>
+      <dt>Length</dt>
+      <dd><%= format_duration(incoming_length) %></dd>
     </dl>
   </div>
 

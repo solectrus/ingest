@@ -43,4 +43,12 @@ module StatsHelpers
 
     Time.now - oldest
   end
+
+  def incoming_length
+    first = Incoming.minimum(:created_at)
+    last = Incoming.maximum(:created_at)
+    return nil unless first && last
+
+    last - first
+  end
 end

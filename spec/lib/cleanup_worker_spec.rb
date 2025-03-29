@@ -5,7 +5,8 @@ describe CleanupWorker do
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      timestamp: 25.hours.ago.to_i * 1_000_000_000,
+      timestamp: 1000,
+      created_at: 25.hours.ago,
     )
   end
 
@@ -15,7 +16,8 @@ describe CleanupWorker do
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      timestamp: 5.hours.ago.to_i * 1_000_000_000,
+      timestamp: 1001,
+      created_at: 5.hours.ago,
     )
   end
 
