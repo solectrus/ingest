@@ -43,16 +43,20 @@ class Processor
       end
     return if fields_without_house_power.empty?
 
-    line_without_house_power =
-      Line.new(
-        measurement: parsed.measurement,
+    point_without_house_power =
+      InfluxDB2::Point.new(
+        name: parsed.measurement,
         tags: parsed.tags,
         fields: fields_without_house_power,
-        timestamp: parsed.timestamp,
+        time: parsed.timestamp,
+        precision: target.precision,
       )
 
     Database.thread_safe_write do
-      Outgoing.create!(target:, line_protocol: line_without_house_power.to_s)
+      Outgoing.create!(
+        target:,
+        line_protocol: point_without_house_power.to_line_protocol,
+      )
     end
   end
 
