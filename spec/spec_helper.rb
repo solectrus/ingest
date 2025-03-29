@@ -10,7 +10,6 @@ require 'rspec'
 require 'rack/test'
 require 'active_record'
 
-ENV['DB_FILE'] = ':memory:'
 require_relative '../lib/boot'
 
 ActiveRecord::MigrationContext.new('db/migrate').up
