@@ -21,6 +21,8 @@ describe InfluxWriter do
     allow(client_double).to receive(:close!)
   end
 
+  after { described_class.close_all }
+
   describe '.write' do
     it 'writes successfully to InfluxDB' do
       allow(write_api_double).to receive(:write)

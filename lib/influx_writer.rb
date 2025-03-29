@@ -11,18 +11,19 @@ class InfluxWriter
   class ServerError < StandardError
   end
 
+  @clients = {} # token => InfluxDB2::Client
+  @write_apis = {} # token => WriteApi
+  @mutex = Mutex.new
+
   class << self
     def write(lines, influx_token:, bucket:, org:, precision:)
-      client =
-        InfluxDB2::Client.new(
-          INFLUX_URL,
-          influx_token,
-          use_ssl: INFLUX_URL.start_with?('https'),
-        )
-
       payload = lines.is_a?(Array) ? lines.join("\n") : lines
-
-      client.create_write_api.write(data: payload, bucket:, org:, precision:)
+      write_api_for(influx_token).write(
+        bucket:,
+        org:,
+        precision:,
+        data: payload,
+      )
     rescue InfluxDB2::InfluxError => e
       case e.code
       when 400..499
@@ -32,8 +33,32 @@ class InfluxWriter
       else
         raise
       end
-    ensure
-      client&.close!
+    end
+
+    def close_all
+      @mutex.synchronize do
+        @write_apis.clear
+        @clients.each_value(&:close!)
+        @clients.clear
+      end
+    end
+
+    private
+
+    def write_api_for(token)
+      @mutex.synchronize do
+        @write_apis[token] ||= client_for(token).create_write_api
+      end
+    end
+
+    def client_for(token)
+      @clients[token] ||= InfluxDB2::Client.new(
+        INFLUX_URL,
+        token,
+        use_ssl: INFLUX_URL.start_with?('https'),
+      )
     end
   end
 end
+
+at_exit { InfluxWriter.close_all }
