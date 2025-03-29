@@ -9,7 +9,9 @@
 .ruby-lsp
 **/.DS_Store
 **/.keep
+coverage
 data/*.sqlite3*
 Dockerfile
+Guardfile
 README.md
 spec

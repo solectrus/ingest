@@ -43,11 +43,4 @@ module StatsHelpers
 
     Time.now - oldest
   end
-
-  def incoming_newest_age
-    newest = Incoming.maximum(:created_at)
-    return nil unless newest
-
-    Time.now - newest
-  end
 end

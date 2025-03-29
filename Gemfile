@@ -34,6 +34,9 @@ gem 'dotenv'
 gem 'rake'
 
 group :development do
+  # Guard gem for RSpec (https://github.com/guard/guard-rspec)
+  gem 'guard-rspec', require: false
+
   # Launches an app, and restarts it whenever the filesystem changes. A no-frills, command-line alternative to Guard, Shotgun, Autotest, etc. (http://github.com/alexch/rerun/)
   gem 'rerun'
 
@@ -51,6 +54,11 @@ group :development do
 
   # Automatic Rails code style checking tool. (https://github.com/rubocop/rubocop-rails)
   gem 'rubocop-rails'
+end
+
+group :development, :test do
+  # Code coverage for Ruby (https://github.com/simplecov-ruby/simplecov)
+  gem 'simplecov'
 end
 
 group :test do
