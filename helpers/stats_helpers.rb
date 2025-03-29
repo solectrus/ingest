@@ -1,17 +1,4 @@
 module StatsHelpers
-  def format_time(time)
-    return '–' unless time
-
-    time.getlocal.strftime('%Y-%m-%d %H:%M:%S')
-  end
-
-  def format_timestamp(nanoseconds)
-    return '–' unless nanoseconds
-
-    seconds = nanoseconds.to_i / 1_000_000_000.0
-    format_time(Time.at(seconds))
-  end
-
   def format_duration(seconds)
     return '–' unless seconds&.positive?
 
