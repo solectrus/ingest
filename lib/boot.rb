@@ -1,6 +1,6 @@
 require 'dotenv/load'
 require 'sinatra'
-require 'sinatra/reloader' if ENV['APP_ENV'] == 'development'
+require 'sinatra/reloader' if Sinatra::Base.environment == :development
 require 'json'
 require 'influxdb-client'
 require 'active_record'

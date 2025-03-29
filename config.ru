@@ -2,8 +2,7 @@ require_relative 'lib/boot'
 
 ActiveRecord::MigrationContext.new('db/migrate').up
 
-ENV['APP_ENV'] ||= 'development'
-if ENV['APP_ENV'] == 'development'
+if Sinatra::Base.environment == :development
   logger = Logger.new($stdout)
   logger.level = Logger::DEBUG
   ActiveRecord::Base.logger = logger

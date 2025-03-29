@@ -1,6 +1,6 @@
 module DBConfig
   def self.file
-    ENV.fetch('DB_FILE', 'data/production.sqlite3')
+    ENV.fetch('DB_FILE', "data/#{Sinatra::Base.environment}.sqlite3")
   end
 
   WRITE_MUTEX = Mutex.new
