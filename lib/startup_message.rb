@@ -7,14 +7,7 @@ class StartupMessage
   end
 
   def self.print_header
-    formatted =
-      format(
-        'Ingest for SOLECTRUS, Version %<version>s (%<rev>s), built at %<built>s',
-        version: ENV.fetch('VERSION', '<unknown>'),
-        rev: ENV.fetch('REVISION', '<unknown>'),
-        built: ENV.fetch('BUILDTIME', '<unknown>'),
-      )
-    puts formatted
+    puts "Ingest for SOLECTRUS, #{BuildInfo}"
 
     puts 'https://github.com/solectrus/ingest'
     puts 'Copyright (c) 2025 Georg Ledermann'
