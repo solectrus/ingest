@@ -53,7 +53,7 @@ graph LR
 
 ## House Power Calculation
 
-Installing a balcony inverter can lead to incorrect house power readings. Ingest recalculates the value using this formula:
+Installing a balcony inverter can lead to incorrect house power. Ingest recalculates the value using this formula:
 
 ```
 HOUSE_POWER = INVERTER_POWER
@@ -65,6 +65,8 @@ HOUSE_POWER = INVERTER_POWER
             - WALLBOX_POWER
             - HEATPUMP_POWER
 ```
+
+Because the sensors may not come in the same timeframe, Ingest uses interpolation to synchronize the values. Each time a relevant sensor is updated, Ingest recalculates the house power based on the timestamp of the changed sensor.
 
 ## Example Docker Compose
 
