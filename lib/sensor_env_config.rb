@@ -30,6 +30,7 @@ class SensorEnvConfig
         ENV
           .fetch('INFLUX_EXCLUDE_FROM_HOUSE_POWER', '')
           .split(',')
+          .map(&:strip)
           .reject(&:blank?)
           .map(&:downcase)
           .to_set(&:to_sym)
@@ -44,6 +45,18 @@ class SensorEnvConfig
 
     def relevant_for_house_power?(parsed_line)
       sensor_keys_for_house_power.any? { parsed_line.fields.key?(it) }
+    end
+
+    def house_power_calculated
+      string = ENV.fetch('INFLUX_SENSOR_HOUSE_POWER_CALCULATED', nil)
+      return if string.blank?
+
+      measurement, field = string.split(':', 2)
+      { measurement:, field: }
+    end
+
+    def house_power_destination
+      @house_power_destination ||= house_power_calculated || house_power
     end
   end
 end

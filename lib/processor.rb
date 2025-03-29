@@ -37,8 +37,9 @@ class Processor
   def enqueue_outgoing(parsed)
     fields_without_house_power =
       parsed.fields.reject do |field, _|
-        parsed.measurement == SensorEnvConfig.house_power[:measurement] &&
-          field.to_s == SensorEnvConfig.house_power[:field]
+        parsed.measurement ==
+          SensorEnvConfig.house_power_destination[:measurement] &&
+          field.to_s == SensorEnvConfig.house_power_destination[:field]
       end
     return if fields_without_house_power.empty?
 

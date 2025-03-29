@@ -25,9 +25,9 @@ class HousePowerCalculator
   def write_house_power(house_power, timestamp)
     line =
       Line.new(
-        measurement: SensorEnvConfig.house_power[:measurement],
+        measurement: SensorEnvConfig.house_power_destination[:measurement],
         fields: {
-          SensorEnvConfig.house_power[:field] => house_power.round,
+          SensorEnvConfig.house_power_destination[:field] => house_power.round,
         },
         timestamp:,
       ).to_s
