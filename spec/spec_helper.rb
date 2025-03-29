@@ -1,5 +1,8 @@
 ENV['APP_ENV'] = 'test'
 
+require 'simplecov'
+SimpleCov.start
+
 require 'dotenv'
 Dotenv.load('.env.test.local', '.env.test')
 
@@ -32,7 +35,6 @@ RSpec.configure do |config|
     $stderr = original_stderr
   end
 
-  config.order = :random
   config.expect_with :rspec do |expectations|
     expectations.syntax = :expect
   end
