@@ -2,10 +2,17 @@ module StatsHelpers
   def format_duration(seconds)
     return '–' unless seconds&.positive?
 
-    minutes = (seconds / 60).to_i
+    hours = (seconds / 3600).to_i
+    minutes = ((seconds % 3600) / 60).to_i
     seconds = (seconds % 60).to_i
 
-    minutes.zero? ? "#{seconds} s" : "#{minutes} min #{seconds} s"
+    if hours.positive?
+      "#{hours}h #{minutes}m"
+    elsif minutes.positive?
+      "#{minutes}m #{seconds}s"
+    else
+      "#{seconds}s"
+    end
   end
 
   def database_size
