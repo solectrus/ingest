@@ -99,8 +99,9 @@ describe Incoming do
         target: target,
         measurement: 'SENEC',
         field: 'inverter_power',
-        timestamp: 13.hours.ago,
+        timestamp: 1000,
         value: 100,
+        created_at: 13.hours.ago,
       )
     end
 
@@ -109,8 +110,9 @@ describe Incoming do
         target: target,
         measurement: 'SENEC',
         field: 'inverter_power',
-        timestamp: Time.current,
+        timestamp: 1001,
         value: 200,
+        created_at: Time.current,
       )
     end
 

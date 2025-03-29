@@ -31,10 +31,6 @@ class Incoming < ActiveRecord::Base
   end
 
   def self.cleanup(cutoff:)
-    cutoff_ns = cutoff.to_i * 1_000_000_000
-
-    DBConfig.thread_safe_db_write do
-      where('timestamp < ?', cutoff_ns).delete_all
-    end
+    DBConfig.thread_safe_db_write { where('created_at < ?', cutoff).delete_all }
   end
 end
