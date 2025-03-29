@@ -43,8 +43,8 @@ class SensorEnvConfig
         end
     end
 
-    def relevant_for_house_power?(parsed_line)
-      sensor_keys_for_house_power.any? { parsed_line.fields.key?(it) }
+    def relevant_for_house_power?(point)
+      sensor_keys_for_house_power.any? { point.fields.key?(it) }
     end
 
     def house_power_calculated

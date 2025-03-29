@@ -67,16 +67,16 @@ describe SensorEnvConfig do
   end
 
   describe '.relevant_for_house_power?' do
-    subject { described_class.relevant_for_house_power?(parsed) }
+    subject { described_class.relevant_for_house_power?(point) }
 
     context 'when any relevant field is present' do
-      let(:parsed) { instance_double(Line, fields: { inverter_power: 100 }) }
+      let(:point) { instance_double(Point, fields: { inverter_power: 100 }) }
 
       it { is_expected.to be(true) }
     end
 
     context 'when no relevant field is present' do
-      let(:parsed) { instance_double(Line, fields: { something_else: 1 }) }
+      let(:point) { instance_double(Point, fields: { something_else: 1 }) }
 
       it { is_expected.to be(false) }
     end

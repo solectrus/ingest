@@ -13,24 +13,24 @@ class Processor
 
   def run(influx_lines)
     influx_lines.each_line do |line|
-      parsed = Line.parse(line)
+      point = Point.parse(line)
 
-      store_incoming(parsed)
-      enqueue_outgoing(parsed)
-      trigger_house_power_if_relevant(parsed)
+      store_incoming(point)
+      enqueue_outgoing(point)
+      trigger_house_power_if_relevant(point)
     end
   end
 
   private
 
-  def store_incoming(parsed)
+  def store_incoming(point)
     Database.thread_safe_write do
       Incoming.transaction do
-        parsed.fields.each do |field, value|
+        point.fields.each do |field, value|
           target.incomings.create!(
-            timestamp: target.timestamp_ns(parsed.timestamp),
-            measurement: parsed.measurement,
-            tags: parsed.tags,
+            timestamp: target.timestamp_ns(point.time),
+            measurement: point.name,
+            tags: point.tags,
             field:,
             value:,
           )
@@ -39,21 +39,20 @@ class Processor
     end
   end
 
-  def enqueue_outgoing(parsed)
+  def enqueue_outgoing(point)
     fields_without_house_power =
-      parsed.fields.reject do |field, _|
-        parsed.measurement ==
-          SensorEnvConfig.house_power_destination[:measurement] &&
+      point.fields.reject do |field, _|
+        point.name == SensorEnvConfig.house_power_destination[:measurement] &&
           field == SensorEnvConfig.house_power_destination[:field]
       end
     return if fields_without_house_power.empty?
 
     point_without_house_power =
       InfluxDB2::Point.new(
-        name: parsed.measurement,
-        tags: parsed.tags,
+        name: point.name,
+        tags: point.tags,
         fields: fields_without_house_power,
-        time: parsed.timestamp,
+        time: point.time,
         precision: target.precision,
       )
 
@@ -65,9 +64,9 @@ class Processor
     end
   end
 
-  def trigger_house_power_if_relevant(parsed)
-    return unless SensorEnvConfig.relevant_for_house_power?(parsed)
+  def trigger_house_power_if_relevant(point)
+    return unless SensorEnvConfig.relevant_for_house_power?(point)
 
-    HousePowerCalculator.new(target).recalculate(timestamp: parsed.timestamp)
+    HousePowerCalculator.new(target).recalculate(timestamp: point.time)
   end
 end
