@@ -5,7 +5,12 @@ describe StatsRoute do
 
   describe 'GET /' do
     before do
-      Target.create!(influx_token: 't', bucket: 'b', org: 'o', precision: 'ns')
+      Target.create!(
+        influx_token: 't',
+        bucket: 'b',
+        org: 'o',
+        precision: InfluxDB2::WritePrecision::NANOSECOND,
+      )
 
       Incoming.create!(
         target: Target.first,

@@ -6,7 +6,7 @@ describe Processor do
   let(:influx_token) { 'test-token' }
   let(:bucket) { 'test-bucket' }
   let(:org) { 'test-org' }
-  let(:precision) { 'ns' }
+  let(:precision) { InfluxDB2::WritePrecision::NANOSECOND }
 
   describe '#run' do
     subject(:run) { processor.run(line_protocol) }

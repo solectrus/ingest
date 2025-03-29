@@ -5,10 +5,10 @@ class Target < ActiveRecord::Base
   validates :influx_token, :bucket, :org, :precision, presence: true
 
   PRECISION_FACTORS = {
-    's' => 1_000_000_000,
-    'ms' => 1_000_000,
-    'us' => 1_000,
-    'ns' => 1,
+    InfluxDB2::WritePrecision::SECOND => 1_000_000_000,
+    InfluxDB2::WritePrecision::MILLISECOND => 1_000_000,
+    InfluxDB2::WritePrecision::MICROSECOND => 1_000,
+    InfluxDB2::WritePrecision::NANOSECOND => 1,
   }.freeze
 
   def timestamp_ns(timestamp)

@@ -26,7 +26,7 @@ describe CleanupWorker do
       influx_token: 'foo',
       bucket: 'test',
       org: 'test',
-      precision: 'ns',
+      precision: InfluxDB2::WritePrecision::NANOSECOND,
     )
   end
 
