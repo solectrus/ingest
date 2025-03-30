@@ -15,8 +15,11 @@ class Processor
     lines.each do |line|
       point = Point.parse(line)
 
-      store_incoming(point)
-      enqueue_outgoing(point)
+      Database.thread_safe_write do
+        store_incoming(point)
+        enqueue_outgoing(point)
+      end
+
       trigger_house_power_if_relevant(point)
     end
   end
@@ -24,44 +27,28 @@ class Processor
   private
 
   def store_incoming(point)
-    Database.thread_safe_write do
-      Incoming.transaction do
-        point.fields.each do |field, value|
-          target.incomings.create!(
-            timestamp: target.timestamp_ns(point.time),
-            measurement: point.name,
-            tags: point.tags,
-            field:,
-            value:,
-          )
-        end
+    Incoming.transaction do
+      point.fields.each do |field, value|
+        target.incomings.create!(
+          timestamp: target.timestamp_ns(point.time),
+          measurement: point.name,
+          tags: point.tags,
+          field:,
+          value:,
+        )
       end
     end
   end
 
   def enqueue_outgoing(point)
-    fields_without_house_power =
-      point.fields.reject do |field, _|
-        point.name == SensorEnvConfig.house_power_destination[:measurement] &&
-          field == SensorEnvConfig.house_power_destination[:field]
-      end
-    return if fields_without_house_power.empty?
+    house = SensorEnvConfig.house_power_destination
 
-    point_without_house_power =
-      InfluxDB2::Point.new(
-        name: point.name,
-        tags: point.tags,
-        fields: fields_without_house_power,
-        time: point.time,
-        precision: target.precision,
-      )
-
-    Database.thread_safe_write do
-      Outgoing.create!(
-        target:,
-        line_protocol: point_without_house_power.to_line_protocol,
-      )
+    if point.name == house[:measurement] && point.fields.key?(house[:field])
+      point.fields.delete(house[:field])
+      return if point.fields.empty?
     end
+
+    Outgoing.create!(target:, line_protocol: point.to_line_protocol)
   end
 
   def trigger_house_power_if_relevant(point)
