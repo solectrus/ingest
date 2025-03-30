@@ -12,7 +12,7 @@ class SensorEnvConfig
   ].freeze
 
   class << self
-    KEYS.each { |key| define_method(key) { config[key] } }
+    delegate :[], to: :config
 
     def config
       @config ||=
@@ -33,18 +33,26 @@ class SensorEnvConfig
           .map(&:strip)
           .reject(&:blank?)
           .map(&:downcase)
-          .to_set(&:to_sym)
+          .to_set(&:intern)
     end
 
     def sensor_keys_for_house_power
       @sensor_keys_for_house_power ||=
-        KEYS.reject do
-          it == :house_power || exclude_from_house_power_keys.include?(it)
+        KEYS.reject do |key|
+          key == :house_power || exclude_from_house_power_keys.include?(key)
         end
     end
 
     def relevant_for_house_power?(point)
-      sensor_keys_for_house_power.any? { point.fields.key?(it) }
+      sensor_keys_for_house_power.any? do |key|
+        next unless (conf = config[key])
+
+        point.name == conf[:measurement] && point.fields.key?(conf[:field])
+      end
+    end
+
+    def house_power_destination
+      @house_power_destination ||= house_power_calculated || self[:house_power]
     end
 
     def house_power_calculated
@@ -53,10 +61,6 @@ class SensorEnvConfig
 
       measurement, field = string.split(':', 2)
       { measurement:, field: }
-    end
-
-    def house_power_destination
-      @house_power_destination ||= house_power_calculated || house_power
     end
   end
 end

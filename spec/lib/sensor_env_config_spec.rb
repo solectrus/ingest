@@ -69,14 +69,26 @@ describe SensorEnvConfig do
   describe '.relevant_for_house_power?' do
     subject { described_class.relevant_for_house_power?(point) }
 
-    context 'when any relevant field is present' do
-      let(:point) { instance_double(Point, fields: { inverter_power: 100 }) }
+    context 'when relevant' do
+      let(:point) do
+        instance_double(Point, name: 'SENEC', fields: { 'inverter_power' => 1 })
+      end
 
       it { is_expected.to be(true) }
     end
 
-    context 'when no relevant field is present' do
-      let(:point) { instance_double(Point, fields: { something_else: 1 }) }
+    context 'when not relevant (field mismatch)' do
+      let(:point) do
+        instance_double(Point, name: 'SENEC', fields: { 'something_else' => 1 })
+      end
+
+      it { is_expected.to be(false) }
+    end
+
+    context 'when not relevant (measurement mismatch)' do
+      let(:point) do
+        instance_double(Point, name: 'OTHER', fields: { 'inverter_power' => 1 })
+      end
 
       it { is_expected.to be(false) }
     end
