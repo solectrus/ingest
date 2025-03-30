@@ -3,8 +3,19 @@ class Database
     "data/#{Sinatra::Base.environment}.sqlite3"
   end
 
+  def self.pool_size
+    puma_threads = ENV.fetch('PUMA_THREADS', 5).to_i
+    extra_threads = 2 # OutboxWorker + CleanupWorker
+    [puma_threads + extra_threads, 5].max
+  end
+
   def self.setup!
-    ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: file)
+    ActiveRecord::Base.establish_connection(
+      adapter: 'sqlite3',
+      database: file,
+      pool: pool_size,
+      timeout: 5000,
+    )
 
     ActiveRecord::Base.connection.execute('PRAGMA journal_mode = WAL')
     ActiveRecord::Base.connection.execute('PRAGMA synchronous = NORMAL')
