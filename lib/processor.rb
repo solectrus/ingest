@@ -1,15 +1,7 @@
 class Processor
-  def initialize(
-    influx_token:,
-    bucket:,
-    org:,
-    precision: InfluxDB2::WritePrecision::NANOSECOND
-  )
-    @target =
-      Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
+  def initialize(influx_token:, bucket:, org:, precision:)
+    @target_args = { influx_token:, bucket:, org:, precision: }
   end
-
-  attr_reader :target
 
   def run(lines)
     outbox_written = false
@@ -29,6 +21,10 @@ class Processor
   end
 
   private
+
+  def target
+    @target ||= Target.find_or_create_by!(**@target_args)
+  end
 
   def store_incoming(point)
     Incoming.transaction do
