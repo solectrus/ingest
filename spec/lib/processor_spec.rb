@@ -1,6 +1,6 @@
 describe Processor do
   subject(:processor) do
-    described_class.new(influx_token, bucket, org, precision)
+    described_class.new(influx_token:, bucket:, org:, precision:)
   end
 
   let(:influx_token) { 'test-token' }
@@ -9,10 +9,10 @@ describe Processor do
   let(:precision) { InfluxDB2::WritePrecision::NANOSECOND }
 
   describe '#run' do
-    subject(:run) { processor.run(line_protocol) }
+    subject(:run) { processor.run([line]) }
 
     context 'when line contains inverter_power only' do
-      let(:line_protocol) { 'SENEC inverter_power=500.0 1000000000' }
+      let(:line) { 'SENEC inverter_power=500.0 1000000000' }
 
       it 'creates a target if it does not exist' do
         expect { run }.to change(Target, :count).by(1)
@@ -38,7 +38,7 @@ describe Processor do
         expect { run }.to change(Outgoing, :count).by(1)
 
         outgoing = Outgoing.last
-        expect(outgoing.line_protocol).to eq(line_protocol)
+        expect(outgoing.line_protocol).to eq(line)
       end
 
       it 'triggers house power recalculation if relevant' do
@@ -58,9 +58,7 @@ describe Processor do
     end
 
     context 'when line contains house_power and others' do
-      let(:line_protocol) do
-        'SENEC house_power=300i,grid_power_plus=500i 1000000000'
-      end
+      let(:line) { 'SENEC house_power=300i,grid_power_plus=500i 1000000000' }
 
       it 'filters out house_power field when enqueuing outgoing' do
         run
@@ -73,7 +71,7 @@ describe Processor do
     end
 
     context 'when line contains house_power only' do
-      let(:line_protocol) { 'SENEC house_power=300i 1000000000' }
+      let(:line) { 'SENEC house_power=300i 1000000000' }
 
       it 'skips enqueue if only house_power is present' do
         expect { run }.not_to change(Outgoing, :count)
