@@ -81,20 +81,20 @@ describe OutboxWorker do
   end
 
   describe '.run_loop' do
-    before do
-      allow(described_class).to receive(:run_once).and_return(0)
-      allow(described_class).to receive(:sleep) # Stub sleep to avoid waiting
-    end
+    before { allow(described_class).to receive(:run_once).and_return(0) }
 
-    it 'runs repeatedly using run_once and sleep' do
+    it 'waits for signal and runs run_once' do
       thread = Thread.new { described_class.run_loop }
+
+      # Simulate a signal to wake up the thread
+      sleep 0.1
+      OutboxNotifier.notify!
 
       sleep 0.1
       thread.kill
       thread.join
 
       expect(described_class).to have_received(:run_once).at_least(:once)
-      expect(described_class).to have_received(:sleep).at_least(:once)
     end
   end
 end

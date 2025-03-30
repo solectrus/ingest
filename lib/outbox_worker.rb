@@ -1,13 +1,15 @@
 class OutboxWorker
-  INTERVAL = 2.seconds
   BATCH_SIZE = 500
-
   Key = Struct.new(:target_id, :timestamp)
 
   def self.run_loop
     loop do
-      processed = run_once
-      sleep(processed.zero? ? INTERVAL : 0)
+      OutboxNotifier.wait
+      run_once
+    rescue StandardError => e
+      warn "[OutboxWorker] Error: #{e.class} - #{e.message}"
+      warn e.backtrace.join("\n")
+      sleep 1
     end
   end
 
