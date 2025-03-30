@@ -12,16 +12,20 @@ class Processor
   attr_reader :target
 
   def run(lines)
+    outbox_written = false
+
     lines.each do |line|
       point = Point.parse(line)
 
       Database.thread_safe_write do
         store_incoming(point)
-        enqueue_outgoing(point)
+        outbox_written |= enqueue_outgoing(point)
       end
 
-      trigger_house_power_if_relevant(point)
+      outbox_written |= trigger_house_power_if_relevant(point)
     end
+
+    OutboxNotifier.notify! if outbox_written
   end
 
   private
@@ -45,15 +49,17 @@ class Processor
 
     if point.name == house[:measurement] && point.fields.key?(house[:field])
       point.fields.delete(house[:field])
-      return if point.fields.empty?
+      return false if point.fields.empty?
     end
 
     Outgoing.create!(target:, line_protocol: point.to_line_protocol)
+    true
   end
 
   def trigger_house_power_if_relevant(point)
-    return unless SensorEnvConfig.relevant_for_house_power?(point)
+    return false unless SensorEnvConfig.relevant_for_house_power?(point)
 
     HousePowerCalculator.new(target).recalculate(timestamp: point.time)
+    true
   end
 end
