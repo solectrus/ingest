@@ -1,4 +1,6 @@
-class Interpolator
+class Interpolator # rubocop:disable Metrics/ClassLength
+  Sample = Struct.new(:measurement, :field, :timestamp, :value, :direction)
+
   def initialize(sensor_keys:, timestamp:)
     @timestamp = timestamp
     @sensors =
@@ -22,34 +24,79 @@ class Interpolator
   attr_reader :timestamp, :sensors
 
   def load_grouped_rows
-    placeholders = sensors.map { '(?, ?)' }.join(', ')
-    values = sensors.values.flat_map { [it[:measurement], it[:field]] }
+    sql = build_query
+    rows = ActiveRecord::Base.connection.exec_query(sql)
 
-    sql = <<~SQL.squish
-      SELECT *
+    parse_rows(rows)
+  end
+
+  def build_where_clause
+    connection = ActiveRecord::Base.connection
+
+    grouped = sensors.values.group_by { |conf| conf[:measurement] }
+
+    grouped
+      .map do |measurement, fields|
+        m = connection.quote(measurement)
+        field_list = fields.map { |f| connection.quote(f[:field]) }.join(', ')
+        "(measurement = #{m} AND field IN (#{field_list}))"
+      end
+      .join(' OR ')
+  end
+
+  def build_query
+    connection = ActiveRecord::Base.connection
+    where = build_where_clause
+    ts = connection.quote(timestamp)
+
+    <<~SQL.squish
+      SELECT measurement,
+             field,
+             timestamp,
+             value,
+             direction
       FROM (
-        SELECT *,
+        SELECT measurement, field, timestamp,
+               COALESCE(value_int, value_float) AS value,
                'prev' AS direction,
-               ROW_NUMBER() OVER (PARTITION BY measurement, field ORDER BY timestamp DESC) AS rnk
+               ROW_NUMBER() OVER (
+                 PARTITION BY measurement, field
+                 ORDER BY timestamp DESC
+               ) AS rnk
         FROM incomings
-        WHERE timestamp <= ?
-          AND (measurement, field) IN (#{placeholders})
+        WHERE timestamp <= #{ts}
+          AND (#{where})
 
         UNION ALL
 
-        SELECT *,
+        SELECT measurement, field, timestamp,
+               COALESCE(value_int, value_float) AS value,
                'next' AS direction,
-               ROW_NUMBER() OVER (PARTITION BY measurement, field ORDER BY timestamp ASC) AS rnk
+               ROW_NUMBER() OVER (
+                 PARTITION BY measurement, field
+                 ORDER BY timestamp ASC
+               ) AS rnk
         FROM incomings
-        WHERE timestamp >= ?
-          AND (measurement, field) IN (#{placeholders})
+        WHERE timestamp >= #{ts}
+          AND (#{where})
       )
       WHERE rnk = 1
     SQL
+  end
 
-    rows =
-      Incoming.find_by_sql([sql, timestamp] + values + [timestamp] + values)
-    rows.group_by { |row| [row.measurement, row.field] }
+  def parse_rows(rows)
+    mapped =
+      rows.map do |row|
+        Sample.new(
+          row['measurement'],
+          row['field'],
+          row['timestamp'],
+          row['value'],
+          row['direction'],
+        )
+      end
+
+    mapped.group_by { |row| [row.measurement, row.field] }
   end
 
   def interpolate_all(grouped_rows)
@@ -60,13 +107,21 @@ class Interpolator
     end
   end
 
-  def interpolate_one(samples) # rubocop:disable Metrics/AbcSize
-    prev = samples.find { |r| r.direction == 'prev' }
-    nxt = samples.find { |r| r.direction == 'next' }
-
+  def interpolate_one(samples)
+    prev, nxt = find_bounds(samples)
     return unless prev
     return prev.value if nxt.nil? || prev.timestamp == nxt.timestamp
 
+    interpolate(prev, nxt)
+  end
+
+  def find_bounds(samples)
+    prev = samples.find { |r| r.direction == 'prev' }
+    nxt = samples.find { |r| r.direction == 'next' }
+    [prev, nxt]
+  end
+
+  def interpolate(prev, nxt)
     v0 = prev.value
     v1 = nxt.value
     t0 = prev.timestamp
