@@ -3,7 +3,7 @@ class Interpolator
     @timestamp = timestamp
     @sensors =
       sensor_keys
-        .map { |key| [key, SensorEnvConfig.send(key)] }
+        .map { |key| [key, SensorEnvConfig[key]] }
         .reject do |_, config|
           config.nil? || config[:measurement].nil? || config[:field].nil?
         end
