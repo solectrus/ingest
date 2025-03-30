@@ -1,9 +1,9 @@
 class Processor
   def initialize(
-    influx_token,
-    bucket,
-    org,
-    precision = InfluxDB2::WritePrecision::NANOSECOND
+    influx_token:,
+    bucket:,
+    org:,
+    precision: InfluxDB2::WritePrecision::NANOSECOND
   )
     @target =
       Target.find_or_create_by!(influx_token:, bucket:, org:, precision:)
@@ -11,8 +11,8 @@ class Processor
 
   attr_reader :target
 
-  def run(influx_lines)
-    influx_lines.each_line do |line|
+  def run(lines)
+    lines.each do |line|
       point = Point.parse(line)
 
       store_incoming(point)

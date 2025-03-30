@@ -1,29 +1,40 @@
 class WriteRoute < BaseRoute
+  REGEX_TOKEN = /\AToken (.+)\z/
+
   post '/api/v2/write' do
     content_type 'application/json'
 
-    influx_line = request.body.read
-    bucket = params['bucket']
-    org = params['org']
-    precision = params['precision'] || InfluxDB2::WritePrecision::NANOSECOND
-    influx_token = request.env['HTTP_AUTHORIZATION']&.sub(/^Token /, '')
+    influx_token = request.env['HTTP_AUTHORIZATION'].to_s[REGEX_TOKEN, 1]
+    halt 401, { error: 'Missing token' }.to_json unless influx_token
 
-    halt 401, { error: 'Missing InfluxDB token' }.to_json unless influx_token
+    bucket = params['bucket'].presence
     halt 400, { error: 'Missing bucket' }.to_json unless bucket
+
+    org = params['org'].presence
     halt 400, { error: 'Missing org' }.to_json unless org
 
+    lines = request.body.read.strip.lines
+    halt 400, { error: 'Empty body' }.to_json if lines.empty?
+
+    precision =
+      params['precision'].presence || InfluxDB2::WritePrecision::NANOSECOND
+
     begin
-      Processor.new(influx_token, bucket, org, precision).run(influx_line)
+      Processor.new(influx_token:, bucket:, org:, precision:).run(lines)
       status 204
-    rescue InfluxDB2::InfluxError => e
-      warn "#{e}, #{e.backtrace.join("\n")}"
-      halt 202, { error: e.message }.to_json
     rescue InvalidLineProtocolError => e
-      warn "#{e}, #{e.backtrace.join("\n")}"
-      halt 400, { error: e.message }.to_json
+      handle(e, 400)
     rescue StandardError => e
-      warn "#{e}, #{e.backtrace.join("\n")}"
-      halt 500, { error: e.message }.to_json
+      handle(e, 500)
     end
+  end
+
+  private
+
+  def handle(exception, status)
+    warn "#{exception}: #{exception.message}"
+    warn exception.backtrace.join("\n")
+
+    halt status, { error: exception.message }.to_json
   end
 end

@@ -5,21 +5,20 @@ describe WriteRoute do
 
   let(:headers) do
     {
-      'CONTENT_TYPE' => 'text/plain',
+      'CONTENT_TYPE' => 'application/json',
       'HTTP_AUTHORIZATION' => 'Token test-token',
     }
   end
 
   let(:params) { 'bucket=test-bucket&org=test-org' }
-  let(:line_protocol) do
-    "SENEC inverter_power=500 #{Time.now.to_i * 1_000_000_000}"
-  end
+  let(:line) { "SENEC inverter_power=500 #{Time.now.to_i * 1_000_000_000}" }
 
   describe 'POST /api/v2/write' do
     context 'with valid request' do
-      it 'returns 204 on success and stores data' do
+      it 'stores data and returns 204' do
         expect do
-          post "/api/v2/write?#{params}", line_protocol, headers
+          ###
+          post("/api/v2/write?#{params}", line, headers)
         end.to change(Incoming, :count).by(1).and change(Outgoing, :count).by(1)
 
         expect(last_response.status).to eq(204)
@@ -29,17 +28,17 @@ describe WriteRoute do
     context 'when token is missing' do
       it 'returns 401' do
         post "/api/v2/write?#{params}",
-             line_protocol,
-             { 'CONTENT_TYPE' => 'text/plain' }
+             line,
+             headers.except('HTTP_AUTHORIZATION')
 
         expect(last_response.status).to eq(401)
-        expect(last_response.body).to include('Missing InfluxDB token')
+        expect(last_response.body).to include('Missing token')
       end
     end
 
     context 'when bucket is missing' do
       it 'returns 400' do
-        post '/api/v2/write?org=test-org', line_protocol, headers
+        post '/api/v2/write?org=test-org', line, headers
 
         expect(last_response.status).to eq(400)
         expect(last_response.body).to include('Missing bucket')
@@ -48,10 +47,19 @@ describe WriteRoute do
 
     context 'when org is missing' do
       it 'returns 400' do
-        post '/api/v2/write?bucket=test-bucket', line_protocol, headers
+        post '/api/v2/write?bucket=test-bucket', line, headers
 
         expect(last_response.status).to eq(400)
         expect(last_response.body).to include('Missing org')
+      end
+    end
+
+    context 'when request body is blank' do
+      it 'returns 400 with error message' do
+        post "/api/v2/write?#{params}", '', headers
+
+        expect(last_response.status).to eq(400)
+        expect(last_response.body).to include('Empty body')
       end
     end
 
@@ -64,36 +72,18 @@ describe WriteRoute do
       end
     end
 
-    context 'when InfluxDB2::InfluxError is raised' do
-      before do
-        stub_const('InfluxDB2::InfluxError', Class.new(StandardError))
-        processor = instance_double(Processor)
-        allow(processor).to receive(:run).and_raise(
-          InfluxDB2::InfluxError.new('influx boom'),
-        )
-        allow(Processor).to receive(:new).and_return(processor)
-      end
-
-      it 'returns 202 with error message' do
-        post "/api/v2/write?#{params}", line_protocol, headers
-
-        expect(last_response.status).to eq(202)
-        expect(last_response.body).to include('influx boom')
-      end
-    end
-
     context 'when unknown error occurs' do
       before do
         processor = instance_double(Processor)
-        allow(processor).to receive(:run).and_raise(StandardError, 'boom')
+        allow(processor).to receive(:run).and_raise(StandardError, 'Boom!')
         allow(Processor).to receive(:new).and_return(processor)
       end
 
       it 'returns 500 with error message' do
-        post "/api/v2/write?#{params}", line_protocol, headers
+        post "/api/v2/write?#{params}", line, headers
 
         expect(last_response.status).to eq(500)
-        expect(last_response.body).to include('boom')
+        expect(last_response.body).to include('Boom!')
       end
     end
   end
