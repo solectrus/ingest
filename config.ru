@@ -21,8 +21,8 @@ def run_background_thread(name)
   Thread.new do
     Thread.current.name = name if Thread.current.respond_to?(:name=)
 
-    ActiveRecord::Base.connection_pool.with_connection do
-      loop do
+    loop do
+      ActiveRecord::Base.connection_pool.with_connection do
         puts "Starting #{name}..."
         yield
       rescue StandardError => e
