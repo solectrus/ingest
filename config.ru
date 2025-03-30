@@ -15,6 +15,7 @@ if context.needs_migration?
   context.up
 end
 puts 'Migrations are up to date!'
+puts
 
 def run_background_thread(name)
   Thread.new do
@@ -36,7 +37,7 @@ end
 sleep 1
 run_background_thread('OutboxWorker') { OutboxWorker.run_loop }
 run_background_thread('CleanupWorker') { CleanupWorker.run_loop }
-
 sleep 1
-puts 'Starting inbound server...'
+puts
+
 run App

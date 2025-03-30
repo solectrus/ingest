@@ -11,10 +11,12 @@ class CleanupWorker
 
   def self.run
     puts '[Cleanup] Deleting old entries...'
+
     deleted = Incoming.cleanup(cutoff: RETENTION_HOURS.ago)
 
     puts "[Cleanup] Deleted #{deleted} entries"
   rescue StandardError => e
-    warn "[Cleanup] Error: #{e.message}"
+    warn "[Cleanup] Error: #{e.class} - #{e.message}"
+    warn e.backtrace.join("\n")
   end
 end
