@@ -2,6 +2,8 @@ class OutboxWorker
   INTERVAL = 2.seconds
   BATCH_SIZE = 500
 
+  Key = Struct.new(:target_id, :timestamp)
+
   def self.run_loop
     loop do
       processed = run_once
@@ -12,21 +14,23 @@ class OutboxWorker
   def self.run_once
     total_processed = 0
 
-    Outgoing
-      .includes(:target)
-      .find_in_batches(batch_size: BATCH_SIZE) do |batch|
-        batch
-          .group_by { |o| [o.target_id, extract_timestamp(o.line_protocol)] }
-          .each_value do |outgoings|
-            target = outgoings.first.target
-            next unless write_batch(outgoings, target)
+    Outgoing.find_in_batches(batch_size: BATCH_SIZE) do |batch|
+      groups =
+        batch.group_by do |o|
+          Key.new(o.target_id, extract_timestamp(o.line_protocol))
+        end
 
-            Database.thread_safe_write do
-              Outgoing.where(id: outgoings).delete_all
-            end
-            total_processed += outgoings.size
-          end
+      groups.each_value do |outgoings|
+        target = outgoings.first.target
+        next unless write_batch(outgoings, target)
+
+        Database.thread_safe_write do
+          Outgoing.where(id: outgoings.map(&:id)).delete_all
+        end
+
+        total_processed += outgoings.size
       end
+    end
 
     total_processed
   end
@@ -49,7 +53,9 @@ class OutboxWorker
     true
   rescue InfluxWriter::ClientError => e
     warn "[OutboxWorker] Permanent write failure (deleted): #{e.message}"
-    Database.thread_safe_write { Outgoing.where(id: outgoings).delete_all }
+    Database.thread_safe_write do
+      Outgoing.where(id: outgoings.map(&:id)).delete_all
+    end
     false
   rescue InfluxWriter::ServerError,
          SocketError,
