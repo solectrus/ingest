@@ -39,7 +39,8 @@ class SensorEnvConfig
     def sensor_keys_for_house_power
       @sensor_keys_for_house_power ||=
         KEYS.reject do |key|
-          key == :house_power || exclude_from_house_power_keys.include?(key)
+          key == :house_power || config[key].nil? ||
+            exclude_from_house_power_keys.include?(key)
         end
     end
 

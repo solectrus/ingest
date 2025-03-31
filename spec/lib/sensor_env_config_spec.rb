@@ -112,8 +112,12 @@ describe SensorEnvConfig do
       )
     end
 
-    it 'ignores unset or empty ENV variables' do
-      expect(config).not_to have_key(:balcony_inverter_power)
+    context 'when ENV is not set or empty' do
+      before { ENV['INFLUX_SENSOR_HEATPUMP_POWER'] = '' }
+
+      it 'ignores this variable' do
+        expect(config).not_to have_key(:heatpump_power)
+      end
     end
   end
 end
