@@ -10,6 +10,10 @@
 .vscode
 **/.DS_Store
 **/.keep
+bin/dev
+bin/rspec
+bin/rubocop
+bin/test
 coverage
 data/*.sqlite3*
 Dockerfile

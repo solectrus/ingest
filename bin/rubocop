@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Running RuboCop..."
+
+# Optional: Pass arguments like --auto-correct or specific files
+exec bundle exec rubocop "$@"
