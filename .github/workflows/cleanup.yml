@@ -1,0 +1,52 @@
+name: Delete untagged packages
+
+on:
+  schedule:
+    - cron: '0 5 * * 0' # every Sunday at 5am UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Delete untagged ghcr
+        uses: Chizkiyahu/delete-untagged-ghcr-action@v6
+        with:
+          # Personal access token (PAT) used to fetch the repository. The PAT is configured
+          # with the local git config, which enables your scripts to run authenticated git
+          # commands. The post-job step removes the PAT.
+          # needs delete:packages permissions
+          # required: true
+          # [Learn more about creating and using encrypted secrets](https://help.github.com/en/actions/automating-your-workflow-with-github-actions/creating-and-using-encrypted-secrets)
+          token: ${{ secrets.DELETE_PAT }}
+          # Repository name or  name with owner
+          # Delete only from repository name
+          # Default: ${{ github.repository }}
+          # repository: 'solectrus/ingest'
+          # 'The repository owner name'
+          # Default: ${{ github.repository_owner }}
+          # repository_owner: 'ledermann'
+          # 'The package names'
+          # Delete only from comma separated package names
+          # required: false
+          # package_name: ''
+          # Delete only package versions without tag
+          # required: false
+          # Default: true
+          # choices: true, false
+          # untagged_only: true
+          # Exclude untagged multiplatform packages from deletion
+          # Manifests are usually such packages so they should be excluded
+          # only for untagged_only=true
+          # Default: true
+          # needs docker installed
+          # except_untagged_multiplatform: false
+          # the owner type
+          # required: true
+          # choices: org, user
+          owner_type: 'org'
