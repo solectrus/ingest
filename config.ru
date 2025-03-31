@@ -8,13 +8,18 @@ end
 
 StartupMessage.print!
 
-puts 'Checking database...'
+puts 'Compacting database...'
+Database.compact!
+puts 'Done.'
+puts
+
+puts 'Checking database schema...'
 context = ActiveRecord::MigrationContext.new('db/migrate')
 if context.needs_migration?
   puts 'Applying migrations...'
   context.up
 end
-puts 'Migrations are up to date!'
+puts 'Up to date.'
 puts
 
 def run_background_thread(name)

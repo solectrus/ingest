@@ -20,7 +20,9 @@ class Database
     ActiveRecord::Base.connection.execute('PRAGMA journal_mode = WAL')
     ActiveRecord::Base.connection.execute('PRAGMA synchronous = NORMAL')
     ActiveRecord::Base.connection.execute('PRAGMA temp_store = MEMORY;')
+  end
 
+  def self.compact!
     ActiveRecord::Base.connection.execute('VACUUM')
   end
 
