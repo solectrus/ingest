@@ -21,8 +21,8 @@ COPY . .
 FROM ruby:3.4.2-alpine
 LABEL maintainer="georg@ledermann.dev"
 
-# Add tzdata to get correct timezone
-RUN apk add --no-cache tzdata
+# Add tzdata to get correct timezone, and curl for healthcheck
+RUN apk add --no-cache tzdata curl
 
 # Decrease memory usage
 ENV MALLOC_ARENA_MAX=2
@@ -48,6 +48,10 @@ COPY --from=builder /app /app
 
 # Expose Sinatra port
 EXPOSE 4567
+
+# Healthcheck using endpoint "/up"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD ["curl", "-fs", "http://localhost:4567/up"]
 
 ENTRYPOINT ["bundle", "exec"]
 CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]

@@ -8,6 +8,8 @@ module SelectiveLogger
   end
 
   def self.skip_logging?(env, status)
+    return true if env['PATH_INFO'] == '/up'
+
     env['REQUEST_METHOD'] == 'POST' && env['PATH_INFO'] == '/api/v2/write' &&
       status == 204
   end
