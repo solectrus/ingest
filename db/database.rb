@@ -6,7 +6,7 @@ class Database
   def self.pool_size
     puma_threads = ENV.fetch('PUMA_THREADS', 5).to_i
     extra_threads = 2 # OutboxWorker + CleanupWorker
-    [puma_threads + extra_threads, 5].max
+    [puma_threads + extra_threads, 10].max
   end
 
   def self.setup!
