@@ -1,4 +1,12 @@
 module StatsHelpers
+  def incoming_total
+    @incoming_total ||= Incoming.count
+  end
+
+  def outgoing_total
+    @outgoing_total ||= Outgoing.count
+  end
+
   def format_duration(seconds)
     return '–' unless seconds&.positive?
 
@@ -32,17 +40,28 @@ module StatsHelpers
   end
 
   def queue_oldest_age
-    oldest = Outgoing.minimum(:created_at)
-    return nil unless oldest
+    @queue_oldest_age ||=
+      begin
+        oldest = Outgoing.minimum(:created_at)
 
-    Time.now - oldest
+        Time.now - oldest if oldest
+      end
   end
 
   def incoming_length
-    first = Incoming.minimum(:created_at)
-    last = Incoming.maximum(:created_at)
-    return nil unless first && last
+    @incoming_length ||=
+      begin
+        first = Incoming.minimum(:created_at)
+        last = Incoming.maximum(:created_at)
 
-    last - first
+        last - first if first && last
+      end
+  end
+
+  def incoming_throughput
+    total_time_in_minutes = incoming_length&.fdiv(60)
+    return 0 if total_time_in_minutes.nil? || total_time_in_minutes.zero?
+
+    (incoming_total / total_time_in_minutes).round
   end
 end
