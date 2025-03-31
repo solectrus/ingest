@@ -2,6 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
     <title><%= @title || 'SOLECTRUS :: Ingest' %></title>
 
     <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
@@ -89,12 +91,41 @@
       }
 
       @media (max-width: 600px) {
+        body {
+          padding: 0;
+          margin: 2rem auto;
+        }
+
+        .card {
+          border-radius: 0;
+        }
+
+        h1 {
+          font-size: 1.5rem;
+        }
+
         .grid {
           flex-direction: column;
+          gap: 1.5rem;
+        }
+
+        .grid > div {
+          flex: 1 1 100%;
+        }
+
+        dl {
+          grid-template-columns: 1fr;
+          row-gap: 0.5rem;
+        }
+
+        dt,
+        dd {
+          grid-column: 1;
         }
 
         dd {
-          text-align: left;
+          text-align: left !important;
+          margin-bottom: 0.5rem;
         }
       }
     </style>
