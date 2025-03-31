@@ -68,6 +68,8 @@ HOUSE_POWER = INVERTER_POWER
 
 Because the sensors may not come in the same timeframe, Ingest uses interpolation to synchronize the values. Each time a relevant sensor is updated, Ingest recalculates the house power based on the timestamp of the changed sensor.
 
+The calculated house power is then sent to InfluxDB, replacing the incoming value. If you want to keep the original value, you can set `INFLUX_SENSOR_HOUSE_POWER_CALCULATED` to a different measurement/field.
+
 ## Example Docker Compose
 
 ```yaml
