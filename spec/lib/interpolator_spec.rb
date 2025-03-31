@@ -53,7 +53,11 @@ describe Interpolator do
   end
 
   it 'ignores sensors not set in ENV' do
-    ENV['INFLUX_SENSOR_GRID_IMPORT_POWER'] = '' # bewusst leer
+    stub_const(
+      'ENV',
+      ENV.to_hash.merge('INFLUX_SENSOR_GRID_IMPORT_POWER' => ''),
+    )
+
     result =
       described_class.new(
         sensor_keys: %i[inverter_power grid_import_power],

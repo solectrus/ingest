@@ -10,14 +10,24 @@ describe SensorEnvConfig do
     subject { described_class.house_power_calculated }
 
     context 'when ENV is not set or empty' do
-      before { ENV['INFLUX_SENSOR_HOUSE_POWER_CALCULATED'] = '' }
+      before do
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge('INFLUX_SENSOR_HOUSE_POWER_CALCULATED' => ''),
+        )
+      end
 
       it { is_expected.to be_nil }
     end
 
     context 'when ENV is set' do
       before do
-        ENV['INFLUX_SENSOR_HOUSE_POWER_CALCULATED'] = 'Calc:house_power'
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge(
+            'INFLUX_SENSOR_HOUSE_POWER_CALCULATED' => 'Calc:house_power',
+          ),
+        )
       end
 
       it { is_expected.to eq(measurement: 'Calc', field: 'house_power') }
@@ -29,8 +39,17 @@ describe SensorEnvConfig do
 
     context 'when calculated is set' do
       before do
-        ENV['INFLUX_SENSOR_HOUSE_POWER_CALCULATED'] = 'Calc:house_power'
-        ENV['INFLUX_SENSOR_HOUSE_POWER'] = 'SENEC:house_power'
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge(
+            'INFLUX_SENSOR_HOUSE_POWER_CALCULATED' => 'Calc:house_power',
+          ),
+        )
+
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge('INFLUX_SENSOR_HOUSE_POWER' => 'SENEC:house_power'),
+        )
       end
 
       it { is_expected.to eq(measurement: 'Calc', field: 'house_power') }
@@ -38,8 +57,15 @@ describe SensorEnvConfig do
 
     context 'when calculated is not set' do
       before do
-        ENV['INFLUX_SENSOR_HOUSE_POWER_CALCULATED'] = ''
-        ENV['INFLUX_SENSOR_HOUSE_POWER'] = 'SENEC:house_power'
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge('INFLUX_SENSOR_HOUSE_POWER_CALCULATED' => ''),
+        )
+
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge('INFLUX_SENSOR_HOUSE_POWER' => 'SENEC:house_power'),
+        )
       end
 
       it { is_expected.to eq(measurement: 'SENEC', field: 'house_power') }
@@ -50,7 +76,12 @@ describe SensorEnvConfig do
     subject { described_class.exclude_from_house_power_keys }
 
     before do
-      ENV['INFLUX_EXCLUDE_FROM_HOUSE_POWER'] = 'WALLBOX_POWER, HEATPUMP_POWER'
+      stub_const(
+        'ENV',
+        ENV.to_hash.merge(
+          'INFLUX_EXCLUDE_FROM_HOUSE_POWER' => 'WALLBOX_POWER, HEATPUMP_POWER',
+        ),
+      )
     end
 
     it { is_expected.to eq(Set[:wallbox_power, :heatpump_power]) }
@@ -59,7 +90,14 @@ describe SensorEnvConfig do
   describe '.sensor_keys_for_house_power' do
     subject { described_class.sensor_keys_for_house_power }
 
-    before { ENV['INFLUX_EXCLUDE_FROM_HOUSE_POWER'] = 'HEATPUMP_POWER' }
+    before do
+      stub_const(
+        'ENV',
+        ENV.to_hash.merge(
+          'INFLUX_EXCLUDE_FROM_HOUSE_POWER' => 'HEATPUMP_POWER',
+        ),
+      )
+    end
 
     it { is_expected.not_to include(:house_power) }
     it { is_expected.not_to include(:heatpump_power) }
@@ -113,7 +151,12 @@ describe SensorEnvConfig do
     end
 
     context 'when ENV is not set or empty' do
-      before { ENV['INFLUX_SENSOR_HEATPUMP_POWER'] = '' }
+      before do
+        stub_const(
+          'ENV',
+          ENV.to_hash.merge('INFLUX_SENSOR_HEATPUMP_POWER' => ''),
+        )
+      end
 
       it 'ignores this variable' do
         expect(config).not_to have_key(:heatpump_power)
