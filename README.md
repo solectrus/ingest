@@ -5,15 +5,15 @@
 
 # SOLECTRUS Ingest
 
-Lightweight InfluxDB ingestion proxy with **buffering** und **house power calculation**.
+Lightweight InfluxDB ingestion proxy with **buffering** and **house power calculation**.
 
 ## Features
 
 - Accepts InfluxDB v2 Line Protocol via HTTP
 - Forwards all incoming data to InfluxDB
-- Recalculates house power and overrides incoming house power
-- Buffers all writes to SQLite (12 hours retention)
-- Exposes a statistics endpoint (protected by basic auth)
+- Recalculates house power and replaces incoming value
+- Buffers all incoming and outgoing data to SQLite
+- Exposes a statistics endpoint
 
 ## Architecture
 
@@ -28,9 +28,9 @@ graph LR
   Dashboard[Dashboard]
 
   CollectorA -->|push| Influx
-  CollectorB --> |push| Influx
-  CollectorC --> |push| Influx
-  Influx --> |pull| Dashboard
+  CollectorB -->|push| Influx
+  CollectorC -->|push| Influx
+  Influx -->|pull| Dashboard
 ```
 
 ### With Ingest
@@ -44,16 +44,16 @@ graph LR
   Ingest[Ingest]
   Dashboard[Dashboard]
 
-  CollectorA --> |push| Ingest
-  CollectorB --> |push| Ingest
-  CollectorC --> |push| Ingest
-  Ingest --> |calculate and push| Influx
-  Influx --> |pull| Dashboard
+  CollectorA -->|push| Ingest
+  CollectorB -->|push| Ingest
+  CollectorC -->|push| Ingest
+  Ingest -->|push| Influx
+  Influx -->|pull| Dashboard
 ```
 
 ## House Power Calculation
 
-Installing a balcony inverter can lead to incorrect house power. Ingest recalculates the value using this formula:
+When using a balcony inverter, your house power value might be incorrect. Ingest recalculates the value using this formula:
 
 ```
 HOUSE_POWER = INVERTER_POWER
@@ -66,9 +66,9 @@ HOUSE_POWER = INVERTER_POWER
             - HEATPUMP_POWER
 ```
 
-Because the sensors may not come in the same timeframe, Ingest uses interpolation to synchronize the values. Each time a relevant sensor is updated, Ingest recalculates the house power based on the timestamp of the changed sensor.
+Since the relevant sensor values may not arrive simultaneously, Ingest uses **interpolation** to align them. Whenever one of the relevant sensors updates, Ingest recalculates the house power based on that timestamp.
 
-The calculated house power is then sent to InfluxDB, replacing the incoming value. If you want to keep the original value, you can set `INFLUX_SENSOR_HOUSE_POWER_CALCULATED` to a different measurement/field.
+The calculated value replaces the original one. If you prefer to store the original value separately, you can define `INFLUX_SENSOR_HOUSE_POWER_CALCULATED` to write the result to a different measurement and/or field.
 
 ## Example Docker Compose
 
@@ -87,6 +87,7 @@ services:
       - INFLUX_SENSOR_HEATPUMP_POWER
       - INFLUX_SENSOR_HOUSE_POWER
       - INFLUX_EXCLUDE_FROM_HOUSE_POWER
+      - INFLUX_SENSOR_HOUSE_POWER_CALCULATED
       - INFLUX_HOST
       - INFLUX_PORT
       - INFLUX_SCHEMA
@@ -95,78 +96,63 @@ services:
     depends_on:
       - influxdb
     ports:
-      - '4567:4567'
+      - 4567:4567
     volumes:
-      - ./path/to/my/ingest-folder:/app/data
+      - ./path/to/ingest-data:/app/data
 
   influxdb:
     image: influxdb:2.7-alpine
     ports:
-      - '8086:8086'
+      - 8086:8086
     volumes:
-      - ./path/to/my/influx-folder:/var/lib/influxdb
+      - ./path/to/influx-data:/var/lib/influxdb
 ```
 
 ## Environment Variables
 
-| Variable                                  | Description                                             |
-| ----------------------------------------- | ------------------------------------------------------- |
-| `INFLUX_SENSOR_INVERTER_POWER`            | Measurement/Field for inverter power                    |
-| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Measurement/Field for balcony inverter power            |
-| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Measurement/Field for grid import power                 |
-| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Measurement/Field for grid export power                 |
-| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Measurement/Field for battery discharging power         |
-| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Measurement/Field for battery charging power            |
-| `INFLUX_SENSOR_WALLBOX_POWER`             | Measurement/Field for wallbox power                     |
-| `INFLUX_SENSOR_HEATPUMP_POWER`            | Measurement/Field for heat pump power                   |
-| `INFLUX_SENSOR_HOUSE_POWER`               | Measurement/Field for house power                       |
-| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`         | Exclude sensors from house power calculation            |
-| `INFLUX_SENSOR_HOUSE_POWER_CALCULATED`    | Measurement/Field for calculated house power (optional) |
-| `INFLUX_HOST`                             | InfluxDB host, e.g. "influxdb"                          |
-| `INFLUX_PORT`                             | InfluxDB port, e.g. "8086"                              |
-| `INFLUX_SCHEMA`                           | InfluxDB schema, e.g. "http"                            |
-| `STATS_USERNAME`                          | Username for stats endpoint (optional)                  |
-| `STATS_PASSWORD`                          | Password for stats endpoint (optional)                  |
+### Sensor Configuration
+
+Define measurement and field names for each sensor. Format: `measurement:field`, e.g. `SENEC:inverter_power`. Leave empty if a sensor is not available.
+
+| Variable                                  | Description               |
+| ----------------------------------------- | ------------------------- |
+| `INFLUX_SENSOR_INVERTER_POWER`            | Inverter power            |
+| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Balcony inverter power    |
+| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Grid import power         |
+| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Grid export power         |
+| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Battery discharging power |
+| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Battery charging power    |
+| `INFLUX_SENSOR_WALLBOX_POWER`             | Wallbox power             |
+| `INFLUX_SENSOR_HEATPUMP_POWER`            | Heat pump power           |
+| `INFLUX_SENSOR_HOUSE_POWER`               | House power               |
+
+### Other Settings
+
+| Variable                               | Description                               | Note            |
+| -------------------------------------- | ----------------------------------------- | --------------- |
+| `INFLUX_EXCLUDE_FROM_HOUSE_POWER`      | Exclude specific sensors from house power | Optional        |
+| `INFLUX_SENSOR_HOUSE_POWER_CALCULATED` | Output for calculated house power         | Optional        |
+| `INFLUX_HOST`                          | InfluxDB host, e.g. `influxdb`            | Required        |
+| `INFLUX_PORT`                          | InfluxDB port                             | Default: `8086` |
+| `INFLUX_SCHEMA`                        | InfluxDB schema                           | Default: `http` |
+| `STATS_USERNAME`                       | Username for stats endpoint               | Optional        |
+| `STATS_PASSWORD`                       | Password for stats endpoint               | Optional        |
 
 ## Endpoints
 
-Ingest acts as a proxy for the InfluxDB v2 API, specifically `/api/v2/write`. It accepts data in InfluxDB Line Protocol format and forwards it to InfluxDB.
-
 ### POST `/api/v2/write`
 
-- **Headers:**
-
-  - `Authorization: Token <token>`
-  - `Content-Type: application/json`
-
-- **Query Params:**
-
-  - `bucket`: Target bucket
-  - `org`: Target organization
-  - `precision`: Timestamp precision (default: `ns`)
-
-- **Body:** InfluxDB Line Protocol
-
-- **Behavior:**
-  - Buffers incoming data
-  - Recalculates house power if relevant
-  - Adds processed data to the write queue
+Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculation of house power if relevant.
 
 ### GET `/`
 
-Basic web UI for service monitoring.
-
-If you have set `STATS_USERNAME` and `STATS_PASSWORD`, you will be prompted for credentials (HTTP Basic Auth).
+Displays a basic stats page (requires basic auth if configured), showing throughput, queue size, buffer status, etc.
 
 ### GET `/up`
 
-Returns HTTP 200 if the service is up and running.
+Returns just HTTP 200 if the service is running (useful for health checks).
 
 ## Example cURL
-
-Ingest is compatible with InfluxDB v2 and listens to the `/api/v2/write` endpoint:
-
-This example sends a measurement called `test_measurement` with a tag `location=office` and a value of `42` to the Ingest service. The timestamp is set to the current time in nanoseconds.
 
 ```bash
 curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&precision=ns" \
@@ -177,23 +163,25 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
 
 ## How it works
 
-- Incoming data is **persisted** in SQLite
-- An `OutboxWorker` forwards queued writes to InfluxDB in **batches**
-- `HousePowerCalculator` triggers on relevant updates
-- `CleanupWorker` deletes old buffered data after 12 hours
+- Incoming data is **persisted** in SQLite (12-hour retention)
+- A queue forwards data to InfluxDB in **batches**
+- House power is recalculated **as soon as** any relevant sensor updates
+- Old data is removed periodically by a background cleanup worker
+
+If anything goes wrong, please look at the logs!
 
 ## FAQ
 
 ### Should I use Ingest?
 
-Only if you use a balcony inverter **and** your house power is calculated incorrectly. If you have a single inverter, Ingest would not add any value in this case (beside warming up your Raspberry Pi).
+Only if you use a balcony inverter **and** your house power values are inaccurate. If you're using a single inverter, Ingest won't add value (except heating your Raspberry Pi).
 
-### Should I use Ingest for other collectors?
+### Should I use Ingest for all collectors?
 
-It's strongly recommended to use Ingest for collectors sending **any of the eight relevant sensors** only.
+Use Ingest only for collectors that send **any of the eight relevant sensors**.
 
-All other collectors (e.g., [Tibber-Collector](https://github.com/solectrus/tibber-collector/), [Forecast-Collector](https://github.com/solectrus/forecast-collector), ...) should send data **directly** to InfluxDB, because this is more efficient and doesn't require any additional processing.
+All other collectors (e.g., [Tibber-Collector](https://github.com/solectrus/tibber-collector), [Forecast-Collector](https://github.com/solectrus/forecast-collector)) should send data **directly** to InfluxDB for better performance and simplicity.
 
 ### Why not use Telegraf?
 
-[Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) is an **agent** that collects and pushes data. Ingest is a **proxy** that accepts incoming data and processes it. This allows reusing existing collectors by only changing their destination URL.
+[Telegraf](https://www.influxdata.com/time-series-platform/telegraf/) is an **agent** for data collection. Ingest is a **proxy** that processes and forwards data. This makes it easier to reuse existing collectors by simply changing the destination URL.
