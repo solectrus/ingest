@@ -29,7 +29,7 @@ ignore([%r{^coverage/*}, %r{^.vscode/*}, %r{^.github/*}])
 #  * 'just' rspec: 'rspec'
 
 guard :rspec, cmd: 'rspec --colour --format documentation --fail-fast' do
-  directories(%w[lib spec])
+  directories(%w[helpers lib models routes spec])
 
   require 'guard/rspec/dsl'
   dsl = Guard::RSpec::Dsl.new(self)
@@ -37,7 +37,10 @@ guard :rspec, cmd: 'rspec --colour --format documentation --fail-fast' do
   # RSpec files
   rspec = dsl.rspec
   watch(rspec.spec_files)
+  watch(%r{^helpers/(.+)\.rb$}) { |m| "spec/helpers/#{m[1]}_spec.rb" }
   watch(%r{^lib/(.+)\.rb$}) { |m| "spec/lib/#{m[1]}_spec.rb" }
+  watch(%r{^models/(.+)\.rb$}) { |m| "spec/models/#{m[1]}_spec.rb" }
+  watch(%r{^routes/(.+)\.rb$}) { |m| "spec/routes/#{m[1]}_route_spec.rb" }
   watch(rspec.spec_helper) { rspec.spec_dir }
   watch(rspec.spec_support) { rspec.spec_dir }
 end
