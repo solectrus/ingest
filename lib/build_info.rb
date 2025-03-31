@@ -19,7 +19,7 @@ class BuildInfo
   end
 
   def self.local_built_at
-    return unless built_at
+    return if built_at.blank?
 
     tz = ENV['TZ'] || 'UTC'
     time = Time.parse(built_at)
