@@ -94,21 +94,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
         elapsed = Time.current - START_TIME
         (seconds / elapsed) * 100
       else
-        stat = File.read('/proc/self/stat').split
-        utime = stat[13].to_i
-        stime = stat[14].to_i
-        total_time = utime + stime
+        usage_usec =
+          File.read('/sys/fs/cgroup/cpu.stat')[/usage_usec\s+(\d+)/, 1].to_i
+        cpu_seconds = usage_usec / 1_000_000.0
 
-        start_time = stat[21].to_i
-        uptime = File.read('/proc/uptime').split.first.to_f
+        start_time = File.read('/proc/1/stat').split[21].to_i
         hertz = `getconf CLK_TCK`.to_i
-        seconds = uptime - (start_time.to_f / hertz)
+        system_uptime = File.read('/proc/uptime').split.first.to_f
+        container_uptime = system_uptime - (start_time.to_f / hertz)
 
-        ((total_time.to_f / hertz) / seconds) * 100
+        (cpu_seconds / container_uptime) * 100
       end
 
     normalized = total_percent / cpu_cores
-
     "#{normalized.round(1)} %"
   rescue StandardError => e
     # :nocov:
@@ -153,11 +151,6 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def macos?
     RUBY_PLATFORM.include?('darwin')
-  end
-
-  def ps_cpu_usage_mac
-    percent = `ps -o %cpu= -p #{Process.pid}`.to_f
-    "#{percent.round} %"
   end
 
   def age_from(time)
