@@ -5,6 +5,11 @@ WORKDIR /app
 RUN apk add --no-cache build-base
 
 COPY Gemfile* ./
+
+# Prevent documentation installation
+RUN echo 'gem: --no-document' >> /etc/gemrc && \
+    bundle config set no-doc 'true'
+
 RUN bundle config set path /usr/local/bundle && \
     bundle install -j4 --retry 3
 

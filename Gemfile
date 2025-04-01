@@ -27,9 +27,6 @@ gem 'influxdb-client'
 # JSON Implementation for Ruby (https://github.com/ruby/json)
 gem 'json'
 
-# Loads environment variables from `.env`. (https://github.com/bkeepers/dotenv)
-gem 'dotenv'
-
 # Rake is a Make-like program implemented in Ruby (https://github.com/ruby/rake)
 gem 'rake'
 
@@ -59,6 +56,9 @@ end
 group :development, :test do
   # Code coverage for Ruby (https://github.com/simplecov-ruby/simplecov)
   gem 'simplecov'
+
+  # Loads environment variables from `.env`. (https://github.com/bkeepers/dotenv)
+  gem 'dotenv'
 end
 
 group :test do
