@@ -9,19 +9,18 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
-  def format_duration(seconds) # rubocop:disable Metrics/AbcSize,Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
+  def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     return '–' unless seconds&.positive?
 
-    days = (seconds / 86_400).to_i
-    hours = (seconds % 86_400 / 3600).to_i
-    minutes = (seconds % 3600 / 60).to_i
-    seconds = (seconds % 60).to_i
+    days, rem = seconds.divmod(86_400)
+    hours, rem = rem.divmod(3600)
+    minutes, seconds = rem.divmod(60)
 
     [
       ("#{days}d" if days.positive?),
       ("#{hours}h" if hours.positive? || days.positive?),
       ("#{minutes}m" if minutes.positive? || hours.positive?),
-      ("#{seconds}s" if days.zero? && hours.zero?),
+      ("#{seconds.round}s" if days.zero? && hours.zero?),
     ].compact.join(' ')
   end
 
@@ -29,8 +28,11 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     size_bytes = File.size?(Database.file)
     return '–' unless size_bytes
 
-    size_mb = size_bytes.to_f / 1024 / 1024
-    "#{size_mb.round} MB"
+    number_to_human_size(size_bytes)
+  rescue StandardError => e
+    # :nocov:
+    e.message
+    # :nocov:
   end
 
   def incoming_measurement_fields_grouped
@@ -42,29 +44,22 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def queue_oldest_age
-    @queue_oldest_age ||=
-      begin
-        oldest = Outgoing.minimum(:created_at)
-
-        Time.now - oldest if oldest
-      end
+    @queue_oldest_age ||= age_from(Outgoing.minimum(:created_at))
   end
 
   def incoming_length
     @incoming_length ||=
-      begin
-        first = Incoming.minimum(:created_at)
-        last = Incoming.maximum(:created_at)
-
-        last - first if first && last
-      end
+      range_between(
+        Incoming.minimum(:created_at),
+        Incoming.maximum(:created_at),
+      )
   end
 
   def incoming_throughput
-    total_time_in_minutes = incoming_length&.fdiv(60)
-    return 0 if total_time_in_minutes.nil? || total_time_in_minutes.zero?
+    minutes = incoming_length&.fdiv(60)
+    return 0 if minutes.nil? || minutes.zero?
 
-    (incoming_total / total_time_in_minutes).round
+    (incoming_total / minutes).round
   end
 
   def memory_usage
@@ -72,29 +67,40 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       if macos?
         `ps -o rss= -p #{Process.pid}`.lines.last.to_i
       else
-        `ps -o rss= -p #{Process.pid}`.to_i
+        File.read('/proc/self/status')[/VmRSS:\s+(\d+)/, 1].to_i
       end
 
-    "#{(rss_kb / 1024.0).round} MB"
+    number_to_human_size(rss_kb * 1024)
   rescue StandardError => e
     # :nocov:
     e.message
     # :nocov:
   end
 
-  def cpu_usage
-    percent =
+  def cpu_usage # rubocop:disable Metrics/AbcSize
+    total_percent =
       if macos?
-        `ps -o %cpu= -p #{Process.pid}`.to_f
-      elsif File.exist?('/sys/fs/cgroup/cpu.stat')
-        stats = File.read('/sys/fs/cgroup/cpu.stat')
-        usage_usec = stats[/usage_usec\s+(\d+)/, 1].to_i
-        uptime_s = File.read('/proc/uptime').split.first.to_f
-        cpu_seconds = usage_usec / 1_000_000.0
-        (cpu_seconds / uptime_s) * 100
+        time_str = `ps -o time= -p #{Process.pid}`.strip
+        seconds = parse_time_to_seconds(time_str)
+        elapsed = Time.current - START_TIME
+        (seconds / elapsed) * 100
+      else
+        stat = File.read('/proc/self/stat').split
+        utime = stat[13].to_i
+        stime = stat[14].to_i
+        total_time = utime + stime
+
+        start_time = stat[21].to_i
+        uptime = File.read('/proc/uptime').split.first.to_f
+        hertz = `getconf CLK_TCK`.to_i
+        seconds = uptime - (start_time.to_f / hertz)
+
+        ((total_time.to_f / hertz) / seconds) * 100
       end
 
-    percent ? "#{percent.round} %" : 'N/A'
+    normalized = total_percent / cpu_cores
+
+    "#{normalized.round(1)} %"
   rescue StandardError => e
     # :nocov:
     e.message
@@ -102,16 +108,14 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def container_uptime
-    seconds = Time.now - START_TIME
-
-    format_duration(seconds)
+    format_duration(Time.current - START_TIME)
   end
 
   def system_uptime
     seconds =
       if macos?
         boot = `sysctl -n kern.boottime`.scan(/\d+/).first.to_i
-        Time.now.to_i - boot
+        Time.current.to_i - boot
       else
         File.read('/proc/uptime').to_f
       end
@@ -128,10 +132,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def disk_free
-    output = `df -k /`.lines[1]
-    available_kb = output.split[3].to_i
-
-    number_to_human_size available_kb * 1024
+    available_kb = `df -k /`.lines[1].split[3].to_i
+    number_to_human_size(available_kb * 1024)
   rescue StandardError => e
     # :nocov:
     e.message
@@ -142,5 +144,36 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def macos?
     RUBY_PLATFORM.include?('darwin')
+  end
+
+  def ps_cpu_usage_mac
+    percent = `ps -o %cpu= -p #{Process.pid}`.to_f
+    "#{percent.round} %"
+  end
+
+  def age_from(time)
+    Time.current - time if time
+  end
+
+  def range_between(start_time, end_time)
+    end_time - start_time if start_time && end_time
+  end
+
+  def parse_time_to_seconds(str)
+    parts = str.strip.split(':').map(&:to_i)
+    case parts.size
+    when 3
+      (parts[0] * 3600) + (parts[1] * 60) + parts[2]
+    when 2
+      (parts[0] * 60) + parts[1]
+    else
+      0
+    end
+  end
+
+  def cpu_cores
+    macos? ? `sysctl -n hw.ncpu`.to_i : `nproc`.to_i
+  rescue StandardError
+    1
   end
 end
