@@ -63,14 +63,23 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def memory_usage
-    rss_kb =
-      if macos?
-        `ps -o rss= -p #{Process.pid}`.lines.last.to_i
-      else
-        File.read('/proc/self/status')[/VmRSS:\s+(\d+)/, 1].to_i
+    if macos?
+      rss_kb = `ps -o rss= -p #{Process.pid}`.lines.last.to_i
+
+      return number_to_human_size(rss_kb * 1024)
+    end
+
+    path =
+      if File.exist?('/sys/fs/cgroup/memory/memory.usage_in_bytes')
+        '/sys/fs/cgroup/memory/memory.usage_in_bytes' # cgroups v1
+      elsif File.exist?('/sys/fs/cgroup/memory.current')
+        '/sys/fs/cgroup/memory.current' # cgroups v2
       end
 
-    number_to_human_size(rss_kb * 1024)
+    return 'N/A' unless path
+
+    bytes = File.read(path).to_i
+    number_to_human_size(bytes)
   rescue StandardError => e
     # :nocov:
     e.message
