@@ -29,8 +29,4 @@ class Incoming < ActiveRecord::Base
   def value
     value_int || value_float || value_string || value_bool
   end
-
-  def self.cleanup(cutoff:)
-    Database.thread_safe_write { where('created_at < ?', cutoff).delete_all }
-  end
 end

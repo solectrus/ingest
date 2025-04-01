@@ -92,37 +92,4 @@ describe Incoming do
       expect(incoming.value).to be(true)
     end
   end
-
-  describe '.cleanup' do
-    let!(:old_incoming) do
-      described_class.create!(
-        target: target,
-        measurement: 'SENEC',
-        field: 'inverter_power',
-        timestamp: 1000,
-        value: 100,
-        created_at: 13.hours.ago,
-      )
-    end
-
-    let(:fresh_incoming) do
-      described_class.create!(
-        target: target,
-        measurement: 'SENEC',
-        field: 'inverter_power',
-        timestamp: 1001,
-        value: 200,
-        created_at: Time.current,
-      )
-    end
-
-    it 'deletes records older than the default timestamp' do
-      described_class.cleanup(cutoff: 12.hours.ago)
-
-      expect(fresh_incoming.reload).to be_present
-      expect { old_incoming.reload }.to raise_error(
-        ActiveRecord::RecordNotFound,
-      )
-    end
-  end
 end

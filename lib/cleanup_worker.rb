@@ -12,7 +12,10 @@ class CleanupWorker
   def self.run
     puts '[Cleanup] Deleting old entries...'
 
-    deleted = Incoming.cleanup(cutoff: RETENTION_HOURS.ago)
+    deleted =
+      Database.thread_safe_write do
+        Incoming.where(created_at: ..RETENTION_HOURS.ago).delete_all
+      end
 
     puts "[Cleanup] Deleted #{deleted} entries"
   rescue StandardError => e

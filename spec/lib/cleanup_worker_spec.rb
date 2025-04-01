@@ -1,33 +1,24 @@
 describe CleanupWorker do
   let!(:old_entry) do
-    Incoming.create!(
-      target:,
+    target.incomings.create!(
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      timestamp: 1000,
-      created_at: 25.hours.ago,
+      created_at: 25.hours.ago, # Older than 12 hours
     )
   end
 
   let!(:recent_entry) do
-    Incoming.create!(
-      target:,
+    target.incomings.create!(
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      timestamp: 1001,
-      created_at: 5.hours.ago,
+      created_at: 5.hours.ago, # Within the 12-hour retention period
     )
   end
 
   let(:target) do
-    Target.create!(
-      influx_token: 'foo',
-      bucket: 'test',
-      org: 'test',
-      precision: InfluxDB2::WritePrecision::NANOSECOND,
-    )
+    Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
   end
 
   describe '.run' do
