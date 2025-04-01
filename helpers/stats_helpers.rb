@@ -12,15 +12,17 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     return '–' unless seconds&.positive?
 
-    days, rem = seconds.divmod(86_400)
-    hours, rem = rem.divmod(3600)
-    minutes, seconds = rem.divmod(60)
+    time = Time.at(seconds).utc
+    days = time.day - 1
+    hours = time.hour
+    minutes = time.min
+    seconds = time.sec
 
     [
       ("#{days}d" if days.positive?),
       ("#{hours}h" if hours.positive? || days.positive?),
       ("#{minutes}m" if minutes.positive? || hours.positive?),
-      ("#{seconds.round}s" if days.zero? && hours.zero?),
+      ("#{seconds}s" if days.zero? && hours.zero?),
     ].compact.join(' ')
   end
 
