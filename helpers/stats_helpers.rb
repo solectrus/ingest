@@ -89,26 +89,25 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def cpu_usage # rubocop:disable Metrics/AbcSize
-    total_percent =
+    cpu_seconds =
       if macos?
         time_str = `ps -o time= -p #{Process.pid}`.strip
-        seconds = parse_time_to_seconds(time_str)
-        elapsed = Time.current - START_TIME
-        (seconds / elapsed) * 100
-      else
-        usage_usec =
+        parse_time_to_seconds(time_str)
+      elsif File.exist?('/sys/fs/cgroup/cpuacct/cpuacct.usage') # cgroup v1
+        ns = File.read('/sys/fs/cgroup/cpuacct/cpuacct.usage').to_i
+        ns / 1_000_000_000.0
+      elsif File.exist?('/sys/fs/cgroup/cpu.stat') # cgroup v2
+        usec =
           File.read('/sys/fs/cgroup/cpu.stat')[/usage_usec\s+(\d+)/, 1].to_i
-        cpu_seconds = usage_usec / 1_000_000.0
-
-        start_time = File.read('/proc/1/stat').split[21].to_i
-        hertz = `getconf CLK_TCK`.to_i
-        system_uptime = File.read('/proc/uptime').split.first.to_f
-        container_uptime = system_uptime - (start_time.to_f / hertz)
-
-        (cpu_seconds / container_uptime) * 100
+        usec / 1_000_000.0
+      else
+        return 'N/A'
       end
 
+    elapsed = Time.current - START_TIME
+    total_percent = (cpu_seconds / elapsed) * 100
     normalized = total_percent / cpu_cores
+
     "#{normalized.round(1)} %"
   rescue StandardError => e
     # :nocov:
