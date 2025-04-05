@@ -4,6 +4,8 @@ class WriteRoute < BaseRoute
   post '/api/v2/write' do
     content_type 'application/json'
 
+    headers 'X-Ingest-Version' => BuildInfo.version, 'Date' => Time.now.httpdate
+
     influx_token = request.env['HTTP_AUTHORIZATION'].to_s[REGEX_TOKEN, 1]
     halt 401, { error: 'Missing token' }.to_json unless influx_token
 
