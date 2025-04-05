@@ -1,5 +1,11 @@
 describe BuildInfo do
   around do |example|
+    described_class.instance_variable_set(:@version, nil)
+    described_class.instance_variable_set(:@revision, nil)
+    described_class.instance_variable_set(:@built_at, nil)
+    described_class.instance_variable_set(:@revision_short, nil)
+    described_class.instance_variable_set(:@to_s, nil)
+
     original_env = ENV.to_hash
     ENV.replace(original_env.merge(env_vars))
     example.run
@@ -42,15 +48,13 @@ describe BuildInfo do
     let(:env_vars) { {} }
 
     it 'returns nils for raw values' do
-      expect(described_class.version).to be_nil
+      expect(described_class.version).to eq('unknown')
       expect(described_class.revision).to be_nil
       expect(described_class.built_at).to be_nil
     end
 
-    it 'returns "<unknown>" in to_s' do
-      expect(described_class.to_s).to eq(
-        'Version <unknown> (<unknown>), built at <unknown>',
-      )
+    it 'returns "unknown" in to_s' do
+      expect(described_class.to_s).to eq('Version unknown')
     end
   end
 
