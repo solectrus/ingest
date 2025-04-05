@@ -14,7 +14,7 @@ class WriteRoute < BaseRoute
     halt 400, { error: 'Missing org' }.to_json unless org
 
     lines = request.body.read.strip.lines
-    halt 400, { error: 'Empty body' }.to_json if lines.empty?
+    halt 204 if lines.empty?
 
     precision =
       params['precision'].presence || InfluxDB2::WritePrecision::NANOSECOND

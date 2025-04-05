@@ -55,11 +55,11 @@ describe WriteRoute do
     end
 
     context 'when request body is blank' do
-      it 'returns 400 with error message' do
+      it 'returns 204' do
         post "/api/v2/write?#{params}", '', headers
 
-        expect(last_response.status).to eq(400)
-        expect(last_response.body).to include('Empty body')
+        expect(last_response.status).to eq(204)
+        expect(last_response.body).to be_empty
       end
     end
 
