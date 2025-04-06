@@ -15,7 +15,10 @@ class WriteRoute < BaseRoute
     org = params['org'].presence
     halt 400, { error: 'Missing org' }.to_json unless org
 
-    lines = request.body.read.strip.lines
+    raw_body = request.body.read
+    body = EncodingHelper.clean_utf8(raw_body)
+    lines = body.strip.lines
+
     halt 204 if lines.empty?
 
     precision =

@@ -46,6 +46,19 @@ describe WriteRoute do
       end
     end
 
+    context 'when the request contains UTF-8 characters' do
+      it 'stores the data and returns status 204' do
+        expect do
+          post_write(body: 'FOO system_status="37° • Charging" 1743943068000000000')
+        end.to change(Incoming, :count).by(1).and(
+          change(Outgoing, :count).by(1),
+        )
+
+        expect_status 204
+        expect_default_header
+      end
+    end
+
     context 'when token is missing' do
       it 'returns 401' do
         post_write(custom_headers: headers.except('HTTP_AUTHORIZATION'))
