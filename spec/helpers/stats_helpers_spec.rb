@@ -6,10 +6,6 @@ describe StatsHelpers do
       expect(format_duration(nil)).to eq('–')
     end
 
-    it 'returns a dash for 0' do
-      expect(format_duration(0)).to eq('–')
-    end
-
     it 'formats seconds only' do
       expect(format_duration(12)).to eq('12s')
     end

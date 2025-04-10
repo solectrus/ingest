@@ -10,7 +10,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-    return '–' unless seconds&.positive?
+    return '–' unless seconds
 
     time = Time.at(seconds).utc
     days = time.day - 1
