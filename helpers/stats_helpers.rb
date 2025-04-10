@@ -30,7 +30,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     size_bytes = File.size?(Database.file)
     return '–' unless size_bytes
 
-    number_to_human_size(size_bytes)
+    size_bytes
   rescue StandardError => e
     # :nocov:
     e.message
@@ -68,7 +68,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     if macos?
       rss_kb = `ps -o rss= -p #{Process.pid}`.lines.last.to_i
 
-      return number_to_human_size(rss_kb * 1024)
+      return rss_kb * 1024
     end
 
     path =
@@ -80,8 +80,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
     return 'N/A' unless path
 
-    bytes = File.read(path).to_i
-    number_to_human_size(bytes)
+    File.read(path).to_i
   rescue StandardError => e
     # :nocov:
     e.message
@@ -104,11 +103,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
         return 'N/A'
       end
 
-    elapsed = Time.current - START_TIME
-    total_percent = (cpu_seconds / elapsed) * 100
-    normalized = total_percent / cpu_cores
-
-    "#{normalized.round(1)} %"
+    total_percent = (cpu_seconds / container_uptime) * 100
+    total_percent / cpu_cores
   rescue StandardError => e
     # :nocov:
     e.message
@@ -116,19 +112,17 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def container_uptime
-    format_duration(Time.current - START_TIME)
+    @container_uptime ||= age_from(START_TIME)
   end
 
   def system_uptime
-    seconds =
+    @system_uptime ||=
       if macos?
         boot = `sysctl -n kern.boottime`.scan(/\d+/).first.to_i
         Time.current.to_i - boot
       else
         File.read('/proc/uptime').to_f
       end
-
-    format_duration(seconds)
   rescue StandardError => e
     # :nocov:
     e.message
@@ -141,7 +135,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def disk_free
     available_kb = `df -k /`.lines[1].split[3].to_i
-    number_to_human_size(available_kb * 1024)
+    available_kb * 1024
   rescue StandardError => e
     # :nocov:
     e.message
