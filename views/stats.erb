@@ -72,6 +72,20 @@
   </div>
 
   <div>
+    <h2>Responses</h2>
+    <dl class="right">
+      <% Stats.counters_by(:http_response).sort.each do |key, value| %>
+        <dt><%= key.to_s.gsub('http_response_', 'HTTP ') %></dt>
+        <dd><%= number_to_delimited(value) %></dd>
+      <% end %>
+
+      <dt>Total requests</dt>
+      <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
+
+      <dt>⌀ Time</dt>
+      <dd><%= number_to_delimited(response_time) %> ms</dd>
+    </dl>
+
     <h2>CPU</h2>
     <dl class="right">
       <dt>Usage</dt>

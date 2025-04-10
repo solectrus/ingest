@@ -30,6 +30,11 @@ Metrics/AbcSize:
 Metrics/MethodLength:
   Max: 35
 
+# Naming
+
+Naming/VariableNumber:
+  Enabled: false
+
 # Style
 
 Style/Documentation:

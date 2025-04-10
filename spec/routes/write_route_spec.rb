@@ -34,6 +34,8 @@ describe WriteRoute do
     end
   end
 
+  before { Stats.reset! }
+
   describe 'POST /api/v2/write' do
     context 'with valid request' do
       it 'stores data and returns 204' do
@@ -43,6 +45,9 @@ describe WriteRoute do
 
         expect_status 204
         expect_default_header
+        expect(Stats.counter(:http_response_204)).to eq(1)
+        expect(Stats.counter(:http_requests)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -56,6 +61,8 @@ describe WriteRoute do
 
         expect_status 204
         expect_default_header
+        expect(Stats.counter(:http_response_204)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -66,6 +73,8 @@ describe WriteRoute do
         expect_status 401
         expect_default_header
         expect_body 'Missing token'
+        expect(Stats.counter(:http_response_401)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -76,6 +85,8 @@ describe WriteRoute do
         expect_status 400
         expect_body 'Missing bucket'
         expect_default_header
+        expect(Stats.counter(:http_response_400)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -86,6 +97,8 @@ describe WriteRoute do
         expect_status 400
         expect_body 'Missing org'
         expect_default_header
+        expect(Stats.counter(:http_response_400)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -96,6 +109,8 @@ describe WriteRoute do
         expect_status 204
         expect_body nil
         expect_default_header
+        expect(Stats.counter(:http_response_204)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -106,6 +121,8 @@ describe WriteRoute do
         expect_status 400
         expect_body 'Invalid line protocol'
         expect_default_header
+        expect(Stats.counter(:http_response_400)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
 
@@ -122,6 +139,8 @@ describe WriteRoute do
         expect_status 500
         expect_body 'Boom!'
         expect_default_header
+        expect(Stats.counter(:http_response_500)).to eq(1)
+        expect(Stats.sum(:http_duration_total)).to be > 0
       end
     end
   end

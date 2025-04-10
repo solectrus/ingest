@@ -10,7 +10,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def calculation_count
-    HousePowerCalculator.count_recalculate
+    Stats.counter(:house_power_recalculates)
   end
 
   def calculation_rate
@@ -22,7 +22,13 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   def calculation_cache_hits
     return unless calculation_count&.positive?
 
-    100.0 * HousePowerCalculator.cache_hits / calculation_count
+    100.0 * Stats.counter(:house_power_recalculate_cache_hits) / calculation_count
+  end
+
+  def response_time
+    return unless Stats.counter(:http_requests).positive?
+
+    (Stats.sum(:http_duration_total) / Stats.counter(:http_requests)).round
   end
 
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity

@@ -1,24 +1,4 @@
 class HousePowerCalculator
-  @count_recalculate = 0
-  @cache_hits = 0
-
-  class << self
-    attr_reader :count_recalculate, :cache_hits
-
-    def reset_stats
-      @count_recalculate = 0
-      @cache_hits = 0
-    end
-
-    def inc_recalculate
-      @count_recalculate += 1
-    end
-
-    def inc_cache_hit
-      @cache_hits += 1
-    end
-  end
-
   def initialize(target)
     @target = target
   end
@@ -26,14 +6,13 @@ class HousePowerCalculator
   attr_reader :target
 
   def recalculate(timestamp:)
-    self.class.inc_recalculate
+    Stats.inc(:house_power_recalculates)
 
     timestamp_ns = target.timestamp_ns(timestamp)
 
-    # Try to get cached values first, because interpolation can be slow
     powers = fetch_cached_powers(timestamp_ns)
     if powers
-      self.class.inc_cache_hit
+      Stats.inc(:house_power_recalculate_cache_hits)
     else
       # Fallback to interpolation from the database
       powers = interpolate_powers(timestamp_ns)

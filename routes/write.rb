@@ -1,7 +1,23 @@
 class WriteRoute < BaseRoute
   REGEX_TOKEN = /\AToken (.+)\z/
 
+  before do
+    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  end
+
+  after do
+    next unless @track_http_stats
+
+    duration_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - @start_time) * 1000).round(2)
+
+    Stats.inc(:http_requests)
+    Stats.add(:http_duration_total, duration_ms)
+    Stats.inc(:"http_response_#{response.status}")
+  end
+
   post '/api/v2/write' do
+    @track_http_stats = true
+
     content_type 'application/json'
 
     headers 'X-Ingest-Version' => BuildInfo.version, 'Date' => Time.now.httpdate
@@ -26,7 +42,7 @@ class WriteRoute < BaseRoute
 
     begin
       Processor.new(influx_token:, bucket:, org:, precision:).run(lines)
-      status 204
+      halt 204
     rescue InvalidLineProtocolError => e
       handle(e, 400)
     rescue StandardError => e

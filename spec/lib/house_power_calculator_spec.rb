@@ -37,7 +37,7 @@ describe HousePowerCalculator do
 
   after do
     SensorValueCache.instance.reset!
-    described_class.reset_stats
+    Stats.reset!
   end
 
   describe '#recalculate' do
@@ -51,25 +51,25 @@ describe HousePowerCalculator do
     end
 
     it 'tracks recalculate' do
-      expect(described_class.count_recalculate).to eq(0)
+      expect(Stats.counter(:house_power_recalculates)).to eq(0)
       calculator.recalculate(timestamp:)
-      expect(described_class.count_recalculate).to eq(1)
+      expect(Stats.counter(:house_power_recalculates)).to eq(1)
     end
 
     it 'tracks cache hit' do
       calculator.recalculate(timestamp:)
-      expect(described_class.cache_hits).to eq(1)
+      expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(1)
     end
 
     it 'tracks cache miss when requesting timestamp older than cache' do
       calculator.recalculate(timestamp: timestamp - 1)
-      expect(described_class.cache_hits).to eq(0)
+      expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(0)
     end
 
     it 'tracks cache miss when one field is not in cache' do
       SensorValueCache.instance.delete(measurement: 'SENEC', field: 'grid_power_minus')
       calculator.recalculate(timestamp: timestamp)
-      expect(described_class.cache_hits).to eq(0)
+      expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(0)
     end
   end
 end
