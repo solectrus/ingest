@@ -103,30 +103,16 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (incoming_total / minutes).round
   end
 
-  def memory_usage # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
-    if macos?
-      rss_kb = `ps -o rss= -p #{Process.pid}`.lines.last.to_i
+  def memory_usage
+    return rss_from_ps_macos if macos?
 
-      return rss_kb * 1024
+    # Prefer cgroup usage if available (Docker etc.)
+    if (cgroup_path = detect_cgroup_memory_path)
+      return File.read(cgroup_path).to_i
     end
 
-    if File.exist?('/proc/self/status')
-      status = File.read('/proc/self/status')
-      if (match = status.match(/^VmRSS:\s+(\d+)\s+kB/))
-        return match[1].to_i * 1024
-      end
-    end
-
-    path =
-      if File.exist?('/sys/fs/cgroup/memory/memory.usage_in_bytes')
-        '/sys/fs/cgroup/memory/memory.usage_in_bytes' # cgroups v1
-      elsif File.exist?('/sys/fs/cgroup/memory.current')
-        '/sys/fs/cgroup/memory.current' # cgroups v2
-      end
-
-    return 'N/A' unless path
-
-    File.read(path).to_i
+    # Fallback for LXC: /proc/self/status
+    rss_from_procfs || 'N/A'
   rescue StandardError => e
     # :nocov:
     e.message
@@ -218,5 +204,25 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     macos? ? `sysctl -n hw.ncpu`.to_i : `nproc`.to_i
   rescue StandardError
     1
+  end
+
+  def detect_cgroup_memory_path
+    paths = [
+      '/sys/fs/cgroup/memory/memory.usage_in_bytes', # cgroups v1
+      '/sys/fs/cgroup/memory.current', # cgroups v2
+    ]
+    paths.find { |p| File.exist?(p) }
+  end
+
+  def rss_from_procfs
+    status = File.read('/proc/self/status')
+    if (match = status.match(/^VmRSS:\s+(\d+)\s+kB/))
+      match[1].to_i * 1024
+    end
+  end
+
+  def rss_from_ps_macos
+    rss_kb = `ps -o rss= -p #{Process.pid}`.lines.last.to_i
+    rss_kb * 1024
   end
 end
