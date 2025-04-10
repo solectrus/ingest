@@ -64,11 +64,18 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (incoming_total / minutes).round
   end
 
-  def memory_usage
+  def memory_usage # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     if macos?
       rss_kb = `ps -o rss= -p #{Process.pid}`.lines.last.to_i
 
       return rss_kb * 1024
+    end
+
+    if File.exist?('/proc/self/status')
+      status = File.read('/proc/self/status')
+      if (match = status.match(/^VmRSS:\s+(\d+)\s+kB/))
+        return match[1].to_i * 1024
+      end
     end
 
     path =
