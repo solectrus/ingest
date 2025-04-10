@@ -92,4 +92,28 @@ describe Incoming do
       expect(incoming.value).to be(true)
     end
   end
+
+  describe 'cache writing' do
+    let(:cache) { SensorValueCache.instance }
+
+    it 'writes to the cache after creation' do
+      cache.reset!
+
+      described_class.create!(
+        target:,
+        measurement: 'SENEC',
+        field: 'inverter_power',
+        timestamp: 1000,
+        value: 42,
+      )
+
+      expect(
+        cache.read(
+          measurement: 'SENEC',
+          field: 'inverter_power',
+          max_timestamp: target.timestamp_ns(1000),
+        ),
+      ).to include(value: 42)
+    end
+  end
 end

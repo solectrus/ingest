@@ -13,6 +13,10 @@ class Incoming < ActiveRecord::Base
     self.timestamp ||= target.timestamp_ns(Time.current.to_i)
   end
 
+  after_create do
+    SensorValueCache.instance.write(measurement:, field:, timestamp:, value:)
+  end
+
   def value=(val)
     case val
     when Integer
