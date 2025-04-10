@@ -9,6 +9,22 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
+  def calculation_count
+    HousePowerCalculator.count_recalculate
+  end
+
+  def calculation_rate
+    return unless calculation_count&.positive?
+
+    60.0 * calculation_count / container_uptime
+  end
+
+  def calculation_cache_hits
+    return unless calculation_count&.positive?
+
+    100.0 * HousePowerCalculator.cache_hits / calculation_count
+  end
+
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     return '–' unless seconds
 
@@ -55,6 +71,29 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
         Incoming.minimum(:created_at),
         Incoming.maximum(:created_at),
       )
+  end
+
+  def cache_range
+    @cache_range ||=
+      range_between(
+        cache_stats[:oldest_timestamp]&./(1_000_000_000),
+        cache_stats[:newest_timestamp]&./(1_000_000_000),
+      )
+  end
+
+  def cache_size
+    @cache_size ||= cache_stats[:size]
+  end
+
+  def cache_stats
+    @cache_stats ||= SensorValueCache.instance.stats
+  end
+
+  def cache_age_for(measurement, field)
+    timestamp = SensorValueCache.instance.timestamp_for(measurement, field)
+    return unless timestamp
+
+    age_from(timestamp / 1_000_000_000)
   end
 
   def incoming_throughput
@@ -156,7 +195,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def age_from(time)
-    Time.current - time if time
+    (Time.current - time).clamp(0, Float::INFINITY) if time
   end
 
   def range_between(start_time, end_time)

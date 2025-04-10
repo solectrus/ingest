@@ -25,11 +25,48 @@
   </div>
 
   <div>
-    <h2>Measurements & Fields</h2>
-    <dl class="left">
+    <h2>Cache</h2>
+
+    <dl class="right">
+      <dt>Size</dt>
+      <dd><%= number_to_delimited(cache_size) %></dd>
+
+      <dt>Range</dt>
+      <dd>
+        <%= format_duration(cache_range) %>
+      </dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>HousePower Calculation</h2>
+    <dl class="right">
+      <dt>Count</dt>
+      <dd><%= number_to_delimited(calculation_count) %></dd>
+
+      <dt>Rate</dt>
+      <dd><%= number_to_delimited(calculation_rate&.round) %> /min</dd>
+
+      <dt>Cache hits</dt>
+      <dd><%= number_to_percentage(calculation_cache_hits, precision: 0) %></dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Measurements & Fields <small>(with cache age)</small></h2>
+    <dl class="right">
       <% incoming_measurement_fields_grouped.each do |measurement, fields| %>
         <dt><%= measurement %></dt>
-        <dd><%= fields.join(', ') %></dd>
+        <dd>
+          <% fields.each do |field| %>
+            <%= field %>
+
+            <small>
+              <%= format_duration(cache_age_for(measurement, field)) %>
+            </small>
+            <br>
+          <% end %>
+        </dd>
       <% end %>
     </dl>
   </div>
