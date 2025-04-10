@@ -49,8 +49,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @queue_oldest_age ||= age_from(Outgoing.minimum(:created_at))
   end
 
-  def incoming_length
-    @incoming_length ||=
+  def incoming_range
+    @incoming_range ||=
       range_between(
         Incoming.minimum(:created_at),
         Incoming.maximum(:created_at),
@@ -58,7 +58,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def incoming_throughput
-    minutes = incoming_length&.fdiv(60)
+    minutes = incoming_range&.fdiv(60)
     return 0 if minutes.nil? || minutes.zero?
 
     (incoming_total / minutes).round
