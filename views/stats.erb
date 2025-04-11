@@ -53,17 +53,15 @@
   </div>
 
   <div>
-    <h2>Measurements & Fields <small>(with cache age)</small></h2>
+    <h2>Measurements & Fields <small>(with throughput)</small></h2>
     <dl class="right">
-      <% incoming_measurement_fields_grouped.each do |measurement, fields| %>
-        <dt><%= measurement %></dt>
+      <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
+        <dt class="font-mono"><%= measurement %></dt>
         <dd>
-          <% fields.each do |field| %>
-            <%= field %>
+          <% groups.each do |group| %>
+            <span class="font-mono"><%= group[:field] %></span>
 
-            <small>
-              <%= format_duration(cache_age_for(measurement, field)) %>
-            </small>
+            <%= throughput_tag(incoming_throughput_for(group[:count])) %>
             <br>
           <% end %>
         </dd>

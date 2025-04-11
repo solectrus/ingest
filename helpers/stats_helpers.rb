@@ -61,10 +61,10 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def incoming_measurement_fields_grouped
     Incoming
-      .distinct
-      .pluck(:measurement, :field)
-      .group_by(&:first)
-      .transform_values { |pairs| pairs.map(&:last).sort }
+      .group(:measurement, :field)
+      .count
+      .map { |(measurement, field), count| { measurement:, field:, count: } }
+      .group_by { |entry| entry[:measurement] }
   end
 
   def queue_oldest_age
@@ -107,6 +107,27 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return 0 if minutes.nil? || minutes.zero?
 
     (incoming_total / minutes).round
+  end
+
+  def incoming_throughput_for(count)
+    return unless incoming_range&.positive?
+
+    (60.0 * count / incoming_range).round
+  end
+
+  def throughput_tag(value)
+    return '<small>-</small>' unless value
+
+    css_class =
+      if value <= 12
+        'ok'
+      elsif value <= 24
+        'warn'
+      else
+        'crit'
+      end
+
+    "<small class=\"#{css_class}\">#{number_to_delimited(value)} /min</small>"
   end
 
   def memory_usage
