@@ -50,15 +50,6 @@ class SensorValueCache
     }
   end
 
-  def timestamp_for(measurement, field)
-    key = key_for(measurement, field)
-
-    entry = @cache[key]
-    return unless entry
-
-    entry[:timestamp]
-  end
-
   private
 
   def key_for(measurement, field)

@@ -95,13 +95,6 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @cache_stats ||= SensorValueCache.instance.stats
   end
 
-  def cache_age_for(measurement, field)
-    timestamp = SensorValueCache.instance.timestamp_for(measurement, field)
-    return unless timestamp
-
-    age_from(timestamp / 1_000_000_000)
-  end
-
   def incoming_throughput
     minutes = incoming_range&.fdiv(60)
     return 0 if minutes.nil? || minutes.zero?
