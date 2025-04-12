@@ -48,6 +48,8 @@ class Incoming < ActiveRecord::Base
   end
 
   def cache_sensor_value
+    return unless value_int || value_float
+
     SensorValueCache.instance.write(measurement:, field:, timestamp:, value:)
   end
 end

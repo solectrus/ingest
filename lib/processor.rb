@@ -51,6 +51,7 @@ class Processor
   def cache_values_from_rows(rows)
     rows.each do |row|
       value = extract_value(row)
+      next unless value
 
       SensorValueCache.instance.write(
         measurement: row[:measurement],
@@ -80,8 +81,8 @@ class Processor
   end
 
   def extract_value(row)
-    row[:value_int] || row[:value_float] || row[:value_string] ||
-      row[:value_bool]
+    # We need to cache Integer and Float only
+    row[:value_int] || row[:value_float]
   end
 
   def enqueue_outgoing(point)

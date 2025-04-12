@@ -130,5 +130,45 @@ describe Incoming do
         ),
       ).to include(value: 42)
     end
+
+    it 'does not cache string values' do
+      cache.reset!
+
+      described_class.create!(
+        target:,
+        measurement: 'SENEC',
+        field: 'system_status',
+        timestamp: 1000,
+        value: 'It\'s all fine',
+      )
+
+      expect(
+        cache.read(
+          measurement: 'SENEC',
+          field: 'system_status',
+          max_timestamp: target.timestamp_ns(1000),
+        ),
+      ).to be_nil
+    end
+
+    it 'does not cache boolean values' do
+      cache.reset!
+
+      described_class.create!(
+        target:,
+        measurement: 'SENEC',
+        field: 'system_status_ok',
+        timestamp: 1000,
+        value: true,
+      )
+
+      expect(
+        cache.read(
+          measurement: 'SENEC',
+          field: 'system_status_ok',
+          max_timestamp: target.timestamp_ns(1000),
+        ),
+      ).to be_nil
+    end
   end
 end

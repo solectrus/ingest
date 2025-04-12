@@ -93,5 +93,55 @@ describe Processor do
         expect { run }.not_to change(Outgoing, :count)
       end
     end
+
+    context 'when line contains boolean value' do
+      let(:line) { 'SENEC system_status_ok=true 1000000000' }
+
+      it 'stores the incoming data' do
+        expect { run }.to change(Incoming, :count).by(1)
+
+        incoming = Incoming.last
+        expect(incoming.measurement).to eq('SENEC')
+        expect(incoming.field).to eq('system_status_ok')
+        expect(incoming.value).to be(true)
+        expect(incoming.timestamp).to eq(1_000_000_000)
+      end
+
+      it 'does not cache the incoming data' do
+        run
+
+        cache = SensorValueCache.instance.read(
+          measurement: 'SENEC',
+          field: 'system_status_ok',
+          max_timestamp: 1_000_000_000,
+        )
+        expect(cache).to be_nil
+      end
+    end
+
+    context 'when line contains string value' do
+      let(:line) { 'SENEC system_status="It\'s all fine" 1000000000' }
+
+      it 'stores the incoming data' do
+        expect { run }.to change(Incoming, :count).by(1)
+
+        incoming = Incoming.last
+        expect(incoming.measurement).to eq('SENEC')
+        expect(incoming.field).to eq('system_status')
+        expect(incoming.value).to eq("It's all fine")
+        expect(incoming.timestamp).to eq(1_000_000_000)
+      end
+
+      it 'does not cache the incoming data' do
+        run
+
+        cache = SensorValueCache.instance.read(
+          measurement: 'SENEC',
+          field: 'system_status',
+          max_timestamp: 1_000_000_000,
+        )
+        expect(cache).to be_nil
+      end
+    end
   end
 end
