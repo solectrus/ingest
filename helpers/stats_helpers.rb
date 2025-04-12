@@ -106,13 +106,13 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     minutes = incoming_range&.fdiv(60)
     return 0 if minutes.nil? || minutes.zero?
 
-    (incoming_total / minutes).round
+    (incoming_total / minutes).round(1)
   end
 
   def incoming_throughput_for(count)
     return unless incoming_range&.positive?
 
-    (60.0 * count / incoming_range).round
+    (60.0 * count / incoming_range).round(1)
   end
 
   def throughput_tag(value)
