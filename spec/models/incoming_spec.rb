@@ -30,6 +30,12 @@ describe Incoming do
       expect(incoming.errors[:field]).to include("can't be blank")
     end
 
+    it 'validates presence of value' do
+      incoming.value = nil
+      expect(incoming).not_to be_valid
+      expect(incoming.errors[:value]).to include("can't be blank")
+    end
+
     it 'sets timestamp to default if missing' do
       incoming.timestamp = nil
       incoming.valid?
@@ -40,34 +46,38 @@ describe Incoming do
   describe '#value=' do
     it 'sets the correct field when Integer' do
       incoming.value = 42
+      expect(incoming).to be_valid
       expect(incoming.value_int).to eq(42)
     end
 
     it 'sets the correct field when Float' do
       incoming.value = 42.5
+      expect(incoming).to be_valid
       expect(incoming.value_float).to eq(42.5)
     end
 
     it 'sets the correct field when TrueClass' do
       incoming.value = true
+      expect(incoming).to be_valid
       expect(incoming.value_bool).to be(true)
     end
 
     it 'sets the correct field when FalseClass' do
       incoming.value = false
+      expect(incoming).to be_valid
       expect(incoming.value_bool).to be(false)
     end
 
     it 'sets the correct field when String' do
       incoming.value = 'test'
+      expect(incoming).to be_valid
       expect(incoming.value_string).to eq('test')
     end
 
-    it 'adds an error if the value type is invalid' do
-      incoming.value = nil
-
-      expect(incoming).not_to be_valid
-      expect(incoming.errors[:value]).to include("can't be blank")
+    it 'fails if the value type is invalid' do
+      expect do
+        incoming.value = { invalid: 'type' }
+      end.to raise_error(ArgumentError, 'Unsupported value type: Hash')
     end
   end
 
@@ -87,9 +97,14 @@ describe Incoming do
       expect(incoming.value).to eq('test')
     end
 
-    it 'returns the value_bool when TrueClass or FalseClass' do
+    it 'returns the value_bool when TrueClass' do
       incoming.value_bool = true
       expect(incoming.value).to be(true)
+    end
+
+    it 'returns the value_bool when FalseClass' do
+      incoming.value_bool = false
+      expect(incoming.value).to be(false)
     end
   end
 
