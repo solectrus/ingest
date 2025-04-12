@@ -30,8 +30,24 @@ describe Processor do
         incoming = Incoming.last
         expect(incoming.measurement).to eq('SENEC')
         expect(incoming.field).to eq('inverter_power')
-        expect(incoming.value_float).to eq(500.0)
+        expect(incoming.value).to eq(500.0)
         expect(incoming.timestamp).to eq(1_000_000_000)
+      end
+
+      it 'caches the incoming data' do
+        run
+
+        cache = SensorValueCache.instance.read(
+          measurement: 'SENEC',
+          field: 'inverter_power',
+          max_timestamp: 1_000_000_000,
+        )
+        expect(cache).to eq(
+          {
+            timestamp: 1_000_000_000,
+            value: 500.0,
+          },
+        )
       end
 
       it 'queues the outgoing line' do

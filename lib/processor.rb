@@ -27,17 +27,61 @@ class Processor
   end
 
   def store_incoming(point)
-    Incoming.transaction do
-      point.fields.each do |field, value|
-        target.incomings.create!(
-          timestamp: target.timestamp_ns(point.time),
-          measurement: point.name,
-          tags: point.tags,
-          field:,
-          value:,
-        )
+    now = Time.current
+    timestamp = target.timestamp_ns(point.time || now.to_i)
+
+    rows = point.fields.map do |field, value|
+      {
+        target_id: target.id,
+        timestamp:,
+        measurement: point.name,
+        tags: point.tags,
+        field:,
+        created_at: now,
+      }.merge(value_columns(value))
+    end
+
+    # Bulk insert rows without callbacks and validations
+    Incoming.insert_all!(rows)
+
+    # Callbacks are skipped by `insert_all!`, so we need to manually cache the values
+    cache_values_from_rows(rows)
+  end
+
+  def cache_values_from_rows(rows)
+    rows.each do |row|
+      value = extract_value(row)
+
+      SensorValueCache.instance.write(
+        measurement: row[:measurement],
+        field: row[:field],
+        timestamp: row[:timestamp],
+        value:,
+      )
+    end
+  end
+
+  def value_columns(value)
+    {
+      value_int: nil,
+      value_float: nil,
+      value_string: nil,
+      value_bool: nil,
+    }.tap do |result|
+      case value
+      when Integer               then result[:value_int] = value
+      when Float                 then result[:value_float] = value
+      when String                then result[:value_string] = value
+      when TrueClass, FalseClass then result[:value_bool] = value
+      else
+        raise ArgumentError, "Unsupported value type: #{value.class}"
       end
     end
+  end
+
+  def extract_value(row)
+    row[:value_int] || row[:value_float] || row[:value_string] ||
+      row[:value_bool]
   end
 
   def enqueue_outgoing(point)
