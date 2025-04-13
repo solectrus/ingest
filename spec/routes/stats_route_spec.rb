@@ -9,7 +9,6 @@ describe StatsRoute do
         influx_token: 't',
         bucket: 'b',
         org: 'o',
-        precision: InfluxDB2::WritePrecision::NANOSECOND,
       )
 
       Incoming.create!(

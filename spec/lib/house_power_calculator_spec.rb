@@ -6,7 +6,6 @@ describe HousePowerCalculator do
       influx_token: 'test-token',
       bucket: 'test-bucket',
       org: 'test-org',
-      precision: InfluxDB2::WritePrecision::NANOSECOND,
     )
   end
 
