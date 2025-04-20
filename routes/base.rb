@@ -2,6 +2,7 @@ require 'logger'
 
 class BaseRoute < Sinatra::Base
   set :logging, true
+  set :views, File.expand_path('../views', __dir__)
 
   logger = Logger.new($stdout)
   logger.level = Logger::DEBUG
