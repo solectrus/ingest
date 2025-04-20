@@ -5,13 +5,11 @@ require 'json'
 require 'influxdb-client'
 require 'active_record'
 
-$LOAD_PATH.unshift File.expand_path('..', __dir__)
-
 %w[models helpers lib routes].each do |folder|
-  Dir[File.join(__dir__, '..', folder, '**', '*.rb')].each { require it }
+  Dir[File.join(__dir__, 'app', folder, '**', '*.rb')].each { require it }
 end
 
-require_relative '../db/database'
+require_relative 'db/database'
 Database.setup!
 
-require 'app'
+require_relative 'app'

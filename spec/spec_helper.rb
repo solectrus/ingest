@@ -10,7 +10,7 @@ require 'rspec'
 require 'rack/test'
 require 'active_record'
 
-require_relative '../lib/boot'
+require_relative '../boot'
 
 ActiveRecord::MigrationContext.new('db/migrate').up
 

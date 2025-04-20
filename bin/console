@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'bundler/setup'
-require_relative '../lib/boot'
+require_relative '../boot'
 require 'irb'
 
 puts 'Starting console...'

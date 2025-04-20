@@ -1,4 +1,4 @@
-require_relative 'lib/boot'
+require_relative 'boot'
 
 if Sinatra::Base.environment == :development
   logger = Logger.new($stdout)

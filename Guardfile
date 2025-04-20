@@ -17,7 +17,7 @@
 
 # Ignore unneeded folders to prevent high CPU load
 # https://stackoverflow.com/a/20543493/57950
-ignore([%r{^coverage/*}, %r{^.vscode/*}, %r{^.github/*}])
+ignore([%r{^coverage/}, %r{^\.vscode/}, %r{^\.github/}])
 
 # NOTE: The cmd option is now required due to the increasing number of ways
 #       rspec may be run, below are examples of the most common uses.
@@ -28,19 +28,18 @@ ignore([%r{^coverage/*}, %r{^.vscode/*}, %r{^.github/*}])
 #  * zeus: 'zeus rspec' (requires the server to be started separately)
 #  * 'just' rspec: 'rspec'
 
-guard :rspec, cmd: 'rspec --colour --format documentation --fail-fast' do
-  directories(%w[helpers lib models routes spec])
+guard :rspec,
+      cmd: 'bin/rspec --colour --format documentation --fail-fast',
+      directories: %w[app spec] do
+  # class has changed => run corresponding spec
+  watch(%r{^app/(.+)\.rb$})            { |m| "spec/#{m[1]}_spec.rb" }
 
-  require 'guard/rspec/dsl'
-  dsl = Guard::RSpec::Dsl.new(self)
+  # special case for routes
+  watch(%r{^app/routes/(.+)\.rb$})     { |m| "spec/routes/#{m[1]}_route_spec.rb" }
 
-  # RSpec files
-  rspec = dsl.rspec
-  watch(rspec.spec_files)
-  watch(%r{^helpers/(.+)\.rb$}) { |m| "spec/helpers/#{m[1]}_spec.rb" }
-  watch(%r{^lib/(.+)\.rb$}) { |m| "spec/lib/#{m[1]}_spec.rb" }
-  watch(%r{^models/(.+)\.rb$}) { |m| "spec/models/#{m[1]}_spec.rb" }
-  watch(%r{^routes/(.+)\.rb$}) { |m| "spec/routes/#{m[1]}_route_spec.rb" }
-  watch(rspec.spec_helper) { rspec.spec_dir }
-  watch(rspec.spec_support) { rspec.spec_dir }
+  # spec has changed => run it
+  watch(%r{^spec/(.+_spec\.rb)$})      { |m| m[0] }
+
+  # spec helper
+  watch('spec/spec_helper.rb')         { 'spec' }
 end

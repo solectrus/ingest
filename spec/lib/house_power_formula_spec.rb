@@ -1,5 +1,3 @@
-require 'house_power_formula'
-
 describe HousePowerFormula do
   describe '.calculate' do
     context 'with old config' do
