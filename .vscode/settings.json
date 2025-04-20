@@ -1,0 +1,19 @@
+{
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+
+  "files.trimTrailingWhitespace": true,
+  "files.watcherExclude": {
+    "**/tmp/**": true,
+    "**/data/**": true
+  },
+
+  "search.exclude": {
+    "**/tmp": true
+  },
+
+  "[ruby]": {
+    "editor.defaultFormatter": "Shopify.ruby-lsp",
+    "editor.formatOnSave": true
+  }
+}
