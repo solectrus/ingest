@@ -1,3 +1,4 @@
+require 'bundler/setup'
 require 'dotenv/load' if Gem.loaded_specs.key?('dotenv')
 require 'sinatra'
 require 'sinatra/reloader' if Sinatra::Base.environment == :development
