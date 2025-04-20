@@ -10,6 +10,8 @@ class BaseRoute < Sinatra::Base
 
   before { env['rack.logger'] = settings.logger }
 
+  helpers SessionHelper
+
   helpers do
     def build_info
       BuildInfo.to_s
@@ -17,29 +19,6 @@ class BaseRoute < Sinatra::Base
 
     def h(text)
       Rack::Utils.escape_html(text)
-    end
-
-    def protected!
-      return if authorized?
-
-      if params.key?('unlock')
-        if params[:unlock] == password
-          response.set_cookie 'password', value: password, path: '/', httponly: true, expires: 30.days.from_now
-          redirect to(request.path)
-        else
-          @error = 'Invalid, try again.'
-        end
-      end
-
-      halt 401, erb(:unlock)
-    end
-
-    def authorized?
-      password.nil? || request.cookies['password'] == password
-    end
-
-    def password
-      ENV.fetch('STATS_PASSWORD', nil).presence
     end
   end
 end

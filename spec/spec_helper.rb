@@ -42,3 +42,7 @@ RSpec.configure do |config|
     mocks.verify_partial_doubles = true
   end
 end
+
+def login
+  rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
+end

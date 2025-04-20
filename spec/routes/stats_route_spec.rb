@@ -26,50 +26,16 @@ describe StatsRoute do
       )
     end
 
-    context 'without password' do
-      it 'returns 401 Unauthorized' do
+    context 'when not logged in' do
+      it 'redirects to login' do
         get '/'
-
-        expect(last_response).to be_unauthorized
-        expect(last_response.body).to include('Unlock')
-      end
-    end
-
-    context 'when password in param is valid' do
-      it 'redirects' do
-        get "/?unlock=#{ENV.fetch('STATS_PASSWORD', nil)}"
 
         expect(last_response).to be_redirect
-        expect(last_response.headers['Set-Cookie']).to include('password')
       end
     end
 
-    context 'when password in param is invalid' do
-      it 'redirects' do
-        get '/?unlock=invalid_password'
-
-        expect(last_response).to be_unauthorized
-        expect(last_response.body).to include('Unlock')
-      end
-    end
-
-    context 'when password in cookie is invalid' do
-      before do
-        rack_mock_session.cookie_jar['password'] = 'invalid_password'
-      end
-
-      it 'returns 401 Unauthorized' do
-        get '/'
-
-        expect(last_response).to be_unauthorized
-        expect(last_response.body).to include('Unlock')
-      end
-    end
-
-    context 'when password in cookie is valid' do
-      before do
-        rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
-      end
+    context 'when logged in' do
+      before { login }
 
       it 'renders the homepage with stats' do
         get '/'
