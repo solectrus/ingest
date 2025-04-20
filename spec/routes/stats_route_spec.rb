@@ -26,37 +26,55 @@ describe StatsRoute do
       )
     end
 
-    context 'without credentials' do
+    context 'without password' do
       it 'returns 401 Unauthorized' do
         get '/'
 
-        expect(last_response.status).to eq(401)
+        expect(last_response).to be_unauthorized
+        expect(last_response.body).to include('Unlock')
       end
     end
 
-    context 'when credentials are invalid' do
-      before { basic_authorize('invalid_user', 'invalid_password') }
+    context 'when password in param is valid' do
+      it 'redirects' do
+        get "/?unlock=#{ENV.fetch('STATS_PASSWORD', nil)}"
 
-      it 'returns 401 Unauthorized' do
-        get '/'
-
-        expect(last_response.status).to eq(401)
+        expect(last_response).to be_redirect
+        expect(last_response.headers['Set-Cookie']).to include('password')
       end
     end
 
-    context 'when username and password are set' do
+    context 'when password in param is invalid' do
+      it 'redirects' do
+        get '/?unlock=invalid_password'
+
+        expect(last_response).to be_unauthorized
+        expect(last_response.body).to include('Unlock')
+      end
+    end
+
+    context 'when password in cookie is invalid' do
       before do
-        basic_authorize(
-          ENV.fetch('STATS_USERNAME', nil),
-          ENV.fetch('STATS_PASSWORD', nil),
-        )
+        rack_mock_session.cookie_jar['password'] = 'invalid_password'
+      end
+
+      it 'returns 401 Unauthorized' do
+        get '/'
+
+        expect(last_response).to be_unauthorized
+        expect(last_response.body).to include('Unlock')
+      end
+    end
+
+    context 'when password in cookie is valid' do
+      before do
+        rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
       end
 
       it 'renders the homepage with stats' do
         get '/'
 
-        expect(last_response.status).to eq(200)
-        expect(last_response.body).to include('SOLECTRUS :: Ingest')
+        expect(last_response).to be_ok
         expect(last_response.body).to include('Incoming')
         expect(last_response.body).to include('Outgoing')
       end

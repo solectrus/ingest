@@ -22,23 +22,20 @@ class BaseRoute < Sinatra::Base
     def protected!
       return if authorized?
 
-      headers['WWW-Authenticate'] = 'Basic realm="Restricted Area"'
-      halt 401, "Not authorized\n"
+      if params.key?('unlock')
+        if params[:unlock] == password
+          response.set_cookie 'password', value: password, path: '/', httponly: true, expires: 30.days.from_now
+          redirect to(request.path)
+        else
+          @error = 'Invalid, try again.'
+        end
+      end
+
+      halt 401, erb(:unlock)
     end
 
     def authorized?
-      return true unless username && password
-
-      auth.provided? && auth.basic? && auth.credentials &&
-        auth.credentials == [username, password]
-    end
-
-    def auth
-      @auth ||= Rack::Auth::Basic::Request.new(request.env)
-    end
-
-    def username
-      ENV.fetch('STATS_USERNAME', nil).presence
+      password.nil? || request.cookies['password'] == password
     end
 
     def password

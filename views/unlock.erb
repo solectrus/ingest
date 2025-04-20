@@ -1,0 +1,14 @@
+<form method="get">
+  <div class="input-group">
+    <input
+      name="unlock"
+      placeholder="Password"
+      autofocus>
+
+    <button>Unlock</button>
+  </div>
+
+  <% if @error %>
+  <p class="error"><%= h(@error) %></p>
+  <% end %>
+</form>
