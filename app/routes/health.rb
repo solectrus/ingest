@@ -1,10 +1,10 @@
-class UpRoute < BaseRoute
-  get '/up' do
+class HealthRoute < BaseRoute
+  get '/health' do
     if request.head?
       status 200
     else
       content_type 'text/html'
-      erb :up, layout: false
+      erb :health, layout: false
     end
   end
 end

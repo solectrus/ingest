@@ -63,9 +63,9 @@ COPY --from=builder /app /app
 # Expose Sinatra port
 EXPOSE 4567
 
-# Healthcheck using endpoint "/up"
+# Healthcheck using endpoint "/health"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["curl", "-fs", "http://localhost:4567/up"]
+    CMD ["curl", "-fs", "http://localhost:4567/health"]
 
 ENTRYPOINT ["bundle", "exec"]
 CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]

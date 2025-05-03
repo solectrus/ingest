@@ -1,11 +1,11 @@
-describe UpRoute do
+describe HealthRoute do
   def app
-    UpRoute.new
+    HealthRoute.new
   end
 
-  describe 'GET /up' do
+  describe 'GET /health' do
     it 'returns 200 with green HTML' do
-      get '/up'
+      get '/health'
 
       expect(last_response.status).to eq(200)
       expect(last_response.content_type).to include('text/html')
@@ -13,9 +13,9 @@ describe UpRoute do
     end
   end
 
-  describe 'HEAD /up' do
+  describe 'HEAD /health' do
     it 'returns 200 with empty body' do
-      head '/up'
+      head '/health'
 
       expect(last_response.status).to eq(200)
       expect(last_response.body).to be_empty

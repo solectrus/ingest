@@ -184,7 +184,7 @@ Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculat
 
 Displays a basic stats page (requires password if configured), showing throughput, queue size, buffer status, etc.
 
-### GET `/up`
+### GET `/health`
 
 Returns just HTTP 200 if the service is running (useful for health checks).
 
