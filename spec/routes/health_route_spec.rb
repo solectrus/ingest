@@ -21,4 +21,20 @@ describe HealthRoute do
       expect(last_response.body).to be_empty
     end
   end
+
+  describe 'GET /ping' do
+    it 'returns 204' do
+      get '/ping'
+
+      expect(last_response.status).to eq(204)
+    end
+  end
+
+  describe 'HEAD /ping' do
+    it 'returns 204' do
+      head '/ping'
+
+      expect(last_response.status).to eq(204)
+    end
+  end
 end

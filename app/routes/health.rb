@@ -7,4 +7,8 @@ class HealthRoute < BaseRoute
       erb :health, layout: false
     end
   end
+
+  get '/ping' do
+    status 204
+  end
 end

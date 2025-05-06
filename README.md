@@ -188,6 +188,10 @@ Displays a basic stats page (requires password if configured), showing throughpu
 
 Returns just HTTP 200 if the service is running (useful for health checks).
 
+### GET `/ping`
+
+Returns just HTTP 204 if the service is running (useful for health checks).
+
 ## Example cURL
 
 ```bash
