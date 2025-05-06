@@ -1,0 +1,16 @@
+<form method="post">
+  <div class="input-group">
+    <input
+      name="password"
+      placeholder="Password"
+      type="password"
+      required
+      autofocus>
+
+    <button type="submit">Unlock</button>
+  </div>
+
+  <% if @error %>
+  <p class="error"><%= @error %></p>
+  <% end %>
+</form>

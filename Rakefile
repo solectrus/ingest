@@ -1,4 +1,4 @@
-require_relative 'lib/boot'
+require_relative 'boot'
 
 namespace :db do
   desc 'Run pending migrations'

@@ -27,8 +27,18 @@ COPY --from=bundle-cache /usr/local/bundle /usr/local/bundle
 # Install only production gems
 RUN bundle config set path /usr/local/bundle && \
     bundle config set without 'development test' && \
-    bundle install --jobs 4 --retry 3 --without development test && \
-    bundle clean --force
+    bundle install --jobs $(nproc) --retry 3 && \
+    bundle clean --force && \
+    # Remove unneeded files from installed gems (cache, .git, *.o, *.c)
+    rm -rf /usr/local/bundle/ruby/*/cache && \
+    rm -rf /usr/local/bundle/ruby/*/gems/*/.git && \
+    find /usr/local/bundle -type f \( \
+    -name '*.c' -o \
+    -name '*.o' -o \
+    -name '*.log' -o \
+    -name 'gem_make.out' \
+    \) -delete && \
+    find /usr/local/bundle -name '*.so' -exec strip --strip-unneeded {} +
 
 # Copy the rest of the app files after installing gems
 COPY . .
@@ -63,9 +73,9 @@ COPY --from=builder /app /app
 # Expose Sinatra port
 EXPOSE 4567
 
-# Healthcheck using endpoint "/up"
+# Healthcheck using endpoint "/health"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["curl", "-fs", "http://localhost:4567/up"]
+    CMD ["curl", "-fs", "http://localhost:4567/ping"]
 
 ENTRYPOINT ["bundle", "exec"]
 CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]

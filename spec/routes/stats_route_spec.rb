@@ -26,37 +26,21 @@ describe StatsRoute do
       )
     end
 
-    context 'without credentials' do
-      it 'returns 401 Unauthorized' do
+    context 'when not logged in' do
+      it 'redirects to login' do
         get '/'
 
-        expect(last_response.status).to eq(401)
+        expect(last_response).to be_redirect
       end
     end
 
-    context 'when credentials are invalid' do
-      before { basic_authorize('invalid_user', 'invalid_password') }
-
-      it 'returns 401 Unauthorized' do
-        get '/'
-
-        expect(last_response.status).to eq(401)
-      end
-    end
-
-    context 'when username and password are set' do
-      before do
-        basic_authorize(
-          ENV.fetch('STATS_USERNAME', nil),
-          ENV.fetch('STATS_PASSWORD', nil),
-        )
-      end
+    context 'when logged in' do
+      before { login }
 
       it 'renders the homepage with stats' do
         get '/'
 
-        expect(last_response.status).to eq(200)
-        expect(last_response.body).to include('SOLECTRUS :: Ingest')
+        expect(last_response).to be_ok
         expect(last_response.body).to include('Incoming')
         expect(last_response.body).to include('Outgoing')
       end

@@ -10,7 +10,7 @@ require 'rspec'
 require 'rack/test'
 require 'active_record'
 
-require_relative '../lib/boot'
+require_relative '../boot'
 
 ActiveRecord::MigrationContext.new('db/migrate').up
 
@@ -41,4 +41,12 @@ RSpec.configure do |config|
   config.mock_with :rspec do |mocks|
     mocks.verify_partial_doubles = true
   end
+end
+
+def login
+  rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
+end
+
+def parsed_body
+  JSON.parse(last_response.body)
 end

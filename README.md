@@ -95,7 +95,6 @@ services:
       - INFLUX_HOST
       - INFLUX_PORT
       - INFLUX_SCHEMA
-      - STATS_USERNAME
       - STATS_PASSWORD
     depends_on:
       - influxdb
@@ -173,7 +172,6 @@ Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
 | `INFLUX_HOST`                          | InfluxDB host, e.g. `influxdb`            | Required        |
 | `INFLUX_PORT`                          | InfluxDB port                             | Default: `8086` |
 | `INFLUX_SCHEMA`                        | InfluxDB schema                           | Default: `http` |
-| `STATS_USERNAME`                       | Username for stats endpoint               | Optional        |
 | `STATS_PASSWORD`                       | Password for stats endpoint               | Optional        |
 
 ## Endpoints
@@ -184,11 +182,15 @@ Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculat
 
 ### GET `/`
 
-Displays a basic stats page (requires basic auth if configured), showing throughput, queue size, buffer status, etc.
+Displays a basic stats page (requires password if configured), showing throughput, queue size, buffer status, etc.
 
-### GET `/up`
+### GET `/health`
 
-Returns just HTTP 200 if the service is running (useful for health checks).
+Returns JSON with HTTP 200 if the service is running (useful for detailed health checks).
+
+### GET `/ping`
+
+Returns just HTTP 204 if the service is running (useful for health checks).
 
 ## Example cURL
 

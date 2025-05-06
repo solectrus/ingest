@@ -4,8 +4,8 @@ class OutboxWorker
 
   def self.run_loop
     loop do
-      OutboxNotifier.wait
       run_once
+      OutboxNotifier.wait
     rescue StandardError => e
       warn "[OutboxWorker] Error: #{e.class} - #{e.message}"
       warn e.backtrace.join("\n")
