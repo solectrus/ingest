@@ -186,7 +186,7 @@ Displays a basic stats page (requires password if configured), showing throughpu
 
 ### GET `/health`
 
-Returns just HTTP 200 if the service is running (useful for health checks).
+Returns JSON with HTTP 200 if the service is running (useful for detailed health checks).
 
 ### GET `/ping`
 

@@ -75,7 +75,7 @@ EXPOSE 4567
 
 # Healthcheck using endpoint "/health"
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["curl", "-fs", "http://localhost:4567/health"]
+    CMD ["curl", "-fs", "http://localhost:4567/ping"]
 
 ENTRYPOINT ["bundle", "exec"]
 CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]

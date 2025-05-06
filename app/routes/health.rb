@@ -2,9 +2,17 @@ class HealthRoute < BaseRoute
   get '/health' do
     if request.head?
       status 200
+      body nil
     else
-      content_type 'text/html'
-      erb :health, layout: false
+      content_type :json
+      {
+        name: 'ingest',
+        message: 'ready for writes',
+        status: 'pass',
+        checks: [],
+        version: BuildInfo.version,
+        commit: BuildInfo.revision_short,
+      }.to_json
     end
   end
 

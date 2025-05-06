@@ -4,12 +4,12 @@ describe HealthRoute do
   end
 
   describe 'GET /health' do
-    it 'returns 200 with green HTML' do
+    it 'returns 200 with JSON' do
       get '/health'
 
       expect(last_response.status).to eq(200)
-      expect(last_response.content_type).to include('text/html')
-      expect(last_response.body).to include('background-color: green')
+      expect(last_response.content_type).to include('application/json')
+      expect(parsed_body).to include('status' => 'pass')
     end
   end
 

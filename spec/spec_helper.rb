@@ -46,3 +46,7 @@ end
 def login
   rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
 end
+
+def parsed_body
+  JSON.parse(last_response.body)
+end
