@@ -21,6 +21,10 @@ updates:
         patterns:
           - 'rubocop'
           - 'rubocop-*'
+      rspec:
+        patterns:
+          - 'rspec'
+          - 'rspec-*'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
