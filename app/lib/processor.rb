@@ -90,7 +90,7 @@ class Processor
 
     if point.name == house[:measurement] && point.fields.key?(house[:field])
       point.fields.delete(house[:field])
-      return false if point.fields.empty?
+      return if point.fields.empty?
     end
 
     Outgoing.create!(target:, line_protocol: point.to_line_protocol)
@@ -98,7 +98,7 @@ class Processor
   end
 
   def trigger_house_power_if_relevant(point)
-    return false unless SensorEnvConfig.relevant_for_house_power?(point)
+    return unless SensorEnvConfig.relevant_for_house_power?(point)
 
     HousePowerCalculator.new(target).recalculate(timestamp: point.time)
     true
