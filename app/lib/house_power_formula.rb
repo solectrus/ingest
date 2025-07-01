@@ -54,19 +54,13 @@ module HousePowerFormula
     def inverter_power(powers)
       if powers[:balcony_inverter_power]
         # Deprecated config with balcony module (to be removed)
-        deprecated = [powers[:inverter_power], powers[:balcony_inverter_power]]
-        return deprecated
-      end
-
-      total = [powers[:inverter_power]].compact
-      parts = (1..5).filter_map { powers[:"inverter_power_#{it}"] }
-
-      if total.sum >= parts.sum
-        # Total exceeds parts, use total
-        total
+        [powers[:inverter_power], powers[:balcony_inverter_power]]
+      elsif powers[:inverter_power]
+        # New config, single inverter
+        [powers[:inverter_power]]
       else
-        # Parts exceed total, use parts
-        parts
+        # New config, multiple inverters
+        (1..5).filter_map { powers[:"inverter_power_#{it}"] }
       end
     end
 
