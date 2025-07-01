@@ -94,12 +94,58 @@ describe HousePowerFormula do
       end
     end
 
-    context 'with new config (multiple inverters with total)' do
+    context 'with new config (multiple inverters with total, parts > total)' do
       let(:powers) do
         {
           inverter_power: 3000,
           inverter_power_1: 1501,
           inverter_power_2: 1502,
+          grid_import_power: 500,
+          battery_discharging_power: 200,
+          battery_charging_power: 100,
+          grid_export_power: 400,
+          wallbox_power: 600,
+          heatpump_power: 300,
+        }
+      end
+
+      it 'uses parts and ignores the total' do
+        result = described_class.calculate(**powers)
+        incoming = 3003 + 500 + 200
+        outgoing = 100 + 400 + 600 + 300
+        expect(result).to eq(incoming - outgoing)
+      end
+    end
+
+    context 'with new config (multiple inverters with total, parts < total)' do
+      let(:powers) do
+        {
+          inverter_power: 3000,
+          inverter_power_1: 1400,
+          inverter_power_2: 1500,
+          grid_import_power: 500,
+          battery_discharging_power: 200,
+          battery_charging_power: 100,
+          grid_export_power: 400,
+          wallbox_power: 600,
+          heatpump_power: 300,
+        }
+      end
+
+      it 'uses total and ignores the parts' do
+        result = described_class.calculate(**powers)
+        incoming = 3000 + 500 + 200
+        outgoing = 100 + 400 + 600 + 300
+        expect(result).to eq(incoming - outgoing)
+      end
+    end
+
+    context 'with new config (multiple inverters with total, parts == total)' do
+      let(:powers) do
+        {
+          inverter_power: 3000,
+          inverter_power_1: 1500,
+          inverter_power_2: 1500,
           grid_import_power: 500,
           battery_discharging_power: 200,
           battery_charging_power: 100,
