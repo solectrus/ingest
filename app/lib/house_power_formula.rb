@@ -29,7 +29,6 @@ module HousePowerFormula
   private_constant :OUTGOING_SENSORS
 
   SENSORS = INCOMING_SENSORS + OUTGOING_SENSORS
-  public_constant :SENSORS
 
   class << self
     # Calculates the corrected house power based on known sensor powers
