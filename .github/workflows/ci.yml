@@ -20,7 +20,6 @@ jobs:
     timeout-minutes: 15
 
     env:
-      CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
       CI: true
 
     steps:
@@ -36,11 +35,6 @@ jobs:
       - name: Run RSpec tests
         run: bundle exec rspec
 
-      - name: Send test coverage to CodeClimate
-        uses: paambaati/codeclimate-action@v9.0.0
-        if: ${{ env.CC_TEST_REPORTER_ID }}
-        with:
-          coverageCommand: true
 
   build:
     runs-on: ubuntu-latest

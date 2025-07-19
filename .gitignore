@@ -1,6 +1,7 @@
 .env
 .env.*.local
-coverage/
+coverage/*
+!coverage/coverage_badge_total.svg
 data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal

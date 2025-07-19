@@ -1,6 +1,11 @@
 ENV['APP_ENV'] = 'test'
 
 require 'simplecov'
+require 'simplecov_small_badge'
+SimpleCov.formatters =
+  SimpleCov::Formatter::MultiFormatter.new(
+    [SimpleCov::Formatter::HTMLFormatter, SimpleCovSmallBadge::Formatter],
+  )
 SimpleCov.start
 
 require 'dotenv'
