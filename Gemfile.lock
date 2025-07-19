@@ -37,11 +37,6 @@ GEM
     ffi (1.17.2-aarch64-linux-musl)
     ffi (1.17.2-arm-linux-gnu)
     ffi (1.17.2-arm-linux-musl)
-    ffi (1.17.2-arm64-darwin)
-    ffi (1.17.2-x86-linux-gnu)
-    ffi (1.17.2-x86-linux-musl)
-    ffi (1.17.2-x86_64-darwin)
-    ffi (1.17.2-x86_64-linux-gnu)
     ffi (1.17.2-x86_64-linux-musl)
     formatador (1.1.1)
     guard (2.19.1)
@@ -187,11 +182,6 @@ GEM
     sqlite3 (2.7.3-aarch64-linux-musl)
     sqlite3 (2.7.3-arm-linux-gnu)
     sqlite3 (2.7.3-arm-linux-musl)
-    sqlite3 (2.7.3-arm64-darwin)
-    sqlite3 (2.7.3-x86-linux-gnu)
-    sqlite3 (2.7.3-x86-linux-musl)
-    sqlite3 (2.7.3-x86_64-darwin)
-    sqlite3 (2.7.3-x86_64-linux-gnu)
     sqlite3 (2.7.3-x86_64-linux-musl)
     thor (1.4.0)
     tilt (2.6.1)
@@ -208,12 +198,7 @@ PLATFORMS
   aarch64-linux-musl
   arm-linux-gnu
   arm-linux-musl
-  arm64-darwin
   ruby
-  x86-linux-gnu
-  x86-linux-musl
-  x86_64-darwin
-  x86_64-linux-gnu
   x86_64-linux-musl
 
 DEPENDENCIES
