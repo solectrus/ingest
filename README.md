@@ -1,6 +1,7 @@
 [![Continuous integration](https://github.com/solectrus/ingest/actions/workflows/ci.yml/badge.svg)](https://github.com/solectrus/ingest/actions/workflows/ci.yml)
+[![Maintainability](https://qlty.sh/badges/240ebaa0-dce5-4849-9fd9-ea17d71fc316/maintainability.svg)](https://qlty.sh/gh/solectrus/projects/ingest)
 [![wakatime](https://wakatime.com/badge/user/697af4f5-617a-446d-ba58-407e7f3e0243/project/3d478bcc-754c-4d6b-9a2d-fe70bf9eea9f.svg)](https://wakatime.com/badge/user/697af4f5-617a-446d-ba58-407e7f3e0243/project/3d478bcc-754c-4d6b-9a2d-fe70bf9eea9f)
-![Coverage](./coverage/coverage_badge_total.svg)
+[![Code Coverage](https://qlty.sh/badges/240ebaa0-dce5-4849-9fd9-ea17d71fc316/coverage.svg)](https://qlty.sh/gh/solectrus/projects/ingest)
 
 # SOLECTRUS Ingest
 
