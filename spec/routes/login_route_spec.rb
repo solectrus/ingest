@@ -21,7 +21,7 @@ describe LoginRoute do
       before { post '/login', password: valid_password }
 
       it 'sets the password cookie' do
-        expect(last_response.cookies['password']).to eq([valid_password])
+        expect(last_response.cookies['password'].value).to eq([valid_password])
       end
 
       it 'redirects to the target page' do
