@@ -203,7 +203,7 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
 
 ## How it works
 
-- Incoming data is **persisted** in SQLite (12-hour retention)
+- Incoming data is **persisted** in SQLite (36-hour retention)
 - A queue forwards data to InfluxDB in **batches**
 - House power is recalculated **as soon as** any relevant sensor updates
 - Old data is removed periodically by a background cleanup worker

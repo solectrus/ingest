@@ -1,6 +1,6 @@
 class CleanupWorker
   CLEANUP_INTERVAL = 1.hour
-  RETENTION_HOURS = 12.hours
+  RETENTION_HOURS = 36.hours
 
   def self.run_loop
     loop do
