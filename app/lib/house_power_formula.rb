@@ -1,7 +1,6 @@
 module HousePowerFormula
   INVERTER_SENSORS = %i[
     inverter_power
-    balcony_inverter_power
     inverter_power_1
     inverter_power_2
     inverter_power_3
@@ -9,7 +8,6 @@ module HousePowerFormula
     inverter_power_5
   ].freeze
   private_constant :INVERTER_SENSORS
-  # TODO: Remove balcony_inverter_power (use new config)
 
   OTHER_INCOMING_SENSORS = %i[
     grid_import_power
@@ -52,14 +50,11 @@ module HousePowerFormula
     end
 
     def inverter_power(powers)
-      if powers[:balcony_inverter_power]
-        # Deprecated config with balcony module (to be removed)
-        [powers[:inverter_power], powers[:balcony_inverter_power]]
-      elsif powers[:inverter_power]
-        # New config, single inverter
+      if powers[:inverter_power]
+        # Single inverter
         [powers[:inverter_power]]
       else
-        # New config, multiple inverters
+        # multiple inverters
         (1..5).filter_map { powers[:"inverter_power_#{it}"] }
       end
     end
