@@ -25,6 +25,11 @@ updates:
         patterns:
           - 'rspec'
           - 'rspec-*'
+      rails:
+        patterns:
+          - 'activerecord'
+          - 'activemodel'
+          - 'activesupport'
 
   - package-ecosystem: 'github-actions'
     directory: '/'
