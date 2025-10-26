@@ -107,7 +107,7 @@ services:
     ports:
       - 8086:8086
     volumes:
-      - ./path/to/influx-data:/var/lib/influxdb
+      - ./path/to/influx-data:/var/lib/influxdb2
 ```
 
 ## Environment Variables
