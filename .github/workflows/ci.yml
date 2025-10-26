@@ -21,24 +21,27 @@ jobs:
 
     env:
       CI: true
+      KEMAL_ENV: test
 
     steps:
       - uses: actions/checkout@v5
 
-      - uses: ruby/setup-ruby@v1
+      - name: Install Crystal
+        uses: crystal-lang/install-crystal@v1
         with:
-          bundler-cache: true
+          crystal: 1.18.2
 
-      - name: Lint with RuboCop
-        run: bundle exec rubocop
+      - name: Install dependencies
+        run: shards install
 
-      - name: Run RSpec tests
-        run: bundle exec rspec
+      - name: Check code formatting
+        run: crystal tool format --check
 
-      - uses: qltysh/qlty-action/coverage@v2
-        with:
-          token: ${{secrets.QLTY_COVERAGE_TOKEN}}
-          files: coverage/.resultset.json
+      - name: Build project
+        run: crystal build src/ingest.cr --no-codegen
+
+      - name: Run tests
+        run: crystal spec
 
   build:
     runs-on: ubuntu-latest

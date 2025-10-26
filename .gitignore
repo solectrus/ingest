@@ -1,6 +1,31 @@
+# Environment variables
 .env
 .env.*.local
-coverage/
+
+# SQLite databases
 data/*.sqlite3
 data/*.sqlite3-shm
 data/*.sqlite3-wal
+
+# Crystal dependencies (like node_modules or vendor/bundle)
+# Only ignore lib/ in root directory, not src/lib/
+/lib/
+
+# Crystal build cache
+.shards/
+.crystal/
+
+# Compiled Crystal binaries
+bin/ingest
+*.dwarf
+*.dwarf.o
+
+# macOS
+.DS_Store
+
+# Backup files
+*.bak
+
+# Editor/IDE specific
+.vscode/settings.json
+.idea/

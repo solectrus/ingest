@@ -1,59 +1,45 @@
-# Stage 1: Build all gems (incl. dev/test) for cache
-FROM ruby:3.4.7-alpine AS bundle-cache
+# Stage 1: Build Crystal application (multi-arch: amd64 + arm64)
+FROM 84codes/crystal:1.18.2-alpine AS builder
 
 WORKDIR /app
-RUN apk add --no-cache build-base
 
-COPY Gemfile* ./
+# Install build dependencies
+RUN apk add --no-cache \
+    build-base \
+    openssl-dev \
+    openssl-libs-static \
+    sqlite-dev \
+    sqlite-static
 
-# Prevent documentation installation
-RUN echo 'gem: --no-document' >> /etc/gemrc && \
-    bundle config set no-doc 'true'
+# Copy shard files
+COPY shard.yml shard.lock ./
 
-RUN bundle config set path /usr/local/bundle && \
-    bundle install -j4 --retry 3
+# Install dependencies
+RUN shards install --production
 
-# Stage 2: Only production gems
-FROM ruby:3.4.7-alpine AS builder
+# Copy source code
+COPY src ./src
 
-WORKDIR /app
-RUN apk add --no-cache build-base
+# Create bin directory
+RUN mkdir -p bin
 
-COPY Gemfile* ./
+# Build the application (static linking for minimal runtime dependencies)
+RUN crystal build src/ingest.cr \
+    --release \
+    --static \
+    --no-debug \
+    -o bin/ingest && \
+    strip bin/ingest
 
-# Copy cached gems from previous stage
-COPY --from=bundle-cache /usr/local/bundle /usr/local/bundle
-
-# Install only production gems
-RUN bundle config set path /usr/local/bundle && \
-    bundle config set without 'development test' && \
-    bundle install --jobs $(nproc) --retry 3 && \
-    bundle clean --force && \
-    # Remove unneeded files from installed gems (cache, .git, *.o, *.c)
-    rm -rf /usr/local/bundle/ruby/*/cache && \
-    rm -rf /usr/local/bundle/ruby/*/gems/*/.git && \
-    find /usr/local/bundle -type f \( \
-    -name '*.c' -o \
-    -name '*.o' -o \
-    -name '*.log' -o \
-    -name 'gem_make.out' \
-    \) -delete && \
-    find /usr/local/bundle -name '*.so' -exec strip --strip-unneeded {} +
-
-# Copy the rest of the app files after installing gems
-COPY . .
-
-# Final runtime image
-FROM ruby:3.4.7-alpine
+# Stage 2: Runtime image
+FROM alpine:3.22
 LABEL maintainer="georg@ledermann.dev"
 
-# Add tzdata to get correct timezone, and curl for healthcheck
-RUN apk add --no-cache tzdata curl
+# Install runtime dependencies
+# Note: sqlite-libs not needed because binary is statically linked
+RUN apk add --no-cache wget
 
-ENV MALLOC_ARENA_MAX=2 \
-    RUBYOPT=--yjit \
-    APP_ENV=production \
-    RACK_ENV=production
+ENV APP_ENV=production
 
 # Move build arguments to environment variables
 ARG BUILDTIME
@@ -67,15 +53,17 @@ ENV REVISION=${REVISION}
 
 WORKDIR /app
 
-COPY --from=builder /usr/local/bundle /usr/local/bundle
-COPY --from=builder /app /app
+# Copy compiled binary from builder
+COPY --from=builder /app/bin/ingest /app/bin/ingest
 
-# Expose Sinatra port
+# Copy static assets (favicons, manifest, etc.)
+COPY public /app/public
+
+# Expose Kemal port
 EXPOSE 4567
 
-# Healthcheck using endpoint "/health"
+# Healthcheck using /ping endpoint
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD ["curl", "-fs", "http://localhost:4567/ping"]
+    CMD ["wget", "--quiet", "--tries=1", "--spider", "http://localhost:4567/ping"]
 
-ENTRYPOINT ["bundle", "exec"]
-CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]
+CMD ["/app/bin/ingest"]
