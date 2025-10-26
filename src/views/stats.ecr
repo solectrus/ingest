@@ -1,0 +1,120 @@
+<div class="grid">
+  <div>
+    <h2>Incoming</h2>
+    <dl class="right">
+      <dt>Total</dt>
+      <dd><%= number_to_delimited(incoming_total) %></dd>
+
+      <dt>Range</dt>
+      <dd><%= format_duration(incoming_range) %></dd>
+
+      <dt>Throughput</dt>
+      <dd><%= number_to_delimited(incoming_throughput) %> /min</dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Outgoing</h2>
+    <dl class="right">
+      <dt>Queued</dt>
+      <dd><%= number_to_delimited(outgoing_total) %></dd>
+
+      <dt>Queue age (oldest)</dt>
+      <dd><%= format_duration(queue_oldest_age) %></dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Cache</h2>
+
+    <dl class="right">
+      <dt>Size</dt>
+      <dd><%= number_to_delimited(cache_size) %></dd>
+
+      <dt>Range</dt>
+      <dd>
+        <%= format_duration(cache_range) %>
+      </dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>HousePower Calculation</h2>
+    <dl class="right">
+      <dt>Count</dt>
+      <dd><%= number_to_delimited(calculation_count) %></dd>
+
+      <dt>Rate</dt>
+      <dd><%= number_to_delimited((calculation_rate || 0.0).round.to_i64) %> /min</dd>
+
+      <dt>Cache hits</dt>
+      <dd><%= number_to_percentage(calculation_cache_hits || 0.0, precision: 0) %></dd>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Measurements & Fields <small>(with throughput)</small></h2>
+    <dl class="right">
+      <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
+        <dt class="font-mono"><%= measurement %></dt>
+        <dd>
+          <% groups.each do |group| %>
+            <span class="font-mono"><%= group[:field] %></span>
+
+            <%= throughput_tag(incoming_throughput_for(group[:count])) %>
+            <br>
+          <% end %>
+        </dd>
+      <% end %>
+    </dl>
+  </div>
+
+  <div>
+    <h2>Responses</h2>
+    <dl class="right">
+      <% Stats.counters_by(:http_response).to_a.sort.each do |key, value| %>
+        <dt><%= key.to_s.gsub("http_response_", "HTTP ") %></dt>
+        <dd><%= number_to_delimited(value) %></dd>
+      <% end %>
+
+      <dt>Total requests</dt>
+      <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
+
+      <dt>⌀ Time</dt>
+      <dd><%= number_to_delimited(response_time || 0_i64) %> ms</dd>
+    </dl>
+
+    <h2>CPU</h2>
+    <dl class="right">
+      <dt>Usage</dt>
+      <dd><%= number_to_percentage(cpu_usage.as?(Float64) || 0.0, precision: 1) %></dd>
+
+      <dt>Threads</dt>
+      <dd><%= thread_count %></dd>
+    </dl>
+
+    <h2>RAM</h2>
+    <dl class="right">
+      <dt>Usage</dt>
+      <dd><%= number_to_human_size(memory_usage.as?(Int64) || 0_i64) %></dd>
+    </dl>
+
+    <h2>Disk</h2>
+    <dl class="right">
+      <dt>SQLite Database</dt>
+      <dd><%= number_to_human_size(database_size) %></dd>
+
+      <dt>Free</dt>
+      <dd><%= number_to_human_size(disk_free) %></dd>
+    </dl>
+
+    <h2>Uptime</h2>
+    <dl class="right">
+      <dt>Container</dt>
+      <dd><%= format_duration(container_uptime) %></dd>
+
+      <dt>System</dt>
+      <dd><%= format_duration(system_uptime) %></dd>
+    </dl>
+  </div>
+</div>

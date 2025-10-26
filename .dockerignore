@@ -1,22 +1,37 @@
+# Git and IDE
 .dockerignore
-.env*
 .git
 .gitattributes
 .github
 .gitignore
-.rspec
-.rubocop.yml
-.ruby-lsp
 .vscode
 **/.DS_Store
 **/.keep
-bin/dev
-bin/rspec
-bin/rubocop
-bin/test
-coverage
+
+# Environment files
+.env*
+
+# Crystal dependencies and build artifacts (installed fresh in container)
+lib/
+.shards/
+.crystal/
+bin/ingest
+*.dwarf
+*.dwarf.o
+
+# Database files (created in container)
 data/*.sqlite3*
+
+# Logs and temporary files
+log/
+tmp/
+
+# Documentation and non-runtime files
 Dockerfile
-Guardfile
 README.md
-spec
+README.crystal.md
+CRYSTAL_MIGRATION.md
+Makefile
+
+# Tests (not needed in production image)
+spec/

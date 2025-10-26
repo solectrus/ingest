@@ -1,0 +1,28 @@
+name: ingest
+version: 0.1.0
+
+authors:
+  - SOLECTRUS
+
+crystal: '>=1.18.0'
+
+dependencies:
+  kemal:
+    github: kemalcr/kemal
+
+  db:
+    github: crystal-lang/crystal-db
+
+  sqlite3:
+    github: crystal-lang/crystal-sqlite3
+
+development_dependencies:
+  spec-kemal:
+    github: kemalcr/spec-kemal
+
+  webmock:
+    github: manastech/webmock.cr
+
+targets:
+  ingest:
+    main: src/ingest.cr

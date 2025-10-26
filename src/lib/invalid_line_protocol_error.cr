@@ -1,0 +1,2 @@
+class InvalidLineProtocolError < Exception
+end

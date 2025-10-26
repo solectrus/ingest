@@ -1,0 +1,97 @@
+services:
+  ingest:
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        REVISION: ${REVISION:-local}
+        BUILDTIME: ${BUILDTIME:-2024-01-01T00:00:00Z}
+    image: solectrus/ingest:${VERSION:-latest}
+    container_name: solectrus-ingest
+
+    ports:
+      - "${PORT:-4567}:4567"
+
+    volumes:
+      - ./data:/app/data
+
+    environment:
+      - TZ=${TZ:-Europe/Berlin}
+      - KEMAL_ENV=${KEMAL_ENV:-production}
+
+      # Stats authentication
+      - STATS_USERNAME=${STATS_USERNAME:-admin}
+      - STATS_PASSWORD=${STATS_PASSWORD:-password}
+
+      # InfluxDB connection
+      - INFLUX_HOST=${INFLUX_HOST:-influxdb}
+      - INFLUX_SCHEMA=${INFLUX_SCHEMA:-http}
+      - INFLUX_PORT=${INFLUX_PORT:-8086}
+
+      # Sensor configuration
+      - INFLUX_SENSOR_INVERTER_POWER=${INFLUX_SENSOR_INVERTER_POWER}
+      - INFLUX_SENSOR_GRID_IMPORT_POWER=${INFLUX_SENSOR_GRID_IMPORT_POWER}
+      - INFLUX_SENSOR_BATTERY_DISCHARGING_POWER=${INFLUX_SENSOR_BATTERY_DISCHARGING_POWER}
+      - INFLUX_SENSOR_BATTERY_CHARGING_POWER=${INFLUX_SENSOR_BATTERY_CHARGING_POWER}
+      - INFLUX_SENSOR_GRID_EXPORT_POWER=${INFLUX_SENSOR_GRID_EXPORT_POWER}
+      - INFLUX_SENSOR_WALLBOX_POWER=${INFLUX_SENSOR_WALLBOX_POWER}
+      - INFLUX_SENSOR_HEATPUMP_POWER=${INFLUX_SENSOR_HEATPUMP_POWER}
+      - INFLUX_SENSOR_HOUSE_POWER=${INFLUX_SENSOR_HOUSE_POWER}
+      - INFLUX_SENSOR_HOUSE_POWER_CALCULATED=${INFLUX_SENSOR_HOUSE_POWER_CALCULATED}
+      - INFLUX_EXCLUDE_FROM_HOUSE_POWER=${INFLUX_EXCLUDE_FROM_HOUSE_POWER}
+
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:4567/ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    restart: unless-stopped
+
+    networks:
+      - solectrus
+
+  # Optional: InfluxDB for local testing
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: solectrus-influxdb
+
+    ports:
+      - "${INFLUX_PORT:-8086}:8086"
+
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUX_INIT_USERNAME:-admin}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUX_INIT_PASSWORD:-adminpassword}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_INIT_ORG:-solectrus}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_INIT_BUCKET:-solectrus}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_INIT_TOKEN:-my-super-secret-token}
+
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    restart: unless-stopped
+
+    networks:
+      - solectrus
+
+    # Comment out if you don't need local InfluxDB
+    profiles:
+      - with-influxdb
+
+volumes:
+  influxdb-data:
+  influxdb-config:
+
+networks:
+  solectrus:
+    driver: bridge
