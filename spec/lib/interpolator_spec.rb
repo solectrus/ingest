@@ -45,7 +45,7 @@ describe Interpolator do
   it 'returns nothing if all sensors are missing' do
     result =
       described_class.new(
-        sensor_keys: %i[balcony_inverter_power grid_import_power],
+        sensor_keys: %i[inverter_power_1 grid_import_power],
         timestamp:,
       ).run
     expect(result).to be_empty

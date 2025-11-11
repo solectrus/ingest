@@ -1,7 +1,6 @@
 class SensorEnvConfig
   KEYS = %i[
     inverter_power
-    balcony_inverter_power
     inverter_power_1
     inverter_power_2
     inverter_power_3
@@ -15,7 +14,6 @@ class SensorEnvConfig
     heatpump_power
     house_power
   ].freeze
-  # TODO: Remove balcony_inverter_power (use new config)
 
   class << self
     delegate :[], to: :config

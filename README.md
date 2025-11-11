@@ -77,7 +77,6 @@ services:
     image: ghcr.io/solectrus/ingest:latest
     environment:
       - INFLUX_SENSOR_INVERTER_POWER
-      - INFLUX_SENSOR_BALCONY_INVERTER_POWER
       - INFLUX_SENSOR_INVERTER_POWER_1
       - INFLUX_SENSOR_INVERTER_POWER_2
       - INFLUX_SENSOR_INVERTER_POWER_3
@@ -108,10 +107,8 @@ services:
     ports:
       - 8086:8086
     volumes:
-      - ./path/to/influx-data:/var/lib/influxdb
+      - ./path/to/influx-data:/var/lib/influxdb2
 ```
-
-Note: `INFLUX_SENSOR_BALCONY_INVERTER_POWER`is deprecated and wil be removed soon.
 
 ## Environment Variables
 
@@ -119,41 +116,31 @@ Note: `INFLUX_SENSOR_BALCONY_INVERTER_POWER`is deprecated and wil be removed soo
 
 Define measurement and field names for each sensor. Format: `measurement:field`, e.g. `SENEC:inverter_power`. Leave empty if a sensor is not available.
 
-| Variable                                  | Description                             |
-| ----------------------------------------- | --------------------------------------- |
-| `INFLUX_SENSOR_INVERTER_POWER`            | Inverter power (total)                  |
-| `INFLUX_SENSOR_INVERTER_POWER_1`          | Inverter power (1)                      |
-| `INFLUX_SENSOR_INVERTER_POWER_2`          | Inverter power (2)                      |
-| `INFLUX_SENSOR_INVERTER_POWER_3`          | Inverter power (3)                      |
-| `INFLUX_SENSOR_INVERTER_POWER_4`          | Inverter power (4)                      |
-| `INFLUX_SENSOR_INVERTER_POWER_5`          | Inverter power (5)                      |
-| `INFLUX_SENSOR_BALCONY_INVERTER_POWER`    | Balcony inverter power **(deprecated)** |
-| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Grid import power                       |
-| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Grid export power                       |
-| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Battery discharging power               |
-| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Battery charging power                  |
-| `INFLUX_SENSOR_WALLBOX_POWER`             | Wallbox power                           |
-| `INFLUX_SENSOR_HEATPUMP_POWER`            | Heat pump power                         |
-| `INFLUX_SENSOR_HOUSE_POWER`               | House power                             |
+| Variable                                  | Description               |
+| ----------------------------------------- | ------------------------- |
+| `INFLUX_SENSOR_INVERTER_POWER`            | Inverter power (total)    |
+| `INFLUX_SENSOR_INVERTER_POWER_1`          | Inverter power (1)        |
+| `INFLUX_SENSOR_INVERTER_POWER_2`          | Inverter power (2)        |
+| `INFLUX_SENSOR_INVERTER_POWER_3`          | Inverter power (3)        |
+| `INFLUX_SENSOR_INVERTER_POWER_4`          | Inverter power (4)        |
+| `INFLUX_SENSOR_INVERTER_POWER_5`          | Inverter power (5)        |
+| `INFLUX_SENSOR_GRID_IMPORT_POWER`         | Grid import power         |
+| `INFLUX_SENSOR_GRID_EXPORT_POWER`         | Grid export power         |
+| `INFLUX_SENSOR_BATTERY_DISCHARGING_POWER` | Battery discharging power |
+| `INFLUX_SENSOR_BATTERY_CHARGING_POWER`    | Battery charging power    |
+| `INFLUX_SENSOR_WALLBOX_POWER`             | Wallbox power             |
+| `INFLUX_SENSOR_HEATPUMP_POWER`            | Heat pump power           |
+| `INFLUX_SENSOR_HOUSE_POWER`               | House power               |
 
 The inverter power is calculated as follows:
 
-1. If `INFLUX_SENSOR_BALCONY_INVERTER_POWER` is given:
-
-```
-Total inverter power = INFLUX_SENSOR_INVERTER_POWER +
-                       INFLUX_SENSOR_BALCONY_INVERTER_POWER
-```
-
-Note: This is deprecated and will be removed soon.
-
-2. Otherwise, if `INFLUX_SENSOR_INVERTER_POWER` power is given:
+1. If `INFLUX_SENSOR_INVERTER_POWER` power is given:
 
 ```
 Total inverter power = INFLUX_SENSOR_INVERTER_POWER
 ```
 
-3. Otherwise, if `INFLUX_SENSOR_INVERTER_POWER` is **not** given:
+2. Otherwise, if `INFLUX_SENSOR_INVERTER_POWER` is **not** given:
 
 ```
 Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
@@ -203,7 +190,7 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
 
 ## How it works
 
-- Incoming data is **persisted** in SQLite (12-hour retention)
+- Incoming data is **persisted** in SQLite (36-hour retention)
 - A queue forwards data to InfluxDB in **batches**
 - House power is recalculated **as soon as** any relevant sensor updates
 - Old data is removed periodically by a background cleanup worker
