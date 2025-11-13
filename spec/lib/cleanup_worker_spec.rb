@@ -4,7 +4,7 @@ describe CleanupWorker do
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      created_at: 37.hours.ago, # Older than 36 hours
+      created_at: 13.hours.ago, # Older than 12 hours (default)
     )
   end
 
@@ -13,7 +13,7 @@ describe CleanupWorker do
       measurement: 'SENEC',
       field: 'test',
       value: 42,
-      created_at: 20.hours.ago, # Within the 36-hour retention period
+      created_at: 5.hours.ago, # Within the 12-hour retention period (default)
     )
   end
 

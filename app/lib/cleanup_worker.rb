@@ -1,6 +1,6 @@
 class CleanupWorker
   CLEANUP_INTERVAL = 1.hour
-  RETENTION_HOURS = 36.hours
+  RETENTION = ENV.fetch('RETENTION_HOURS', '12').to_i.hours
 
   def self.run_loop
     loop do
@@ -14,7 +14,7 @@ class CleanupWorker
 
     deleted =
       Database.thread_safe_write do
-        Incoming.where(created_at: ..RETENTION_HOURS.ago).delete_all
+        Incoming.where(created_at: ..RETENTION.ago).delete_all
       end
 
     puts "[Cleanup] Deleted #{deleted} entries"
