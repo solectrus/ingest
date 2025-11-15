@@ -4,6 +4,7 @@ class StartupMessage
     print_configured_sensors
     print_house_power_destination
     print_forwarding_info
+    print_retention_info
   end
 
   def self.print_header
@@ -53,6 +54,12 @@ class StartupMessage
 
   def self.print_forwarding_info
     puts "Forwarding to #{InfluxWriter::INFLUX_URL}"
+    puts
+  end
+
+  def self.print_retention_info
+    retention_hours = CleanupWorker::RETENTION.in_hours.to_i
+    puts "SQLite retention: #{retention_hours} hours"
     puts
   end
 end

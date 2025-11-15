@@ -108,6 +108,10 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (60.0 * count / incoming_range).round(1)
   end
 
+  def retention_hours
+    CleanupWorker::RETENTION.in_hours.to_i
+  end
+
   def throughput_tag(value)
     return '<small>-</small>' unless value
 

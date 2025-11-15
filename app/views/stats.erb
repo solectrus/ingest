@@ -5,7 +5,7 @@
       <dt>Total</dt>
       <dd><%= number_to_delimited(incoming_total) %></dd>
 
-      <dt>Range</dt>
+      <dt>Range (limited to <%= retention_hours %> hours)</dt>
       <dd><%= format_duration(incoming_range) %></dd>
 
       <dt>Throughput</dt>

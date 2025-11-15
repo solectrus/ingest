@@ -159,6 +159,7 @@ Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
 | `INFLUX_HOST`                          | InfluxDB host, e.g. `influxdb`            | Required        |
 | `INFLUX_PORT`                          | InfluxDB port                             | Default: `8086` |
 | `INFLUX_SCHEMA`                        | InfluxDB schema                           | Default: `http` |
+| `RETENTION_HOURS`                      | SQLite retention period in hours          | Default: `12`   |
 | `STATS_PASSWORD`                       | Password for stats endpoint               | Optional        |
 
 ## Endpoints
@@ -190,7 +191,7 @@ curl -X POST "http://localhost:4567/api/v2/write?bucket=my-bucket&org=my-org&pre
 
 ## How it works
 
-- Incoming data is **persisted** in SQLite (36-hour retention)
+- Incoming data is **persisted** in SQLite (configurable retention, default: 12 hours)
 - A queue forwards data to InfluxDB in **batches**
 - House power is recalculated **as soon as** any relevant sensor updates
 - Old data is removed periodically by a background cleanup worker
