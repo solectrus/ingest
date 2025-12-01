@@ -19,11 +19,16 @@ class Database
 
     ActiveRecord::Base.connection.execute('PRAGMA journal_mode = WAL')
     ActiveRecord::Base.connection.execute('PRAGMA synchronous = NORMAL')
-    ActiveRecord::Base.connection.execute('PRAGMA temp_store = MEMORY;')
+    ActiveRecord::Base.connection.execute('PRAGMA temp_store = MEMORY')
+    ActiveRecord::Base.connection.execute('PRAGMA auto_vacuum = INCREMENTAL')
   end
 
   def self.compact!
     ActiveRecord::Base.connection.execute('VACUUM')
+  end
+
+  def self.incremental_vacuum!(pages = 1000)
+    ActiveRecord::Base.connection.execute("PRAGMA incremental_vacuum(#{pages})")
   end
 
   WRITE_MUTEX = Mutex.new

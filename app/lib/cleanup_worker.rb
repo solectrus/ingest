@@ -18,6 +18,9 @@ class CleanupWorker
       end
 
     puts "[Cleanup] Deleted #{deleted} entries"
+
+    # Reclaim space from deleted rows without blocking the entire database
+    Database.incremental_vacuum!
   rescue StandardError => e
     warn "[Cleanup] Error: #{e.class} - #{e.message}"
     warn e.backtrace.join("\n")
