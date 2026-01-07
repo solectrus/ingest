@@ -11,7 +11,7 @@ class StartupMessage
     puts "Ingest for SOLECTRUS, #{BuildInfo}"
 
     puts 'https://github.com/solectrus/ingest'
-    puts 'Copyright (c) 2025 Georg Ledermann'
+    puts 'Copyright (c) 2025-2026 Georg Ledermann'
     puts
     puts "Using Ruby #{RUBY_VERSION} on platform #{RUBY_PLATFORM}"
     puts
