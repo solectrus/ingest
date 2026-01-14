@@ -1,5 +1,5 @@
 # Stage 1: Build all gems (incl. dev/test) for cache
-FROM ruby:4.0.0-alpine AS bundle-cache
+FROM ruby:4.0.1-alpine AS bundle-cache
 
 WORKDIR /app
 RUN apk add --no-cache build-base linux-headers pkgconf libffi-dev
@@ -14,7 +14,7 @@ RUN bundle config set path /usr/local/bundle && \
     bundle install -j4 --retry 3
 
 # Stage 2: Only production gems
-FROM ruby:4.0.0-alpine AS builder
+FROM ruby:4.0.1-alpine AS builder
 
 WORKDIR /app
 RUN apk add --no-cache build-base
@@ -44,7 +44,7 @@ RUN bundle config set path /usr/local/bundle && \
 COPY . .
 
 # Final runtime image
-FROM ruby:4.0.0-alpine
+FROM ruby:4.0.1-alpine
 LABEL maintainer="georg@ledermann.dev"
 
 # Add tzdata to get correct timezone, and curl for healthcheck
