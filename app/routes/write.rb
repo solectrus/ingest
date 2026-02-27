@@ -43,7 +43,7 @@ class WriteRoute < BaseRoute
     begin
       Processor.new(influx_token:, bucket:, org:, precision:).run(lines)
       halt 204
-    rescue InvalidLineProtocolError => e
+    rescue Point::InvalidLineProtocolError => e
       handle(e, 400)
     rescue StandardError => e
       handle(e, 500)

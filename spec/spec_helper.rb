@@ -31,15 +31,14 @@ RSpec.configure do |config|
     Target.delete_all
   end
 
-  config.around do |example|
-    original_stdout = $stdout
-    original_stderr = $stderr
-    $stdout = File.open(File::NULL, 'w')
-    $stderr = File.open(File::NULL, 'w')
-    example.run
-  ensure
-    $stdout = original_stdout
-    $stderr = original_stderr
+  config.before do
+    $stdout = StringIO.new
+    $stderr = StringIO.new
+  end
+
+  config.after do
+    $stdout = STDOUT
+    $stderr = STDERR
   end
 
   config.expect_with :rspec do |expectations|

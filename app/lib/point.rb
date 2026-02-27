@@ -1,7 +1,6 @@
-class InvalidLineProtocolError < StandardError
-end
-
 class Point < InfluxDB2::Point
+  class InvalidLineProtocolError < StandardError; end
+
   LINE_PROTOCOL_REGEX = /^([^ ]+)\s(.+?)(?:\s(\d+))?$/
   INTEGER_REGEX = /\A[-+]?\d+i\z/
   INTEGER_SUFFIX = 'i'.freeze
@@ -13,7 +12,7 @@ class Point < InfluxDB2::Point
 
   def self.parse(line)
     m = LINE_PROTOCOL_REGEX.match(line)
-    raise InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
+    raise self::InvalidLineProtocolError, "Invalid line protocol: #{line}" unless m
 
     name_and_tags = m[1]
     fields_str = m[2]
