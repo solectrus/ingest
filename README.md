@@ -100,13 +100,16 @@ services:
     ports:
       - 4567:4567
     volumes:
+      -  # Just an example!
+      -  # Change to a valid path on your system where Ingest can store its SQLite database
       - ./path/to/ingest-data:/app/data
 
   influxdb:
-    image: influxdb:2.7-alpine
+    image: influxdb:2-alpine
     ports:
       - 8086:8086
     volumes:
+      -  # Just an example
       - ./path/to/influx-data:/var/lib/influxdb2
 ```
 
