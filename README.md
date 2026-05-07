@@ -105,7 +105,7 @@ services:
       - ./path/to/ingest-data:/app/data
 
   influxdb:
-    image: influxdb:2-alpine
+    image: influxdb:2.8-alpine
     ports:
       - 8086:8086
     volumes:
