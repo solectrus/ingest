@@ -70,5 +70,42 @@ describe HousePowerCalculator do
       calculator.recalculate(timestamp: timestamp)
       expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(0)
     end
+
+    context 'with stale sensor data' do
+      let(:stale_timestamp) { timestamp + described_class::MAX_SENSOR_AGE_NS + 1 }
+      let(:fresh_timestamp) { timestamp + described_class::MAX_SENSOR_AGE_NS }
+
+      it 'skips writing house_power when any sensor is stale' do
+        expect { calculator.recalculate(timestamp: stale_timestamp) }.not_to change(Outgoing, :count)
+      end
+
+      it 'still recalculates at the max_age boundary' do
+        expect { calculator.recalculate(timestamp: fresh_timestamp) }.to change(Outgoing, :count).by(1)
+      end
+
+      it 'tracks the skip' do
+        calculator.recalculate(timestamp: stale_timestamp)
+        expect(Stats.counter(:house_power_recalculate_skipped)).to eq(1)
+      end
+
+      it 'tracks the stale sensor by key' do
+        calculator.recalculate(timestamp: stale_timestamp)
+        expect(Stats.counter(:house_power_skip_inverter_power)).to eq(1)
+      end
+    end
+
+    describe 'last success timestamp' do
+      it 'sets house_power_last_success_at after a successful write' do
+        before_call = Time.now.to_i
+        calculator.recalculate(timestamp:)
+        expect(Stats.value(:house_power_last_success_at)).to be_within(2).of(before_call)
+      end
+
+      it 'leaves house_power_last_success_at unset when skipped' do
+        stale = timestamp + described_class::MAX_SENSOR_AGE_NS + 1
+        calculator.recalculate(timestamp: stale)
+        expect(Stats.value(:house_power_last_success_at)).to be_nil
+      end
+    end
   end
 end

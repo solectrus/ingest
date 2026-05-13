@@ -17,11 +17,13 @@ class SensorValueCache
     end
   end
 
-  def read(measurement:, field:, max_timestamp:)
+  def read(measurement:, field:, max_timestamp:, max_age:)
     key = key_for(measurement, field)
 
     data = @cache[key]
-    return unless data && data[:timestamp] <= max_timestamp
+    return unless data
+    return if data[:timestamp] > max_timestamp
+    return if max_timestamp - data[:timestamp] > max_age
 
     data
   end

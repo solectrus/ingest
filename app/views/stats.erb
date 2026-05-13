@@ -49,7 +49,29 @@
 
       <dt>Cache hits</dt>
       <dd><%= number_to_percentage(calculation_cache_hits, precision: 0) %></dd>
+
+      <dt>Skipped (stale)</dt>
+      <dd><%= number_to_percentage(calculation_skipped, precision: 1) %></dd>
+
+      <dt>Last success</dt>
+      <dd>
+        <% if last_calculation_age %>
+          <%= format_duration(last_calculation_age) %> ago
+        <% else %>
+          –
+        <% end %>
+      </dd>
     </dl>
+
+    <% if calculation_skips_by_sensor.any? %>
+      <h2>Skipped by Sensor</h2>
+      <dl class="right">
+        <% calculation_skips_by_sensor.each do |sensor, count| %>
+          <dt class="font-mono"><%= sensor %></dt>
+          <dd><%= number_to_delimited(count) %></dd>
+        <% end %>
+      </dl>
+    <% end %>
   </div>
 
   <div>

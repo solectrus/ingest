@@ -49,4 +49,27 @@ describe Stats do
       expect(result).to eq(http_response_200: 1, http_response_500: 1)
     end
   end
+
+  describe '.set and .value' do
+    it 'stores and retrieves a single value' do
+      described_class.set(:last_seen_at, 42)
+      expect(described_class.value(:last_seen_at)).to eq(42)
+    end
+
+    it 'overwrites previous values' do
+      described_class.set(:last_seen_at, 1)
+      described_class.set(:last_seen_at, 2)
+      expect(described_class.value(:last_seen_at)).to eq(2)
+    end
+
+    it 'returns nil for unknown keys' do
+      expect(described_class.value(:missing)).to be_nil
+    end
+
+    it 'clears values on reset!' do
+      described_class.set(:last_seen_at, 99)
+      described_class.reset!
+      expect(described_class.value(:last_seen_at)).to be_nil
+    end
+  end
 end

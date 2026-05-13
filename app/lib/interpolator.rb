@@ -1,8 +1,9 @@
 class Interpolator # rubocop:disable Metrics/ClassLength
   Sample = Struct.new(:measurement, :field, :timestamp, :value, :direction)
 
-  def initialize(sensor_keys:, timestamp:)
+  def initialize(sensor_keys:, timestamp:, max_age:)
     @timestamp = timestamp
+    @max_age = max_age
     @sensors =
       sensor_keys
         .map { |key| [key, SensorEnvConfig[key]] }
@@ -21,7 +22,7 @@ class Interpolator # rubocop:disable Metrics/ClassLength
 
   private
 
-  attr_reader :timestamp, :sensors
+  attr_reader :timestamp, :max_age, :sensors
 
   def load_grouped_rows
     sql = build_query
@@ -110,9 +111,17 @@ class Interpolator # rubocop:disable Metrics/ClassLength
   def interpolate_one(samples)
     prev, nxt = find_bounds(samples)
     return unless prev
-    return prev.value if nxt.nil? || prev.timestamp == nxt.timestamp
 
-    interpolate(prev, nxt)
+    # Two distinct samples bracket the target timestamp: linear
+    # interpolation is valid regardless of sample age. Equal timestamps
+    # would also cause a division by zero in #interpolate.
+    return interpolate(prev, nxt) if nxt && prev.timestamp != nxt.timestamp
+
+    # No future sample yet — only accept prev as a flat extrapolation
+    # if the sensor has reported recently enough.
+    return if timestamp - prev.timestamp > max_age
+
+    prev.value
   end
 
   def find_bounds(samples)

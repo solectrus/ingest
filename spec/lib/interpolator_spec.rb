@@ -1,5 +1,6 @@
 describe Interpolator do
   let(:timestamp) { 1_000 }
+  let(:max_age) { 1_000 }
 
   let(:target) do
     Target.create!(
@@ -36,6 +37,7 @@ describe Interpolator do
       described_class.new(
         sensor_keys: %i[inverter_power wallbox_power],
         timestamp:,
+        max_age:,
       ).run
 
     expect(result[:inverter_power]).to eq(1100.0)
@@ -47,6 +49,7 @@ describe Interpolator do
       described_class.new(
         sensor_keys: %i[inverter_power_1 grid_import_power],
         timestamp:,
+        max_age:,
       ).run
     expect(result).to be_empty
   end
@@ -61,7 +64,34 @@ describe Interpolator do
       described_class.new(
         sensor_keys: %i[inverter_power grid_import_power],
         timestamp:,
+        max_age:,
       ).run
     expect(result.keys).to eq([:inverter_power])
+  end
+
+  it 'omits sensors whose only prev sample is older than max_age' do
+    # wallbox_charge_power has a single prev sample at timestamp 980,
+    # 20 units older than the target timestamp.
+    result =
+      described_class.new(
+        sensor_keys: %i[inverter_power wallbox_power],
+        timestamp:,
+        max_age: 10,
+      ).run
+
+    expect(result.keys).to eq([:inverter_power])
+  end
+
+  it 'still interpolates between two samples regardless of max_age' do
+    # inverter_power has prev (990) and next (1010) — interpolation is
+    # always valid for surrounding samples.
+    result =
+      described_class.new(
+        sensor_keys: %i[inverter_power],
+        timestamp:,
+        max_age: 1,
+      ).run
+
+    expect(result[:inverter_power]).to eq(1100.0)
   end
 end

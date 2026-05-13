@@ -2,6 +2,7 @@ describe SensorValueCache do
   subject(:cache) { described_class.instance }
 
   let(:measurement) { 'SENEC' }
+  let(:max_age) { 1_000 }
   let(:field) { 'inverter_power' }
 
   before { cache.reset! }
@@ -10,22 +11,48 @@ describe SensorValueCache do
     it 'stores and retrieves a value if timestamp is valid' do
       cache.write(measurement:, field:, timestamp: 100, value: 42)
 
-      result = cache.read(measurement:, field:, max_timestamp: 100)
+      result = cache.read(measurement:, field:, max_timestamp: 100, max_age:)
       expect(result).to eq({ timestamp: 100, value: 42 })
     end
 
     it 'does not return a value if timestamp is too new' do
       cache.write(measurement:, field:, timestamp: 200, value: 99)
 
-      result = cache.read(measurement:, field:, max_timestamp: 100)
+      result = cache.read(measurement:, field:, max_timestamp: 100, max_age:)
       expect(result).to be_nil
+    end
+
+    it 'does not return a value if stored value is older than max_age' do
+      cache.write(measurement:, field:, timestamp: 100, value: 42)
+
+      result =
+        cache.read(
+          measurement:,
+          field:,
+          max_timestamp: 100 + max_age + 1,
+          max_age:,
+        )
+      expect(result).to be_nil
+    end
+
+    it 'returns a value when exactly at max_age boundary' do
+      cache.write(measurement:, field:, timestamp: 100, value: 42)
+
+      result =
+        cache.read(
+          measurement:,
+          field:,
+          max_timestamp: 100 + max_age,
+          max_age:,
+        )
+      expect(result).to eq({ timestamp: 100, value: 42 })
     end
 
     it 'rejects older write if newer timestamp already exists' do
       cache.write(measurement:, field:, timestamp: 200, value: 99)
       cache.write(measurement:, field:, timestamp: 100, value: 42)
 
-      result = cache.read(measurement:, field:, max_timestamp: 300)
+      result = cache.read(measurement:, field:, max_timestamp: 300, max_age:)
       expect(result).to eq({ timestamp: 200, value: 99 })
     end
 
@@ -33,7 +60,7 @@ describe SensorValueCache do
       cache.write(measurement:, field:, timestamp: 100, value: 1)
       cache.write(measurement:, field:, timestamp: 200, value: 2)
 
-      result = cache.read(measurement:, field:, max_timestamp: 300)
+      result = cache.read(measurement:, field:, max_timestamp: 300, max_age:)
       expect(result).to eq({ timestamp: 200, value: 2 })
     end
   end
@@ -41,10 +68,14 @@ describe SensorValueCache do
   describe '#reset!' do
     it 'clears the cache' do
       cache.write(measurement:, field:, timestamp: 100, value: 42)
-      expect(cache.read(measurement:, field:, max_timestamp: 100)).to be_present
+      expect(
+        cache.read(measurement:, field:, max_timestamp: 100, max_age:),
+      ).to be_present
 
       cache.reset!
-      expect(cache.read(measurement:, field:, max_timestamp: 100)).to be_nil
+      expect(
+        cache.read(measurement:, field:, max_timestamp: 100, max_age:),
+      ).to be_nil
     end
   end
 

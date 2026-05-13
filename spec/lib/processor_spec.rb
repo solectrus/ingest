@@ -41,6 +41,7 @@ describe Processor do
           measurement: 'SENEC',
           field: 'inverter_power',
           max_timestamp: 1_000_000_000,
+          max_age: 1_000_000_000,
         )
         expect(cache).to eq(
           {
@@ -114,6 +115,7 @@ describe Processor do
           measurement: 'SENEC',
           field: 'system_status_ok',
           max_timestamp: 1_000_000_000,
+          max_age: 1_000_000_000,
         )
         expect(cache).to be_nil
       end
@@ -139,6 +141,7 @@ describe Processor do
           measurement: 'SENEC',
           field: 'system_status',
           max_timestamp: 1_000_000_000,
+          max_age: 1_000_000_000,
         )
         expect(cache).to be_nil
       end

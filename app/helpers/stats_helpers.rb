@@ -25,6 +25,25 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     100.0 * Stats.counter(:house_power_recalculate_cache_hits) / calculation_count
   end
 
+  def calculation_skipped
+    return unless calculation_count&.positive?
+
+    100.0 * Stats.counter(:house_power_recalculate_skipped) / calculation_count
+  end
+
+  def calculation_skips_by_sensor
+    prefix = HousePowerCalculator::SKIP_STAT_PREFIX
+    Stats
+      .counters_by(prefix)
+      .transform_keys { |key| key.to_s.delete_prefix(prefix) }
+      .sort_by { |_, count| -count }
+  end
+
+  def last_calculation_age
+    timestamp = Stats.value(:house_power_last_success_at)
+    age_from(Time.at(timestamp)) if timestamp
+  end
+
   def response_time
     return unless Stats.counter(:http_requests).positive?
 

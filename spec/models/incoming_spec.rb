@@ -126,6 +126,7 @@ describe Incoming do
           measurement: 'SENEC',
           field: 'inverter_power',
           max_timestamp: target.timestamp_ns(1000),
+          max_age: 1_000_000_000,
         ),
       ).to include(value: 42)
     end
@@ -146,6 +147,7 @@ describe Incoming do
           measurement: 'SENEC',
           field: 'system_status',
           max_timestamp: target.timestamp_ns(1000),
+          max_age: 1_000_000_000,
         ),
       ).to be_nil
     end
@@ -166,6 +168,7 @@ describe Incoming do
           measurement: 'SENEC',
           field: 'system_status_ok',
           max_timestamp: target.timestamp_ns(1000),
+          max_age: 1_000_000_000,
         ),
       ).to be_nil
     end
