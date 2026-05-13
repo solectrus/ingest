@@ -65,6 +65,6 @@ group :test do
   # Simple testing API built on Rack (https://github.com/rack/rack-test)
   gem 'rack-test'
 
-  # rspec-3.13.0 (http://github.com/rspec)
+  # rspec-3.13.2 (https://rspec.info)
   gem 'rspec'
 end
