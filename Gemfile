@@ -34,8 +34,8 @@ group :development do
   # Guard gem for RSpec (https://github.com/guard/guard-rspec)
   gem 'guard-rspec', require: false
 
-  # Launches an app, and restarts it whenever the filesystem changes. A no-frills, command-line alternative to Guard, Shotgun, Autotest, etc. (http://github.com/alexch/rerun/)
-  gem 'rerun'
+  # Listen to file modifications (https://github.com/guard/listen)
+  gem 'listen', require: false
 
   # Automatic Ruby code style checking tool. (https://github.com/rubocop/rubocop)
   gem 'rubocop'

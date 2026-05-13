@@ -112,8 +112,6 @@ GEM
     regexp_parser (2.12.0)
     reline (0.6.3)
       io-console (~> 0.5)
-    rerun (0.14.0)
-      listen (~> 3.0)
     rspec (3.13.2)
       rspec-core (~> 3.13.0)
       rspec-expectations (~> 3.13.0)
@@ -211,11 +209,11 @@ DEPENDENCIES
   guard-rspec
   influxdb-client
   json
+  listen
   puma
   rack-test
   rackup
   rake
-  rerun
   rspec
   rubocop
   rubocop-performance

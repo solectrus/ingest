@@ -1,5 +1,45 @@
-#!/usr/bin/env bash
+#!/usr/bin/env ruby
+# frozen_string_literal: true
 
-set -euo pipefail
+require 'bundler/setup'
+require 'listen'
 
-rerun -- rackup --host 0.0.0.0 --port 4567
+CMD = %w[rackup --host 0.0.0.0 --port 4567].freeze
+WATCH_ONLY = %r{\A(app/.*\.rb|(app|boot)\.rb|config\.ru)\z}
+IGNORE_DIRS = %r{\A(coverage|data|public|spec|db|src|bin|node_modules)/}
+
+pid = nil
+
+# pgroup: true makes the child a process group leader, so kill(-pid) also
+# takes down workers it spawned.
+start_server = -> { pid = Process.spawn(*CMD, pgroup: true) }
+
+stop_server = lambda do
+  next unless pid
+
+  begin
+    Process.kill('TERM', -pid)
+    Process.wait(pid)
+  rescue Errno::ESRCH, Errno::ECHILD
+    # already gone
+  end
+  pid = nil
+end
+
+listener = Listen.to('.', only: WATCH_ONLY, ignore: IGNORE_DIRS, wait_for_delay: 0.5) do |modified, added, removed|
+  changed = (modified + added + removed).map { |f| File.basename(f) }.uniq.join(', ')
+  warn "\n[bin/dev] Changed: #{changed} — restarting"
+  stop_server.call
+  start_server.call
+end
+
+at_exit do
+  listener.stop
+  stop_server.call
+end
+
+%w[INT TERM].each { |sig| Signal.trap(sig) { exit } }
+
+start_server.call
+listener.start
+sleep
