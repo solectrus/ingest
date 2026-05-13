@@ -1,16 +1,22 @@
-<form method="post">
-  <div class="input-group">
-    <input
-      name="password"
-      placeholder="Password"
-      type="password"
-      required
-      autofocus>
+<div class="auth">
+  <h2 class="auth__title">Unlock dashboard</h2>
+  <p class="auth__hint">Enter the access password to view statistics.</p>
 
-    <button type="submit">Unlock</button>
-  </div>
+  <form method="post">
+    <div class="input-group">
+      <input
+        name="password"
+        placeholder="Password"
+        type="password"
+        autocomplete="current-password"
+        required
+        autofocus>
 
-  <% if @error %>
-  <p class="error"><%= @error %></p>
-  <% end %>
-</form>
+      <button type="submit">Unlock</button>
+    </div>
+
+    <% if @error %>
+      <p class="error"><%= @error %></p>
+    <% end %>
+  </form>
+</div>

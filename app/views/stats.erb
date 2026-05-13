@@ -1,19 +1,19 @@
 <div class="grid">
-  <div>
+  <section>
     <h2>Incoming</h2>
     <dl class="right">
       <dt>Total</dt>
       <dd><%= number_to_delimited(incoming_total) %></dd>
 
-      <dt>Range (limited to <%= retention_hours %> hours)</dt>
+      <dt>Range <small>(max <%= retention_hours %>h)</small></dt>
       <dd><%= format_duration(incoming_range) %></dd>
 
       <dt>Throughput</dt>
       <dd><%= number_to_delimited(incoming_throughput) %> /min</dd>
     </dl>
-  </div>
+  </section>
 
-  <div>
+  <section>
     <h2>Outgoing</h2>
     <dl class="right">
       <dt>Queued</dt>
@@ -22,45 +22,36 @@
       <dt>Queue age (oldest)</dt>
       <dd><%= format_duration(queue_oldest_age) %></dd>
     </dl>
-  </div>
+  </section>
 
-  <div>
+  <section>
     <h2>Cache</h2>
-
     <dl class="right">
       <dt>Size</dt>
       <dd><%= number_to_delimited(cache_size) %></dd>
 
       <dt>Range</dt>
-      <dd>
-        <%= format_duration(cache_range) %>
-      </dd>
+      <dd><%= format_duration(cache_range) %></dd>
     </dl>
-  </div>
+  </section>
 
-  <div>
+  <section>
     <h2>HousePower Calculation</h2>
     <dl class="right">
       <dt>Count</dt>
       <dd><%= number_to_delimited(calculation_count) %></dd>
 
       <dt>Rate</dt>
-      <dd><%= number_to_delimited(calculation_rate&.round) %> /min</dd>
+      <dd><%= value_or_dash(calculation_rate) { |r| "#{number_to_delimited(r.round)} /min" } %></dd>
 
       <dt>Cache hits</dt>
-      <dd><%= number_to_percentage(calculation_cache_hits, precision: 0) %></dd>
+      <dd><%= value_or_dash(calculation_cache_hits) { |v| number_to_percentage(v, precision: 0) } %></dd>
 
       <dt>Skipped (stale)</dt>
-      <dd><%= number_to_percentage(calculation_skipped, precision: 1) %></dd>
+      <dd><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
 
       <dt>Last success</dt>
-      <dd>
-        <% if last_calculation_age %>
-          <%= format_duration(last_calculation_age) %> ago
-        <% else %>
-          –
-        <% end %>
-      </dd>
+      <dd><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
     </dl>
 
     <% if calculation_skips_by_sensor.any? %>
@@ -72,26 +63,9 @@
         <% end %>
       </dl>
     <% end %>
-  </div>
+  </section>
 
-  <div>
-    <h2>Measurements & Fields <small>(with throughput)</small></h2>
-    <dl class="right">
-      <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
-        <dt class="font-mono"><%= measurement %></dt>
-        <dd>
-          <% groups.each do |group| %>
-            <span class="font-mono"><%= group[:field] %></span>
-
-            <%= throughput_tag(incoming_throughput_for(group[:count])) %>
-            <br>
-          <% end %>
-        </dd>
-      <% end %>
-    </dl>
-  </div>
-
-  <div>
+  <section>
     <h2>Responses</h2>
     <dl class="right">
       <% Stats.counters_by(:http_response).sort.each do |key, value| %>
@@ -105,28 +79,24 @@
       <dt>⌀ Time</dt>
       <dd><%= number_to_delimited(response_time) %> ms</dd>
     </dl>
+  </section>
 
-    <h2>CPU</h2>
+  <section>
+    <h2>Runtime</h2>
     <dl class="right">
-      <dt>Usage</dt>
+      <dt>CPU usage</dt>
       <dd><%= number_to_percentage(cpu_usage, precision: 1) %></dd>
 
       <dt>Threads</dt>
       <dd><%= thread_count %></dd>
-    </dl>
 
-    <h2>RAM</h2>
-    <dl class="right">
-      <dt>Usage</dt>
+      <dt>Memory usage</dt>
       <dd><%= number_to_human_size(memory_usage) %></dd>
-    </dl>
 
-    <h2>Disk</h2>
-    <dl class="right">
-      <dt>SQLite Database</dt>
+      <dt>SQLite database</dt>
       <dd><%= number_to_human_size(database_size) %></dd>
 
-      <dt>Free</dt>
+      <dt>Disk free</dt>
       <dd><%= number_to_human_size(disk_free) %></dd>
     </dl>
 
@@ -138,5 +108,25 @@
       <dt>System</dt>
       <dd><%= format_duration(system_uptime) %></dd>
     </dl>
-  </div>
+  </section>
 </div>
+
+<section class="section">
+  <h2 class="section__label">Measurements &amp; Fields <small>(with throughput)</small></h2>
+
+  <div class="cards">
+    <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
+      <article class="card">
+        <h3 class="card__title"><%= measurement %></h3>
+        <ul class="card__list">
+          <% groups.each do |group| %>
+            <li>
+              <span class="font-mono"><%= group[:field] %></span>
+              <%= throughput_tag(incoming_throughput_for(group[:count])) %>
+            </li>
+          <% end %>
+        </ul>
+      </article>
+    <% end %>
+  </div>
+</section>

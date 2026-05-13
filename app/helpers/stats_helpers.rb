@@ -10,7 +10,13 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def calculation_count
-    Stats.counter(:house_power_recalculates)
+    @calculation_count ||= Stats.counter(:house_power_recalculates)
+  end
+
+  def value_or_dash(value)
+    return '–' if value.nil?
+
+    block_given? ? yield(value) : value
   end
 
   def calculation_rate
@@ -84,6 +90,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       .count
       .map { |(measurement, field), count| { measurement:, field:, count: } }
       .group_by { |entry| entry[:measurement] }
+      .sort_by { |measurement, groups| [-groups.size, measurement] }
+      .to_h
   end
 
   def queue_oldest_age
