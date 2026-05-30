@@ -37,11 +37,13 @@ describe InfluxWriter do
       )
     end
 
+    # InfluxDB2 sets InfluxError#code from Net::HTTP's response.code, which is
+    # always a String. The tests therefore use String codes to match reality.
     it 'raises ClientError on 4xx response' do
       error =
         InfluxDB2::InfluxError.new(
           message: 'unauthorized',
-          code: 401,
+          code: '401',
           reference: nil,
           retry_after: nil,
         )
@@ -54,11 +56,32 @@ describe InfluxWriter do
       )
     end
 
+    it 'raises ClientError on a field type conflict (partial write)' do
+      error =
+        InfluxDB2::InfluxError.new(
+          message:
+            'failure writing points to database: partial write: field type ' \
+              'conflict: input field "heating_power" on measurement ' \
+              '"heatpump" is type integer, already exists as type float ' \
+              'dropped=7',
+          code: '400',
+          reference: nil,
+          retry_after: nil,
+        )
+
+      allow(write_api_double).to receive(:write).and_raise(error)
+
+      expect { described_class.write(lines, **params) }.to raise_error(
+        InfluxWriter::ClientError,
+        /field type conflict/,
+      )
+    end
+
     it 'raises ServerError on 5xx response' do
       error =
         InfluxDB2::InfluxError.new(
           message: 'server error',
-          code: 503,
+          code: '503',
           reference: nil,
           retry_after: nil,
         )

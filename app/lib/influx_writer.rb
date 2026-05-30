@@ -25,7 +25,9 @@ class InfluxWriter
         data: payload,
       )
     rescue InfluxDB2::InfluxError => e
-      case e.code
+      # InfluxDB2::InfluxError#code is the HTTP status as a String (e.g. "400"),
+      # so it must be coerced before comparing against numeric ranges.
+      case e.code.to_i
       when 400..499
         raise ClientError, "Client error (#{e.code}): #{e.message}"
       when 500..599
