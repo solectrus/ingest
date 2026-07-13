@@ -1,15 +1,7 @@
 ENV['APP_ENV'] = 'test'
 
 require 'simplecov'
-require 'simplecov_json_formatter'
-SimpleCov.start do
-  formatter SimpleCov::Formatter::MultiFormatter.new(
-    [
-      SimpleCov::Formatter::JSONFormatter,
-      SimpleCov::Formatter::HTMLFormatter,
-    ],
-  )
-end
+SimpleCov.start
 
 require 'dotenv'
 Dotenv.load('.env.test.local', '.env.test')
