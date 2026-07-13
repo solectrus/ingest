@@ -79,9 +79,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
     size_bytes
   rescue StandardError => e
-    # :nocov:
+    # simplecov:disable
     e.message
-    # :nocov:
+    # simplecov:enable
   end
 
   def incoming_measurement_fields_grouped
@@ -165,9 +165,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     # Fallback for LXC: /proc/self/status
     rss_from_procfs || 'N/A'
   rescue StandardError => e
-    # :nocov:
+    # simplecov:disable
     e.message
-    # :nocov:
+    # simplecov:enable
   end
 
   def cpu_usage # rubocop:disable Metrics/AbcSize
@@ -189,9 +189,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     total_percent = (cpu_seconds / container_uptime) * 100
     total_percent / cpu_cores
   rescue StandardError => e
-    # :nocov:
+    # simplecov:disable
     e.message
-    # :nocov:
+    # simplecov:enable
   end
 
   def container_uptime
@@ -207,9 +207,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
         File.read('/proc/uptime').to_f
       end
   rescue StandardError => e
-    # :nocov:
+    # simplecov:disable
     e.message
-    # :nocov:
+    # simplecov:enable
   end
 
   def thread_count
@@ -220,9 +220,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     available_kb = `df -k /`.lines[1].split[3].to_i
     available_kb * 1024
   rescue StandardError => e
-    # :nocov:
+    # simplecov:disable
     e.message
-    # :nocov:
+    # simplecov:enable
   end
 
   private
