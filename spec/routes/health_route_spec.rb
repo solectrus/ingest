@@ -28,6 +28,15 @@ describe HealthRoute do
 
       expect(last_response.status).to eq(204)
     end
+
+    it 'identifies itself as an InfluxDB-compatible endpoint' do
+      get '/ping'
+
+      expect(last_response.headers).to include(
+        'X-Influxdb-Version' => BuildInfo.version,
+        'X-Influxdb-Build' => 'solectrus/ingest',
+      )
+    end
   end
 
   describe 'HEAD /ping' do
@@ -35,6 +44,12 @@ describe HealthRoute do
       head '/ping'
 
       expect(last_response.status).to eq(204)
+    end
+
+    it 'identifies itself as an InfluxDB-compatible endpoint' do
+      head '/ping'
+
+      expect(last_response.headers).to include('X-Influxdb-Build' => 'solectrus/ingest')
     end
   end
 end
