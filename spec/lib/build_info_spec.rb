@@ -7,7 +7,9 @@ describe BuildInfo do
     described_class.instance_variable_set(:@to_s, nil)
 
     original_env = ENV.to_hash
-    ENV.replace(original_env.merge(env_vars))
+    ENV.replace(
+      original_env.except('COMMIT_VERSION', 'VERSION').merge(env_vars),
+    )
     example.run
   ensure
     ENV.replace(original_env)
@@ -55,6 +57,24 @@ describe BuildInfo do
 
     it 'returns "unknown" in to_s' do
       expect(described_class.to_s).to eq('Version unknown')
+    end
+  end
+
+  context 'with COMMIT_VERSION present' do
+    let(:env_vars) do
+      { 'COMMIT_VERSION' => 'v1.2.3-4-gabc1234', 'VERSION' => 'develop' }
+    end
+
+    it 'prefers COMMIT_VERSION over VERSION' do
+      expect(described_class.version).to eq('v1.2.3-4-gabc1234')
+    end
+  end
+
+  context 'with blank COMMIT_VERSION' do
+    let(:env_vars) { { 'COMMIT_VERSION' => '', 'VERSION' => 'develop' } }
+
+    it 'falls back to VERSION' do
+      expect(described_class.version).to eq('develop')
     end
   end
 

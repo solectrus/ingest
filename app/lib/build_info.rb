@@ -1,7 +1,10 @@
 class BuildInfo
   class << self
+    # COMMIT_VERSION (git describe) is a real version on branch builds, too,
+    # whereas VERSION is just the branch name there.
     def version
-      @version ||= ENV.fetch('VERSION', nil).presence || 'unknown'
+      @version ||=
+        ENV['COMMIT_VERSION'].presence || ENV['VERSION'].presence || 'unknown'
     end
 
     def revision
