@@ -67,6 +67,21 @@ HOUSE_POWER = INVERTER_POWER (total, including balcony inverter)
 
 Since the relevant sensor values may not arrive simultaneously, Ingest uses **interpolation** to align them. Whenever one of the relevant sensors updates, Ingest recalculates the house power based on that timestamp.
 
+### Stale Sensors
+
+All configured sensors must contribute a value. If one of them is **older than 15 minutes**, Ingest skips the recalculation and writes no house power point.
+
+The formula needs every term. If a term is missing, the result is wrong. Ingest does not replace the missing term with a guess, so it writes nothing at all. A gap in the dashboard is better than a wrong value in the database.
+
+The stats page shows these skips as `Skipped (stale)`, plus a `Skipped by Sensor` list that names the sensors which caused them.
+
+So every configured sensor must send data **continuously**, even when its true value is zero. There are two different causes for a gap:
+
+- The sensor is **broken or offline** and sends nothing at all. Then the gap is correct. Ingest cannot know whether the true value is zero, so it shows no value instead of a wrong one. Repair the sensor or the collector.
+- The sensor still **sends, but without a value**. This is a configuration problem, and you can fix it in the collector. For the [MQTT-Collector](https://github.com/solectrus/mqtt-collector), set `MAPPING_X_NULL_TO_ZERO=true` to write a `0` when the payload holds no value. A balcony inverter that reports `null` at night is a typical example.
+
+### Output
+
 The calculated value replaces the original one. If you prefer to store the original value separately, you can define `INFLUX_SENSOR_HOUSE_POWER_CALCULATED` to write the result to a different measurement and/or field.
 
 ## Example Docker Compose
