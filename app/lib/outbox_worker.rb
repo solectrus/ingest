@@ -19,7 +19,7 @@ class OutboxWorker
     Outgoing.find_in_batches(batch_size: BATCH_SIZE) do |batch|
       groups =
         batch.group_by do |o|
-          Key.new(o.target_id, extract_timestamp(o.line_protocol))
+          Key.new(o.target_id, LineProtocolParser.timestamp(o.line_protocol))
         end
 
       groups.each_value do |outgoings|
@@ -35,10 +35,6 @@ class OutboxWorker
     end
 
     total_processed
-  end
-
-  def self.extract_timestamp(line)
-    line.split.last.to_i
   end
 
   def self.write_batch(outgoings, target)

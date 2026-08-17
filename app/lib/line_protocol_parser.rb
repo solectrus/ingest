@@ -34,8 +34,23 @@ class LineProtocolParser
   KEY_ESCAPE_REGEX = /\\([\\,= ])/
   VALUE_ESCAPE_REGEX = /\\([\\"])/
 
+  # Reads the timestamp alone. The outbox groups queued lines by it and must
+  # not pay for unescaping and value typing it never looks at. A line without a
+  # timestamp, and a line that does not parse, both answer nil.
+  def self.timestamp(line)
+    new(line).timestamp
+  rescue InvalidLineProtocolError
+    nil
+  end
+
   def initialize(line)
     @line = line.strip
+  end
+
+  def timestamp
+    _name_and_tags, rest = split_head
+
+    split_fields_and_time(rest).last
   end
 
   def parse
