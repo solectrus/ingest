@@ -9,7 +9,7 @@ Lightweight InfluxDB ingestion proxy with **buffering** and **house power calcul
 
 ## Features
 
-- Accepts InfluxDB v2 Line Protocol via HTTP
+- Accepts InfluxDB v2 [Line Protocol](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/) via HTTP, escaping included
 - Forwards all incoming data to InfluxDB
 - Recalculates house power and replaces incoming value
 - Buffers all incoming and outgoing data to SQLite

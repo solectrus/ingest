@@ -28,7 +28,7 @@ class Processor
 
   def store_incoming(point)
     now = Time.current
-    timestamp = target.timestamp_ns(point.time || now.to_i)
+    timestamp = target.timestamp_ns(point.timestamp || now.to_i)
 
     rows = point.fields.map do |field, value|
       {
@@ -100,7 +100,7 @@ class Processor
   def trigger_house_power_if_relevant(point)
     return unless SensorEnvConfig.relevant_for_house_power?(point)
 
-    HousePowerCalculator.new(target).recalculate(timestamp: point.time)
+    HousePowerCalculator.new(target).recalculate(timestamp: point.timestamp)
     true
   end
 end
