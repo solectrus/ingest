@@ -114,7 +114,7 @@ describe WriteRoute do
       end
     end
 
-    context 'when line protocol is invalid' do
+    context 'when every line is invalid' do
       it 'returns 400 with error message' do
         post_write(body: 'invalid_line')
 
@@ -123,6 +123,21 @@ describe WriteRoute do
         expect_default_header
         expect(Stats.counter(:http_response_400)).to eq(1)
         expect(Stats.sum(:http_duration_total)).to be > 0
+      end
+    end
+
+    context 'when only one line is invalid' do
+      it 'returns 204 and stores the valid line' do
+        expect { post_write(body: "invalid_line\n#{line}") }.to change(
+          Incoming,
+          :count,
+        ).by(1)
+
+        expect_status 204
+        expect_body nil
+        expect_default_header
+        expect(Stats.counter(:http_response_204)).to eq(1)
+        expect(Stats.counter(LineBatch::SKIPPED_STAT)).to eq(1)
       end
     end
 

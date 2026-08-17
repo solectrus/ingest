@@ -146,5 +146,84 @@ describe Processor do
         expect(cache).to be_nil
       end
     end
+
+    context 'when a line is malformed' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) do
+        ['SENEC inverter_power=abc 1000000000', 'SENEC inverter_power=500.0 2000000000']
+      end
+
+      before { Stats.reset!(LineBatch::SKIPPED_STAT) }
+
+      it 'does not raise' do
+        expect { run }.not_to raise_error
+      end
+
+      it 'stores the valid line only' do
+        expect { run }.to change(Incoming, :count).by(1)
+
+        expect(Incoming.last.timestamp).to eq(2_000_000_000)
+      end
+
+      it 'queues the valid line only' do
+        expect { run }.to change(Outgoing, :count).by(1)
+
+        expect(Outgoing.last.line_protocol).to eq(lines.last)
+      end
+
+      it 'counts the skipped line' do
+        run
+
+        expect(Stats.counter(LineBatch::SKIPPED_STAT)).to eq(1)
+      end
+    end
+
+    # The write route answers 400 for this, and the client reads that as
+    # "nothing was stored". So the batch must store nothing at all, or the
+    # retry writes a stored line a second time.
+    context 'when every line is malformed' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) do
+        ['SENEC inverter_power=abc 1000000000', 'SENEC inverter_power= 2000000000']
+      end
+
+      def attempt
+        run
+      rescue LineProtocolParser::InvalidLineProtocolError
+        nil
+      end
+
+      it 'raises' do
+        expect { run }.to raise_error(LineProtocolParser::InvalidLineProtocolError)
+      end
+
+      it 'stores no incoming row' do
+        expect { attempt }.not_to change(Incoming, :count)
+      end
+
+      it 'queues no outgoing line' do
+        expect { attempt }.not_to change(Outgoing, :count)
+      end
+    end
+
+    context 'when a line is blank' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) { ["\n", 'SENEC inverter_power=500.0 1000000000'] }
+
+      before { Stats.reset!(LineBatch::SKIPPED_STAT) }
+
+      it 'stores the other line' do
+        expect { run }.to change(Incoming, :count).by(1)
+      end
+
+      it 'does not count the blank line as skipped' do
+        run
+
+        expect(Stats.counter(LineBatch::SKIPPED_STAT)).to be_zero
+      end
+    end
   end
 end

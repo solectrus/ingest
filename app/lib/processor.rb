@@ -4,11 +4,11 @@ class Processor
   end
 
   def run(lines)
+    points = LineBatch.new(lines).points
+
     outbox_written = false
 
-    lines.each do |line|
-      point = Point.parse(line)
-
+    points.each do |point|
       Database.thread_safe_write do
         store_incoming(point)
         outbox_written |= enqueue_outgoing(point)

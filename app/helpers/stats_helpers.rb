@@ -9,6 +9,10 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
+  def skipped_lines
+    Stats.counter(LineBatch::SKIPPED_STAT)
+  end
+
   def calculation_count
     @calculation_count ||= Stats.counter(:house_power_recalculates)
   end
