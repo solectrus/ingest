@@ -33,6 +33,10 @@ describe StatsHelpers do
       expect(format_duration(3600 + (2 * 60))).to eq('1h 2m')
     end
 
+    it 'formats days, hours and minutes' do
+      expect(format_duration((2 * 86_400) + 3600 + 120)).to eq('2d 1h 2m')
+    end
+
     it 'rounds down incomplete minutes and seconds' do
       expect(format_duration(3661)).to eq('1h 1m') # 1 hour, 1 min, 1 sec → no secs shown
     end
@@ -188,6 +192,58 @@ describe StatsHelpers do
 
     it 'marks a high rate as crit' do
       expect(throughput_tag(25)).to eq('<small class="crit">25 /min</small>')
+    end
+  end
+
+  describe '#database_size' do
+    it 'returns the size of the database file' do
+      expect(database_size).to be_positive
+    end
+
+    it 'returns a dash if the file does not exist' do
+      allow(File).to receive(:size?).with(Database.file).and_return(nil)
+
+      expect(database_size).to eq('–')
+    end
+  end
+
+  describe '#cache_range' do
+    it 'returns nil for an empty cache' do
+      expect(cache_range).to be_nil
+    end
+
+    it 'returns the seconds between oldest and newest entry' do
+      cache = SensorValueCache.instance
+      cache.write(
+        measurement: 'SENEC',
+        field: 'a',
+        timestamp: 1_000_000_000,
+        value: 1,
+      )
+      cache.write(
+        measurement: 'SENEC',
+        field: 'b',
+        timestamp: 61_000_000_000,
+        value: 2,
+      )
+
+      expect(cache_range).to eq(60)
+    end
+  end
+
+  describe '#queue_oldest_age' do
+    it 'returns nil for an empty queue' do
+      expect(queue_oldest_age).to be_nil
+    end
+
+    it 'returns the age of the oldest entry' do
+      target = Target.create!(influx_token: 'foo', bucket: 'b', org: 'o')
+      target.outgoings.create!(
+        line_protocol: 'M f=1 1000',
+        created_at: 30.seconds.ago,
+      )
+
+      expect(queue_oldest_age).to be_within(5).of(30)
     end
   end
 
@@ -369,6 +425,13 @@ describe StatsHelpers do
   describe '#cpu_cores' do
     it 'counts the cores' do
       expect(send(:cpu_cores)).to be_positive
+    end
+
+    it 'asks nproc on Linux' do
+      allow(self).to receive(:macos?).and_return(false)
+      allow(self).to receive(:`).with('nproc').and_return("4\n")
+
+      expect(send(:cpu_cores)).to eq(4)
     end
 
     it 'falls back to a single core if the command fails' do

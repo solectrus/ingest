@@ -94,6 +94,16 @@ describe InfluxWriter do
       )
     end
 
+    it 'writes a single line given as a String' do
+      allow(write_api_double).to receive(:write)
+
+      described_class.write(lines.first, **params)
+
+      expect(write_api_double).to have_received(:write).with(
+        hash_including(data: lines.first),
+      )
+    end
+
     it 're-raises an InfluxError with an unexpected status code' do
       error =
         InfluxDB2::InfluxError.new(

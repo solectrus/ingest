@@ -15,6 +15,15 @@ describe BuildInfo do
     ENV.replace(original_env)
   end
 
+  context 'without a build time' do
+    # An empty BUILDTIME is blank, whatever the real environment holds
+    let(:env_vars) { { 'VERSION' => '1.2.3', 'BUILDTIME' => '' } }
+
+    it 'has no local build time' do
+      expect(described_class.local_built_at).to be_nil
+    end
+  end
+
   context 'with all environment variables present' do
     let(:env_vars) do
       {

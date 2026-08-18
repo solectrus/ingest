@@ -28,7 +28,7 @@ class SensorValueCache
     data
   end
 
-  if ENV['APP_ENV'] == 'test'
+  if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
     def reset!
       @mutex.synchronize { @cache.clear }
     end

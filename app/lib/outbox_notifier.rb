@@ -37,7 +37,7 @@ class OutboxNotifier
       end
     end
 
-    if ENV['APP_ENV'] == 'test'
+    if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
       # Drops a pending notification, so an example never sees a signal that
       # another example has left behind
       def reset!

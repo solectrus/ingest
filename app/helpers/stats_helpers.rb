@@ -24,19 +24,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def calculation_rate
-    return unless calculation_count&.positive?
+    return unless calculation_count.positive?
 
     60.0 * calculation_count / container_uptime
   end
 
   def calculation_cache_hits
-    return unless calculation_count&.positive?
+    return unless calculation_count.positive?
 
     100.0 * Stats.counter(:house_power_recalculate_cache_hits) / calculation_count
   end
 
   def calculation_skipped
-    return unless calculation_count&.positive?
+    return unless calculation_count.positive?
 
     100.0 * Stats.counter(:house_power_recalculate_skipped) / calculation_count
   end

@@ -89,6 +89,40 @@ describe HousePowerCalculator do
       end
     end
 
+    context 'when the formula has no result' do
+      before { allow(HousePowerFormula).to receive(:calculate).and_return(nil) }
+
+      it 'writes nothing' do
+        expect { calculator.recalculate(timestamp:) }.not_to change(
+          Outgoing,
+          :count,
+        )
+      end
+
+      it 'leaves house_power_last_success_at unset' do
+        calculator.recalculate(timestamp:)
+
+        expect(Stats.value(:house_power_last_success_at)).to be_nil
+      end
+    end
+
+    context 'when a sensor is configured without a field' do
+      before do
+        allow(SensorEnvConfig).to receive(:[]).and_call_original
+        allow(SensorEnvConfig).to receive(:[]).with(:inverter_power).and_return(
+          { measurement: 'SENEC', field: nil },
+        )
+      end
+
+      # The cache lookup gives up, so the calculator falls back to the
+      # interpolator, which drops the incomplete sensor
+      it 'does not count a cache hit' do
+        calculator.recalculate(timestamp:)
+
+        expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(0)
+      end
+    end
+
     describe 'last success timestamp' do
       it 'sets house_power_last_success_at after a successful write' do
         before_call = Time.now.to_i

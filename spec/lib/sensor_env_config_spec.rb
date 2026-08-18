@@ -108,6 +108,23 @@ describe SensorEnvConfig do
       it { is_expected.to be(true) }
     end
 
+    # `sensor_keys_for_house_power` drops a key without config, so the guard
+    # in the loop only triggers if the config changes in between
+    context 'when the config of a key disappears' do
+      let(:point) do
+        instance_double(Point, name: 'SENEC', fields: { 'inverter_power' => 1 })
+      end
+
+      before do
+        allow(described_class).to receive_messages(
+          sensor_keys_for_house_power: %i[inverter_power],
+          config: described_class.config.merge(inverter_power: nil),
+        )
+      end
+
+      it { is_expected.to be(false) }
+    end
+
     context 'when not relevant (field mismatch)' do
       let(:point) do
         instance_double(Point, name: 'SENEC', fields: { 'something_else' => 1 })

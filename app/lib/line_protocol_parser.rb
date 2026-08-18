@@ -118,7 +118,9 @@ class LineProtocolParser
           [key, parse_value(value)]
         end
 
-    invalid! if fields.empty?
+    # Defensive: `LineProtocolScanner.split` always answers at least one part,
+    # so an empty field set cannot reach this point today.
+    invalid! if fields.empty? # simplecov:disable branch
 
     fields
   end

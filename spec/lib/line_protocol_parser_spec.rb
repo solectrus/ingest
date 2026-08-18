@@ -1,4 +1,12 @@
 describe LineProtocolParser do
+  describe '#parse' do
+    it 'rejects a line with an empty field set' do
+      expect { described_class.new('M  1000').parse }.to raise_error(
+        LineProtocolParser::InvalidLineProtocolError,
+      )
+    end
+  end
+
   # The outbox groups queued lines by timestamp. Splitting on a bare space
   # reads the tail of a quoted string value, or an escaped measurement, as the
   # timestamp and groups the line under a value it never carried.

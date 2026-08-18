@@ -34,6 +34,14 @@ describe WriteRoute do
     end
   end
 
+  describe 'GET /unknown' do
+    it 'does not count as an HTTP request' do
+      expect { get '/unknown' }.not_to change {
+        Stats.counter(:http_requests)
+      }.from(0)
+    end
+  end
+
   describe 'POST /api/v2/write' do
     context 'with valid request' do
       it 'stores data and returns 204' do

@@ -273,6 +273,18 @@ describe Processor do
         expect(Stats.counter(LineBatch::SKIPPED_STAT)).to be_zero
       end
     end
+
+    context 'without any parsable line' do
+      subject(:run) { processor.run(['   ']) }
+
+      it 'stores nothing' do
+        expect { run }.not_to change(Incoming, :count)
+      end
+
+      it 'does not create a target' do
+        expect { run }.not_to change(Target, :count)
+      end
+    end
   end
 
   describe '#value_columns' do

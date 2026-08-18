@@ -94,4 +94,15 @@ describe Interpolator do
 
     expect(result[:inverter_power]).to eq(1100.0)
   end
+
+  describe '#run' do
+    context 'without configured sensors' do
+      it 'returns an empty hash' do
+        interpolator =
+          described_class.new(sensor_keys: [], timestamp: 1_000, max_age: 1_000)
+
+        expect(interpolator.run).to eq({})
+      end
+    end
+  end
 end

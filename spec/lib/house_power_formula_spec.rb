@@ -8,6 +8,18 @@ describe HousePowerFormula do
       end
     end
 
+    context 'without incoming sensors' do
+      it 'returns nil' do
+        expect(described_class.calculate(grid_export_power: 400)).to be_nil
+      end
+    end
+
+    context 'without outgoing sensors' do
+      it 'returns nil' do
+        expect(described_class.calculate(inverter_power: 3000)).to be_nil
+      end
+    end
+
     context 'with single inverter' do
       let(:powers) do
         {
