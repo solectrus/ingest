@@ -1,4 +1,10 @@
 describe Database do
+  describe '.compact!' do
+    it 'rebuilds the database file' do
+      expect { described_class.compact! }.not_to raise_error
+    end
+  end
+
   describe '.thread_safe_write' do
     it 'returns the value of the block' do
       expect(described_class.thread_safe_write { 42 }).to eq(42)

@@ -22,14 +22,33 @@ describe CleanupWorker do
   end
 
   describe '.run' do
-    before { described_class.run }
+    context 'when the database works' do
+      before { described_class.run }
 
-    it 'deletes old entries' do
-      expect(Incoming.exists?(old_entry.id)).to be false
+      it 'deletes old entries' do
+        expect(Incoming.exists?(old_entry.id)).to be false
+      end
+
+      it 'does not delete recent entries' do
+        expect(Incoming.exists?(recent_entry.id)).to be true
+      end
     end
 
-    it 'does not delete recent entries' do
-      expect(Incoming.exists?(recent_entry.id)).to be true
+    context 'when the database fails' do
+      before do
+        allow(Database).to receive(:thread_safe_write).and_raise(
+          ActiveRecord::StatementInvalid,
+          'database is locked',
+        )
+      end
+
+      it 'reports the error and does not raise' do
+        expect { described_class.run }.not_to raise_error
+      end
+
+      it 'keeps the entries' do
+        expect { described_class.run }.not_to change(Incoming, :count)
+      end
     end
   end
 

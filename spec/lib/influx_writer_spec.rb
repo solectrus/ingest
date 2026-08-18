@@ -94,6 +94,23 @@ describe InfluxWriter do
       )
     end
 
+    it 're-raises an InfluxError with an unexpected status code' do
+      error =
+        InfluxDB2::InfluxError.new(
+          message: 'connection reset',
+          code: nil,
+          reference: nil,
+          retry_after: nil,
+        )
+
+      allow(write_api_double).to receive(:write).and_raise(error)
+
+      expect { described_class.write(lines, **params) }.to raise_error(
+        InfluxDB2::InfluxError,
+        /connection reset/,
+      )
+    end
+
     it 're-raises network errors like SocketError' do
       allow(write_api_double).to receive(:write).and_raise(
         SocketError.new('host unreachable'),

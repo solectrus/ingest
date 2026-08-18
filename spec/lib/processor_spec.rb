@@ -278,4 +278,13 @@ describe Processor do
       end
     end
   end
+
+  describe '#value_columns' do
+    it 'rejects a value type the database has no column for' do
+      expect { processor.send(:value_columns, [1, 2]) }.to raise_error(
+        ArgumentError,
+        /Unsupported value type: Array/,
+      )
+    end
+  end
 end

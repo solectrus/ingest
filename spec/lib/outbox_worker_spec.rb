@@ -95,5 +95,31 @@ describe OutboxWorker do
 
       expect(described_class).to have_received(:run_once).at_least(:once)
     end
+
+    context 'when run_once raises' do
+      before do
+        allow(described_class).to receive(:sleep)
+
+        calls = 0
+        allow(described_class).to receive(:run_once) do
+          calls += 1
+          raise 'boom' if calls == 1
+
+          0
+        end
+      end
+
+      it 'reports the error and keeps the loop alive' do
+        thread = Thread.new { described_class.run_loop }
+
+        sleep 0.1
+        alive = thread.alive?
+        thread.kill
+        thread.join
+
+        expect(alive).to be true
+        expect(described_class).to have_received(:run_once).at_least(:twice)
+      end
+    end
   end
 end

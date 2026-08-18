@@ -1,5 +1,13 @@
 describe HousePowerFormula do
   describe '.calculate' do
+    context 'with an unknown sensor' do
+      it 'raises ArgumentError' do
+        expect do
+          described_class.calculate(inverter_power: 3000, unknown_power: 1)
+        end.to raise_error(ArgumentError, /Unknown keys: unknown_power/)
+      end
+    end
+
     context 'with single inverter' do
       let(:powers) do
         {
