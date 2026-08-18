@@ -208,6 +208,58 @@ describe Processor do
       end
     end
 
+    # The write route answers 500 for a database error, and the client retries
+    # the full batch. So the batch must store nothing at all, or the retry
+    # writes the lines before the error a second time.
+    context 'when the database fails in the middle of the batch' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) do
+        ['SENEC inverter_power=500.0 1000000000', 'SENEC inverter_power=600.0 2000000000']
+      end
+
+      before do
+        calls = 0
+
+        allow(Incoming).to receive(:insert_all!).and_wrap_original do |original, *args|
+          calls += 1
+          raise ActiveRecord::StatementInvalid, 'Boom!' if calls == 2
+
+          original.call(*args)
+        end
+      end
+
+      def attempt
+        run
+      rescue ActiveRecord::StatementInvalid
+        nil
+      end
+
+      it 'raises' do
+        expect { run }.to raise_error(ActiveRecord::StatementInvalid)
+      end
+
+      it 'stores no incoming row' do
+        expect { attempt }.not_to change(Incoming, :count)
+      end
+
+      it 'queues no outgoing line' do
+        expect { attempt }.not_to change(Outgoing, :count)
+      end
+
+      it 'creates no target' do
+        expect { attempt }.not_to change(Target, :count)
+      end
+
+      it 'does not notify the outbox' do
+        allow(OutboxNotifier).to receive(:notify!)
+
+        attempt
+
+        expect(OutboxNotifier).not_to have_received(:notify!)
+      end
+    end
+
     context 'when a line is blank' do
       subject(:run) { processor.run(lines) }
 

@@ -5,16 +5,25 @@ class Processor
 
   def run(lines)
     points = LineBatch.new(lines).points
+    return if points.empty?
 
     outbox_written = false
 
-    points.each do |point|
-      Database.thread_safe_write do
-        store_incoming(point)
-        outbox_written |= enqueue_outgoing(point)
+    # One transaction for the whole batch. A database error in the middle must
+    # not keep the lines before it. The write route answers 500 for such an
+    # error, and the client then retries the full batch. Without the
+    # transaction the retry writes those lines a second time.
+    #
+    # The lock spans the transaction, because a writer that releases it early
+    # lets a second writer run into the open transaction of the first.
+    Database.thread_safe_write do
+      ActiveRecord::Base.transaction do
+        points.each do |point|
+          store_incoming(point)
+          outbox_written |= enqueue_outgoing(point)
+          outbox_written |= trigger_house_power_if_relevant(point)
+        end
       end
-
-      outbox_written |= trigger_house_power_if_relevant(point)
     end
 
     OutboxNotifier.notify! if outbox_written

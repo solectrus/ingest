@@ -33,7 +33,15 @@ class Database
 
   WRITE_MUTEX = Mutex.new
 
+  # Serializes the writers. SQLite accepts one writer at a time, and the mutex
+  # keeps the others out instead of letting them fail as busy.
+  #
+  # The lock is reentrant, because a caller can hold it for a whole batch and
+  # still call a helper that locks for a single row. A plain `synchronize`
+  # raises ThreadError for that.
   def self.thread_safe_write(&)
+    return yield if WRITE_MUTEX.owned?
+
     WRITE_MUTEX.synchronize(&)
   end
 end
