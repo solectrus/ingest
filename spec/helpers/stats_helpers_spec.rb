@@ -39,8 +39,6 @@ describe StatsHelpers do
   end
 
   describe 'house power calculation stats' do
-    before { Stats.reset! }
-
     describe '#calculation_rate' do
       it 'returns nil without calculations' do
         expect(calculation_rate).to be_nil
@@ -111,8 +109,6 @@ describe StatsHelpers do
   end
 
   describe '#response_time' do
-    before { Stats.reset! }
-
     it 'returns nil without requests' do
       expect(response_time).to be_nil
     end

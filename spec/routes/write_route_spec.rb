@@ -34,8 +34,6 @@ describe WriteRoute do
     end
   end
 
-  before { Stats.reset! }
-
   describe 'POST /api/v2/write' do
     context 'with valid request' do
       it 'stores data and returns 204' do

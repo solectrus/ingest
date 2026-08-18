@@ -67,5 +67,14 @@ class SensorEnvConfig
       measurement, field = string.split(':', 2)
       { measurement:, field: }
     end
+
+    if ENV['APP_ENV'] == 'test'
+      def reset!
+        @config = nil
+        @exclude_from_house_power_keys = nil
+        @sensor_keys_for_house_power = nil
+        @house_power_destination = nil
+      end
+    end
   end
 end

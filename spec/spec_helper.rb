@@ -17,10 +17,17 @@ ActiveRecord::MigrationContext.new('db/migrate').up
 RSpec.configure { |conf| conf.include Rack::Test::Methods }
 
 RSpec.configure do |config|
+  # Every example starts with empty global state, so the examples stay
+  # independent of the order in which RSpec runs them.
   config.before do
     Incoming.delete_all
     Outgoing.delete_all
     Target.delete_all
+
+    SensorValueCache.instance.reset!
+    SensorEnvConfig.reset!
+    OutboxNotifier.reset!
+    Stats.reset!
   end
 
   config.before do
@@ -40,6 +47,9 @@ RSpec.configure do |config|
   config.mock_with :rspec do |mocks|
     mocks.verify_partial_doubles = true
   end
+
+  config.order = :random
+  Kernel.srand config.seed
 end
 
 def login

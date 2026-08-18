@@ -154,8 +154,6 @@ describe Processor do
         ['SENEC inverter_power=abc 1000000000', 'SENEC inverter_power=500.0 2000000000']
       end
 
-      before { Stats.reset!(LineBatch::SKIPPED_STAT) }
-
       it 'does not raise' do
         expect { run }.not_to raise_error
       end
@@ -264,8 +262,6 @@ describe Processor do
       subject(:run) { processor.run(lines) }
 
       let(:lines) { ["\n", 'SENEC inverter_power=500.0 1000000000'] }
-
-      before { Stats.reset!(LineBatch::SKIPPED_STAT) }
 
       it 'stores the other line' do
         expect { run }.to change(Incoming, :count).by(1)

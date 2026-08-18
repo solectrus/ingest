@@ -1,11 +1,4 @@
 describe SensorEnvConfig do
-  before do
-    described_class.instance_variable_set(:@config, nil)
-    described_class.instance_variable_set(:@exclude_from_house_power_keys, nil)
-    described_class.instance_variable_set(:@sensor_keys_for_house_power, nil)
-    described_class.instance_variable_set(:@house_power_destination, nil)
-  end
-
   describe '.house_power_calculated' do
     subject { described_class.house_power_calculated }
 

@@ -34,11 +34,6 @@ describe HousePowerCalculator do
     end
   end
 
-  after do
-    SensorValueCache.instance.reset!
-    Stats.reset!
-  end
-
   describe '#recalculate' do
     it 'calculates house power and stores outgoing line' do
       expect { calculator.recalculate(timestamp:) }.to change(Outgoing, :count).by(1)

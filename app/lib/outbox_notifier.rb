@@ -36,5 +36,13 @@ class OutboxNotifier
         @notified = false
       end
     end
+
+    if ENV['APP_ENV'] == 'test'
+      # Drops a pending notification, so an example never sees a signal that
+      # another example has left behind
+      def reset!
+        @mutex.synchronize { @notified = false }
+      end
+    end
   end
 end
