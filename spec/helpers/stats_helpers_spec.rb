@@ -245,6 +245,21 @@ describe StatsHelpers do
 
       expect(queue_oldest_age).to be_within(5).of(30)
     end
+
+    # The queue grows in order, so the row with the lowest id is the oldest.
+    it 'returns the age of the oldest of several entries' do
+      target = Target.create!(influx_token: 'foo', bucket: 'b', org: 'o')
+      target.outgoings.create!(
+        line_protocol: 'M f=1 1000',
+        created_at: 60.seconds.ago,
+      )
+      target.outgoings.create!(
+        line_protocol: 'M f=2 2000',
+        created_at: 30.seconds.ago,
+      )
+
+      expect(queue_oldest_age).to be_within(5).of(60)
+    end
   end
 
   describe '#memory_usage' do
