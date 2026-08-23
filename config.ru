@@ -8,10 +8,14 @@ end
 
 StartupMessage.print!
 
-puts 'Compacting database...'
-Database.compact!
-puts 'Done.'
-puts
+# A VACUUM rewrites the whole file. It ran on every boot before, at the moment
+# the collectors flush their buffers into a container that just started.
+unless Database.auto_vacuum_incremental?
+  puts 'Compacting database...'
+  Database.compact!
+  puts 'Done.'
+  puts
+end
 
 puts 'Checking database schema...'
 context = ActiveRecord::MigrationContext.new('db/migrate')

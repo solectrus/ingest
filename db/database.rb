@@ -23,6 +23,17 @@ class Database
     ActiveRecord::Base.connection.execute('PRAGMA auto_vacuum = INCREMENTAL')
   end
 
+  AUTO_VACUUM_INCREMENTAL = 2
+
+  # SQLite ignores `PRAGMA auto_vacuum` on a database that already holds data.
+  # A VACUUM applies the mode, and the database keeps it from then on. So the
+  # boot needs a VACUUM only for a database that a version without the mode
+  # wrote.
+  def self.auto_vacuum_incremental?
+    ActiveRecord::Base.connection.select_value('PRAGMA auto_vacuum') ==
+      AUTO_VACUUM_INCREMENTAL
+  end
+
   def self.compact!
     ActiveRecord::Base.connection.execute('VACUUM')
   end
