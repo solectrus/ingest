@@ -20,11 +20,8 @@ class Processor
       ActiveRecord::Base.transaction do
         now = Time.current
 
-        points.each do |point|
-          store_incoming(point, now)
-          outbox_written |= enqueue_outgoing(point)
-        end
-
+        store_incoming(points, now)
+        outbox_written = outgoing_enqueued?(points, now)
         outbox_written |= house_power_recalculated?(points, now)
       end
     end
@@ -38,10 +35,22 @@ class Processor
     @target ||= Target.find_or_create_by!(**@target_args)
   end
 
-  def store_incoming(point, now)
+  # The whole request goes to the database in one statement. One statement per
+  # point held the write lock for 700 inserts of a 700 line request.
+  def store_incoming(points, now)
+    rows = points.flat_map { |point| incoming_rows(point, now) }
+
+    # Bulk insert rows without callbacks and validations
+    Incoming.insert_all!(rows)
+
+    # Callbacks are skipped by `insert_all!`, so we need to manually cache the values
+    cache_values_from_rows(rows)
+  end
+
+  def incoming_rows(point, now)
     timestamp = target.timestamp_ns(point.timestamp || now.to_i)
 
-    rows = point.fields.map do |field, value|
+    point.fields.map do |field, value|
       {
         target_id: target.id,
         timestamp:,
@@ -51,12 +60,6 @@ class Processor
         created_at: now,
       }.merge(Incoming.value_columns(value))
     end
-
-    # Bulk insert rows without callbacks and validations
-    Incoming.insert_all!(rows)
-
-    # Callbacks are skipped by `insert_all!`, so we need to manually cache the values
-    cache_values_from_rows(rows)
   end
 
   def cache_values_from_rows(rows)
@@ -78,16 +81,32 @@ class Processor
     row[:value_int] || row[:value_float]
   end
 
-  def enqueue_outgoing(point)
-    house = SensorEnvConfig.house_power_destination
+  def outgoing_enqueued?(points, now)
+    rows =
+      points.filter_map do |point|
+        drop_house_power(point)
+        next if point.fields.empty?
 
-    if point.name == house[:measurement] && point.fields.key?(house[:field])
-      point.fields.delete(house[:field])
-      return if point.fields.empty?
-    end
+        {
+          target_id: target.id,
+          line_protocol: point.to_line_protocol,
+          created_at: now,
+        }
+      end
 
-    Outgoing.create!(target:, line_protocol: point.to_line_protocol)
+    return false if rows.empty?
+
+    Outgoing.insert_all!(rows)
     true
+  end
+
+  # Ingest calculates house power itself and replaces the incoming value, so
+  # the incoming field never reaches InfluxDB.
+  def drop_house_power(point)
+    house = SensorEnvConfig.house_power_destination
+    return unless point.name == house[:measurement]
+
+    point.fields.delete(house[:field])
   end
 
   # House power depends on every sensor at one point in time, so one timestamp

@@ -1,4 +1,17 @@
 describe Processor do
+  # Counts the INSERTs into one table of a block.
+  def statements_on(table)
+    count = 0
+    subscriber =
+      ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        count += 1 if payload[:sql].start_with?(%(INSERT INTO "#{table}"))
+      end
+    yield
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   subject(:processor) do
     described_class.new(influx_token:, bucket:, org:, precision:)
   end
@@ -77,6 +90,24 @@ describe Processor do
     # House power holds for one point in time, so every sensor of that
     # timestamp shares one calculation. Calculating per line repeated the same
     # work once per sensor and queued the same result as often.
+    # One statement per point held the write lock of the whole process for as
+    # many inserts as the request had lines. Every other collector waited.
+    context 'when the batch carries many lines' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) do
+        1.upto(50).map { |i| "SENEC system_status_ok#{i}=true 1000000000" }
+      end
+
+      it 'stores the incoming rows in one statement' do
+        expect(statements_on('incomings') { run }).to eq(1)
+      end
+
+      it 'queues the outgoing lines in one statement' do
+        expect(statements_on('outgoings') { run }).to eq(1)
+      end
+    end
+
     context 'when a batch carries several sensors per timestamp' do
       subject(:run) { processor.run(lines) }
 
@@ -285,15 +316,12 @@ describe Processor do
         ['SENEC inverter_power=500.0 1000000000', 'SENEC inverter_power=600.0 2000000000']
       end
 
+      # The incoming rows are stored, and the queue write fails after them.
       before do
-        calls = 0
-
-        allow(Incoming).to receive(:insert_all!).and_wrap_original do |original, *args|
-          calls += 1
-          raise ActiveRecord::StatementInvalid, 'Boom!' if calls == 2
-
-          original.call(*args)
-        end
+        allow(Outgoing).to receive(:insert_all!).and_raise(
+          ActiveRecord::StatementInvalid,
+          'Boom!',
+        )
       end
 
       def attempt
