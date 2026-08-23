@@ -18,11 +18,14 @@ class Processor
     # lets a second writer run into the open transaction of the first.
     Database.thread_safe_write do
       ActiveRecord::Base.transaction do
+        now = Time.current
+
         points.each do |point|
-          store_incoming(point)
+          store_incoming(point, now)
           outbox_written |= enqueue_outgoing(point)
-          outbox_written |= trigger_house_power_if_relevant(point)
         end
+
+        outbox_written |= house_power_recalculated?(points, now)
       end
     end
 
@@ -35,8 +38,7 @@ class Processor
     @target ||= Target.find_or_create_by!(**@target_args)
   end
 
-  def store_incoming(point)
-    now = Time.current
+  def store_incoming(point, now)
     timestamp = target.timestamp_ns(point.timestamp || now.to_i)
 
     rows = point.fields.map do |field, value|
@@ -106,10 +108,30 @@ class Processor
     true
   end
 
-  def trigger_house_power_if_relevant(point)
-    return unless SensorEnvConfig.relevant_for_house_power?(point)
+  # House power depends on every sensor at one point in time, so one timestamp
+  # needs one calculation. A batch carries one line per sensor, and calculating
+  # per line repeated the same work for every sensor of that timestamp.
+  #
+  # The calculation runs after the batch is stored. It then reads every sample
+  # of the batch, not only the ones before the current line.
+  def house_power_recalculated?(points, now)
+    timestamps = house_power_timestamps(points, now)
+    return false if timestamps.empty?
 
-    HousePowerCalculator.new(target).recalculate(timestamp: point.timestamp)
+    calculator = HousePowerCalculator.new(target)
+    timestamps.each { |timestamp| calculator.recalculate(timestamp:) }
     true
+  end
+
+  def house_power_timestamps(points, now)
+    points
+      .filter_map do |point|
+        next unless SensorEnvConfig.relevant_for_house_power?(point)
+
+        # A line without a timestamp is stored under the time of the request,
+        # so the calculation uses that same time.
+        point.timestamp || now.to_i
+      end
+      .uniq
   end
 end

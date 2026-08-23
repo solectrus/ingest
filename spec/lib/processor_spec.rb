@@ -74,6 +74,75 @@ describe Processor do
       end
     end
 
+    # House power holds for one point in time, so every sensor of that
+    # timestamp shares one calculation. Calculating per line repeated the same
+    # work once per sensor and queued the same result as often.
+    context 'when a batch carries several sensors per timestamp' do
+      subject(:run) { processor.run(lines) }
+
+      let(:lines) do
+        [
+          'SENEC inverter_power=500.0 1000000000',
+          'SENEC grid_power_plus=100.0 1000000000',
+          'SENEC bat_power_plus=200.0 1000000000',
+          'SENEC inverter_power=600.0 2000000000',
+          'SENEC grid_power_plus=150.0 2000000000',
+        ]
+      end
+
+      before do
+        allow(HousePowerCalculator).to receive(:new).and_return(house_calc)
+      end
+
+      def house_calc
+        @house_calc ||= instance_spy(HousePowerCalculator)
+      end
+
+      it 'recalculates once per timestamp' do
+        run
+
+        expect(house_calc).to have_received(:recalculate).twice
+        expect(house_calc).to have_received(:recalculate).with(
+          timestamp: 1_000_000_000,
+        ).once
+        expect(house_calc).to have_received(:recalculate).with(
+          timestamp: 2_000_000_000,
+        ).once
+      end
+
+      # The calculation reads the samples of the batch, so it must run after
+      # every line of the batch is stored.
+      it 'recalculates after the batch is stored' do
+        allow(house_calc).to receive(:recalculate) do
+          expect(Incoming.count).to eq(lines.size)
+        end
+
+        run
+
+        expect(house_calc).to have_received(:recalculate).twice
+      end
+    end
+
+    context 'when a relevant line carries no timestamp' do
+      subject(:run) { processor.run(['SENEC inverter_power=500.0']) }
+
+      let(:house_calc) { instance_spy(HousePowerCalculator) }
+
+      before do
+        allow(HousePowerCalculator).to receive(:new).and_return(house_calc)
+      end
+
+      # The line is stored under the time of the request, so the calculation
+      # uses that same time.
+      it 'recalculates for the stored timestamp' do
+        run
+
+        expect(house_calc).to have_received(:recalculate).with(
+          timestamp: Incoming.last.timestamp,
+        )
+      end
+    end
+
     context 'when line contains house_power and others' do
       let(:line) { 'SENEC house_power=300i,grid_power_plus=500i 1000000000' }
 
