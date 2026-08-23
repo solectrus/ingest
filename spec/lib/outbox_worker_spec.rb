@@ -1,4 +1,17 @@
 describe OutboxWorker do
+  # Counts the SELECTs on the targets table of a block.
+  def target_queries
+    count = 0
+    subscriber =
+      ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        count += 1 if payload[:sql].include?('"targets"')
+      end
+    yield
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   let(:target) do
     Target.create!(
       influx_token: 'test-token',
@@ -23,27 +36,66 @@ describe OutboxWorker do
           expect(processed).to eq(3)
         end.to change(Outgoing, :count).by(-3)
       end
+
+      # Line protocol carries the timestamp per line, so one request holds the
+      # lines of every timestamp. One request per timestamp made a backlog need
+      # as many connections as the collector had polls.
+      it 'sends the lines of all timestamps in one request' do
+        described_class.run_once
+
+        expect(InfluxWriter).to have_received(:write).once.with(
+          [
+            'measurement1 field=1 1000',
+            'measurement2 field=2 1000',
+            'measurement3 field=3 2000',
+          ],
+          anything,
+        )
+      end
+
+      # The target was read per group before, so a backlog of many timestamps
+      # ran one SELECT per timestamp.
+      it 'loads the target of a batch once' do
+        expect(target_queries { described_class.run_once }).to eq(1)
+      end
+    end
+
+    context 'with two targets' do
+      let(:other_target) do
+        Target.create!(
+          influx_token: 'other-token',
+          bucket: 'other-bucket',
+          org: 'other-org',
+        )
+      end
+
+      before do
+        other_target.outgoings.create!(line_protocol: 'measurement4 field=4 1000')
+        allow(InfluxWriter).to receive(:write).and_return(true)
+      end
+
+      it 'sends one request per target' do
+        described_class.run_once
+
+        expect(InfluxWriter).to have_received(:write).twice
+        expect(InfluxWriter).to have_received(:write).with(
+          ['measurement4 field=4 1000'],
+          hash_including(influx_token: 'other-token'),
+        )
+      end
     end
 
     context 'when a permanent write fails (ClientError)' do
       before do
-        # Default write is OK
-        allow(InfluxWriter).to receive(:write).and_return(true)
-
-        # Simulate error for timestamp = 1000
-        allow(InfluxWriter).to receive(:write).with(
-          a_collection_including(
-            'measurement1 field=1 1000',
-            'measurement2 field=2 1000',
-          ),
-          anything,
-        ).and_raise(InfluxWriter::ClientError.new('invalid token'))
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ClientError.new('invalid token'),
+        )
       end
 
-      it 'deletes only permanently failed and successfully written outgoings' do
+      it 'deletes the outgoings it cannot ever write' do
         expect do
           processed = described_class.run_once
-          expect(processed).to eq(1) # only timestamp=2000 counts
+          expect(processed).to eq(0)
         end.to change(Outgoing, :count).by(-3)
 
         expect(Outgoing.pluck(:line_protocol)).to be_empty
@@ -52,28 +104,72 @@ describe OutboxWorker do
 
     context 'when a temporary write fails (ServerError)' do
       before do
-        # Default write ist OK
-        allow(InfluxWriter).to receive(:write).and_return(true)
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ServerError.new('Influx down'),
+        )
+      end
 
-        # Simulate error for timestamp = 1000
+      it 'keeps the outgoings for the next pass' do
+        expect do
+          processed = described_class.run_once
+          expect(processed).to eq(0)
+        end.not_to change(Outgoing, :count)
+      end
+    end
+
+    # A queue of 100,000 rows must not run into 200 timeouts of 10 seconds
+    # each. One failure per target and pass is enough.
+    context 'when a target is unreachable' do
+      before do
+        # Enough rows for a second batch, so a pass that does not skip the
+        # target would write twice.
+        1.upto(described_class::BATCH_SIZE) do |i|
+          target.outgoings.create!(line_protocol: "m field=#{i} 1000")
+        end
+
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ServerError.new('Influx down'),
+        )
+      end
+
+      it 'tries the target once per pass' do
+        described_class.run_once
+
+        expect(InfluxWriter).to have_received(:write).once
+      end
+    end
+
+    # A target that InfluxDB cannot reach must not hold back the queue of
+    # another target.
+    context 'when one of two targets is unreachable' do
+      let(:other_target) do
+        Target.create!(
+          influx_token: 'other-token',
+          bucket: 'other-bucket',
+          org: 'other-org',
+        )
+      end
+
+      before do
+        other_target.outgoings.create!(line_protocol: 'measurement4 field=4 1000')
+
+        allow(InfluxWriter).to receive(:write).and_return(true)
         allow(InfluxWriter).to receive(:write).with(
-          a_collection_including(
-            'measurement1 field=1 1000',
-            'measurement2 field=2 1000',
-          ),
           anything,
+          hash_including(influx_token: target.influx_token),
         ).and_raise(InfluxWriter::ServerError.new('Influx down'))
       end
 
-      it 'keeps outgoings that failed temporarily and deletes successful ones' do
+      it 'writes the reachable target and keeps the other queued' do
         expect do
           processed = described_class.run_once
-          expect(processed).to eq(1) # only timestamp=2000 counts
+          expect(processed).to eq(1)
         end.to change(Outgoing, :count).by(-1)
 
         expect(Outgoing.pluck(:line_protocol)).to contain_exactly(
           'measurement1 field=1 1000',
           'measurement2 field=2 1000',
+          'measurement3 field=3 2000',
         )
       end
     end
