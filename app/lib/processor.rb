@@ -49,7 +49,7 @@ class Processor
         tags: point.tags,
         field:,
         created_at: now,
-      }.merge(value_columns(value))
+      }.merge(Incoming.value_columns(value))
     end
 
     # Bulk insert rows without callbacks and validations
@@ -70,24 +70,6 @@ class Processor
         timestamp: row[:timestamp],
         value:,
       )
-    end
-  end
-
-  def value_columns(value)
-    {
-      value_int: nil,
-      value_float: nil,
-      value_string: nil,
-      value_bool: nil,
-    }.tap do |result|
-      case value
-      when Integer               then result[:value_int] = value
-      when Float                 then result[:value_float] = value
-      when String                then result[:value_string] = value
-      when TrueClass, FalseClass then result[:value_bool] = value
-      else
-        raise ArgumentError, "Unsupported value type: #{value.class}"
-      end
     end
   end
 

@@ -7,24 +7,28 @@ class Incoming < ActiveRecord::Base
   before_validation :set_default_timestamp
   after_create :cache_sensor_value
 
-  def value=(val)
-    self.value_int = nil
-    self.value_float = nil
-    self.value_string = nil
-    self.value_bool = nil
-    return if val.nil?
+  VALUE_COLUMNS = %i[value_int value_float value_string value_bool].freeze
 
-    case val
-    when Integer
-      self.value_int = val
-    when Float
-      self.value_float = val
-    when TrueClass, FalseClass
-      self.value_bool = val
-    when String
-      self.value_string = val
+  # Maps a value to the column that holds its type. `insert_all!` skips the
+  # setter, so the mapping must be reachable without an instance.
+  def self.value_columns(val)
+    VALUE_COLUMNS.index_with(nil).tap do |result|
+      case val
+      when Integer               then result[:value_int] = val
+      when Float                 then result[:value_float] = val
+      when String                then result[:value_string] = val
+      when TrueClass, FalseClass then result[:value_bool] = val
+      else
+        raise ArgumentError, "Unsupported value type: #{val.class}"
+      end
+    end
+  end
+
+  def value=(val)
+    if val.nil?
+      VALUE_COLUMNS.each { |column| self[column] = nil }
     else
-      raise ArgumentError, "Unsupported value type: #{val.class}"
+      assign_attributes(self.class.value_columns(val))
     end
   end
 
