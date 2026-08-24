@@ -29,6 +29,12 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     60.0 * calculation_count / container_uptime
   end
 
+  # A backfill asks for older timestamps than the cache holds, so it misses
+  # every time. The queries show what those misses cost.
+  def interpolate_queries
+    @interpolate_queries ||= Stats.counter(:interpolate_queries)
+  end
+
   def calculation_cache_hits
     return unless calculation_count.positive?
 

@@ -21,6 +21,11 @@ class Interpolator
     return {} if sensors.empty? || timestamps.empty?
 
     windows.each_with_object({}) do |group, result|
+      # One query per window. The count tells a reader of the statistics page
+      # what a cache miss costs: a backfill misses the cache for every
+      # timestamp, but the misses of one window share a single query.
+      Stats.inc(:interpolate_queries)
+
       window =
         SampleWindow.load(
           pairs: sensor_pairs,

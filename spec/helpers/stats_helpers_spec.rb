@@ -69,6 +69,18 @@ describe StatsHelpers do
       end
     end
 
+    describe '#interpolate_queries' do
+      it 'returns zero without queries' do
+        expect(interpolate_queries).to eq(0)
+      end
+
+      it 'returns the number of interpolator queries' do
+        3.times { Stats.inc(:interpolate_queries) }
+
+        expect(interpolate_queries).to eq(3)
+      end
+    end
+
     describe '#calculation_skipped' do
       it 'returns nil without calculations' do
         expect(calculation_skipped).to be_nil

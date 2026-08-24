@@ -50,6 +50,9 @@
       <dt>Cache hits</dt>
       <dd><%= value_or_dash(calculation_cache_hits) { |v| number_to_percentage(v, precision: 0) } %></dd>
 
+      <dt>Interpolator queries</dt>
+      <dd><%= number_to_delimited(interpolate_queries) %></dd>
+
       <dt>Skipped (stale)</dt>
       <dd><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
 
