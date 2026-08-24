@@ -12,6 +12,39 @@ describe Processor do
     ActiveSupport::Notifications.unsubscribe(subscriber)
   end
 
+  def configured_house_power_pairs
+    SensorEnvConfig
+      .sensor_keys_for_house_power
+      .map { |key| SensorEnvConfig[key].values_at(:measurement, :field) }
+      .uniq
+  end
+
+  def buffered_house_power_lines(timestamps)
+    timestamps.flat_map do |timestamp|
+      configured_house_power_pairs.map do |measurement, field|
+        "#{measurement} #{field}=100.0 #{timestamp}"
+      end
+    end
+  end
+
+  def cache_house_power_sensors(target, timestamp)
+    configured_house_power_pairs.each do |measurement, field|
+      target.incomings.create!(
+        measurement:,
+        field:,
+        timestamp:,
+        value: 200.0,
+      )
+    end
+  end
+
+  def queued_house_power_lines
+    house = SensorEnvConfig.house_power_destination
+    prefix = "#{house[:measurement]} #{house[:field]}="
+
+    Outgoing.pluck(:line_protocol).select { |line| line.start_with?(prefix) }
+  end
+
   subject(:processor) do
     described_class.new(influx_token:, bucket:, org:, precision:)
   end
@@ -152,6 +185,26 @@ describe Processor do
 
         expect(house_calc).to have_received(:recalculate_many).once
       end
+    end
+
+    # Reproduces #353: after an outage, the cache still holds live values that
+    # are newer than every value in the collector's buffered request. None of
+    # the buffered rows can replace or satisfy that cache entry, so every
+    # timestamp has to be answered by the interpolator.
+    it 'answers a buffered batch older than the cache with one query' do
+      target = Target.create!(influx_token:, bucket:, org:, precision:)
+      timestamps =
+        Array.new(100) { |i| 1_000_000_000_000 + (i * 5_000_000_000) }
+
+      cache_house_power_sensors(target, timestamps.last + 5_000_000_000)
+      processor.run(buffered_house_power_lines(timestamps))
+
+      house_lines = queued_house_power_lines
+
+      expect(Stats.counter(:house_power_recalculate_cache_hits)).to be_zero
+      expect(Stats.counter(:interpolate_queries)).to eq(1)
+      expect(house_lines.size).to eq(timestamps.size)
+      expect(house_lines.map { |line| line.split.last.to_i }).to match_array(timestamps)
     end
 
     context 'when a relevant line carries no timestamp' do
