@@ -78,8 +78,14 @@ COPY --from=builder /app /app
 # Expose Sinatra port
 EXPOSE 4567
 
-# Healthcheck using endpoint "/health"
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+# Healthcheck using endpoint "/ping".
+# During the start period, Docker probes every second. Thus the container gets
+# the "healthy" status as soon as Puma listens. Without "start-interval", a
+# boot that needs more than 5 seconds keeps the container in "starting" until
+# the next regular probe, 30 seconds later. Orchestrators (Docker Swarm) hold
+# the task in state "starting" for that time, and a reverse proxy in front of
+# it can answer 404 until the task becomes "running".
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=1s --retries=3 \
     CMD ["curl", "-fs", "http://localhost:4567/ping"]
 
 ENTRYPOINT ["bundle", "exec"]
