@@ -26,27 +26,28 @@ end
 puts 'Up to date.'
 puts
 
-def run_background_thread(name)
+# The message comes from the caller, not from the thread. A thread prints when
+# it gets scheduled, which is after the boot continues, so its line lands in
+# the middle of the output of the web server.
+def run_background_thread(name, &)
+  puts "Starting #{name}..."
+
   Thread.new do
     Thread.current.name = name if Thread.current.respond_to?(:name=)
 
     loop do
-      ActiveRecord::Base.connection_pool.with_connection do
-        puts "Starting #{name}..."
-        yield
-      rescue StandardError => e
-        warn "[#{name}] Error: #{e.class} - #{e.message}"
-        warn e.backtrace.join("\n")
-        sleep 5
-      end
+      ActiveRecord::Base.connection_pool.with_connection(&)
+    rescue StandardError => e
+      warn "[#{name}] Error: #{e.class} - #{e.message}"
+      warn e.backtrace.join("\n")
+      sleep 5
+      warn "[#{name}] Restarting..."
     end
   end
 end
 
-sleep 1
 run_background_thread('OutboxWorker') { OutboxWorker.run_loop }
 run_background_thread('CleanupWorker') { CleanupWorker.run_loop }
-sleep 1
 puts
 
 run App
