@@ -115,13 +115,14 @@ class Processor
   #
   # The calculation runs after the batch is stored. It then reads every sample
   # of the batch, not only the ones before the current line.
+  #
+  # The whole batch goes to the calculator at once, so it can answer every
+  # timestamp with a few queries and queue the results in one statement.
   def house_power_recalculated?(points, now)
     timestamps = house_power_timestamps(points, now)
     return false if timestamps.empty?
 
-    calculator = HousePowerCalculator.new(target)
-    timestamps.each { |timestamp| calculator.recalculate(timestamp:) }
-    true
+    HousePowerCalculator.new(target).recalculate_many(timestamps:).positive?
   end
 
   def house_power_timestamps(points, now)

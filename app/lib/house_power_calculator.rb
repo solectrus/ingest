@@ -8,37 +8,81 @@ class HousePowerCalculator
 
   attr_reader :target
 
-  def recalculate(timestamp:)
-    Stats.inc(:house_power_recalculates)
+  # Calculates house power for every timestamp of one request and queues the
+  # results in one statement. Returns how many lines it queued.
+  #
+  # One timestamp at a time was used before. A backfill carries one timestamp
+  # per collector poll, so a request of 5000 points made 5000 queries and 5000
+  # inserts, all of them inside the write lock of the process.
+  def recalculate_many(timestamps:)
+    timestamps_ns = timestamps.map { target.timestamp_ns(it) }.uniq
+    return 0 if timestamps_ns.empty?
 
-    timestamp_ns = target.timestamp_ns(timestamp)
+    Stats.inc(:house_power_recalculates, timestamps_ns.size)
 
-    powers = fetch_cached_powers(timestamp_ns)
-    if powers
-      Stats.inc(:house_power_recalculate_cache_hits)
-    else
-      powers = interpolate_powers(timestamp_ns)
-      unless all_sensors_present?(powers)
-        track_stale_skip(powers)
-        return
-      end
-    end
+    rows = build_rows(powers_per_timestamp(timestamps_ns))
+    return 0 if rows.empty?
 
-    house_power = HousePowerFormula.calculate(**powers)
-    return unless house_power
-
-    write_house_power(house_power, timestamp_ns)
+    Database.thread_safe_write { Outgoing.insert_all!(rows) }
     Stats.set(:house_power_last_success_at, Time.current.to_i)
+    rows.size
   end
 
   private
 
-  def all_sensors_present?(powers)
-    sensor_keys.all? { |key| powers.key?(key) }
+  # The cache answers a timestamp without a query, but it holds the newest
+  # value of a sensor only. A backfill asks for older timestamps, so those
+  # miss it. They go to the interpolator together, in one call.
+  def powers_per_timestamp(timestamps_ns)
+    result = {}
+    uncached = []
+
+    timestamps_ns.each do |timestamp_ns|
+      if (powers = fetch_cached_powers(timestamp_ns))
+        Stats.inc(:house_power_recalculate_cache_hits)
+        result[timestamp_ns] = powers
+      else
+        uncached << timestamp_ns
+      end
+    end
+
+    add_interpolated(result, uncached)
+    result
   end
 
-  def track_stale_skip(powers)
-    missing = sensor_keys.reject { |key| powers.key?(key) }
+  def add_interpolated(result, timestamps_ns)
+    return if timestamps_ns.empty?
+
+    interpolated = interpolate_powers(timestamps_ns)
+
+    timestamps_ns.each do |timestamp_ns|
+      powers = interpolated[timestamp_ns] || {}
+      missing = sensor_keys.reject { |key| powers.key?(key) }
+
+      if missing.empty?
+        result[timestamp_ns] = powers
+      else
+        track_stale_skip(missing)
+      end
+    end
+  end
+
+  def build_rows(powers)
+    now = Time.current
+
+    powers.filter_map do |timestamp_ns, sensor_powers|
+      house_power = HousePowerFormula.calculate(**sensor_powers)
+      next unless house_power
+
+      {
+        target_id: target.id,
+        line_protocol: line_protocol(house_power, timestamp_ns),
+        created_at: now,
+      }
+    end
+  end
+
+  def track_stale_skip(missing)
     Stats.inc_many(
       [
         :house_power_recalculate_skipped,
@@ -66,28 +110,23 @@ class HousePowerCalculator
     end
   end
 
-  def interpolate_powers(timestamp_ns)
+  def interpolate_powers(timestamps_ns)
     Interpolator.new(
-      timestamp: timestamp_ns,
+      timestamps: timestamps_ns,
       sensor_keys:,
       max_age: MAX_SENSOR_AGE_NS,
     ).run
   end
 
-  def write_house_power(house_power, timestamp_ns)
-    point =
-      InfluxDB2::Point.new(
-        name: SensorEnvConfig.house_power_destination[:measurement],
-        fields: {
-          SensorEnvConfig.house_power_destination[:field] => house_power.round,
-        },
-        time: target.timestamp(timestamp_ns),
-        precision: target.precision,
-      )
-
-    Database.thread_safe_write do
-      target.outgoings.create!(line_protocol: point.to_line_protocol)
-    end
+  def line_protocol(house_power, timestamp_ns)
+    InfluxDB2::Point.new(
+      name: SensorEnvConfig.house_power_destination[:measurement],
+      fields: {
+        SensorEnvConfig.house_power_destination[:field] => house_power.round,
+      },
+      time: target.timestamp(timestamp_ns),
+      precision: target.precision,
+    ).to_line_protocol
   end
 
   def sensor_keys

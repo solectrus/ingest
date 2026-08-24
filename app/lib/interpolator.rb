@@ -1,8 +1,11 @@
-class Interpolator # rubocop:disable Metrics/ClassLength
-  Sample = Struct.new(:measurement, :field, :timestamp, :value, :direction)
+class Interpolator
+  # How much time one window covers. One window costs one query, and that
+  # query reads every sample of its period. The period sets how many rows that
+  # is, so this limit alone bounds the cost.
+  MAX_WINDOW_SPAN_NS = 30.minutes.to_i * 1_000_000_000
 
-  def initialize(sensor_keys:, timestamp:, max_age:)
-    @timestamp = timestamp
+  def initialize(sensor_keys:, timestamps:, max_age:)
+    @timestamps = Array(timestamps).uniq.sort
     @max_age = max_age
     @sensors =
       sensor_keys
@@ -13,109 +16,63 @@ class Interpolator # rubocop:disable Metrics/ClassLength
         .to_h
   end
 
+  # Answers every timestamp of one call: { timestamp => { sensor_key => value } }
   def run
-    return {} if sensors.empty?
+    return {} if sensors.empty? || timestamps.empty?
 
-    grouped_rows = load_grouped_rows
-    interpolate_all(grouped_rows)
+    windows.each_with_object({}) do |group, result|
+      window =
+        SampleWindow.load(
+          pairs: sensor_pairs,
+          first: group.first,
+          last: group.last,
+        )
+
+      group.each do |timestamp|
+        values = interpolate_all(window, timestamp)
+        result[timestamp] = values if values.any?
+      end
+    end
   end
 
   private
 
-  attr_reader :timestamp, :max_age, :sensors
+  attr_reader :timestamps, :max_age, :sensors
 
-  def load_grouped_rows
-    sql = build_query
-    rows = ActiveRecord::Base.connection.exec_query(sql)
-
-    parse_rows(rows)
-  end
-
-  def build_where_clause
-    connection = ActiveRecord::Base.connection
-
-    grouped = sensors.values.group_by { |conf| conf[:measurement] }
-
-    grouped
-      .map do |measurement, fields|
-        m = connection.quote(measurement)
-        field_list = fields.map { |f| connection.quote(f[:field]) }.join(', ')
-        "(measurement = #{m} AND field IN (#{field_list}))"
+  # Splits the sorted timestamps into groups that one query can answer. A group
+  # ends when the next timestamp is too far from its first.
+  def windows
+    timestamps.each_with_object([]) do |timestamp, result|
+      if result.empty? || timestamp - result.last.first > MAX_WINDOW_SPAN_NS
+        result << [timestamp]
+      else
+        result.last << timestamp
       end
-      .join(' OR ')
+    end
   end
 
-  def build_query
-    connection = ActiveRecord::Base.connection
-    where = build_where_clause
-    ts = connection.quote(timestamp)
-
-    <<~SQL.squish
-      SELECT measurement,
-             field,
-             timestamp,
-             value,
-             direction
-      FROM (
-        SELECT measurement, field, timestamp,
-               COALESCE(value_int, value_float) AS value,
-               'prev' AS direction,
-               ROW_NUMBER() OVER (
-                 PARTITION BY measurement, field
-                 ORDER BY timestamp DESC
-               ) AS rnk
-        FROM incomings
-        WHERE timestamp <= #{ts}
-          AND (#{where})
-
-        UNION ALL
-
-        SELECT measurement, field, timestamp,
-               COALESCE(value_int, value_float) AS value,
-               'next' AS direction,
-               ROW_NUMBER() OVER (
-                 PARTITION BY measurement, field
-                 ORDER BY timestamp ASC
-               ) AS rnk
-        FROM incomings
-        WHERE timestamp >= #{ts}
-          AND (#{where})
-      )
-      WHERE rnk = 1
-    SQL
+  # Two sensor keys can point to the same measurement and field, so the pairs
+  # are deduplicated before the query is built.
+  def sensor_pairs
+    sensors.values.map { |conf| [conf[:measurement], conf[:field]] }.uniq
   end
 
-  def parse_rows(rows)
-    mapped =
-      rows.map do |row|
-        Sample.new(
-          row['measurement'],
-          row['field'],
-          row['timestamp'],
-          row['value'],
-          row['direction'],
-        )
-      end
-
-    mapped.group_by { |row| [row.measurement, row.field] }
-  end
-
-  def interpolate_all(grouped_rows)
+  def interpolate_all(window, timestamp)
     sensors.each_with_object({}) do |(key, sensor), result|
-      samples = grouped_rows[[sensor[:measurement], sensor[:field]]] || []
-      value = interpolate_one(samples)
+      pair = [sensor[:measurement], sensor[:field]]
+      value = interpolate_one(window.bounds(pair, timestamp), timestamp)
       result[key] = value if value
     end
   end
 
-  def interpolate_one(samples)
-    prev, nxt = find_bounds(samples)
+  def interpolate_one(bounds, timestamp)
+    prev, nxt = bounds
     return unless prev
 
     # Two distinct samples bracket the target timestamp: linear
     # interpolation is valid regardless of sample age. Equal timestamps
     # would also cause a division by zero in #interpolate.
-    return interpolate(prev, nxt) if nxt && prev.timestamp != nxt.timestamp
+    return interpolate(prev, nxt, timestamp) if nxt && prev.timestamp != nxt.timestamp
 
     # No future sample yet — only accept prev as a flat extrapolation
     # if the sensor has reported recently enough.
@@ -124,13 +81,7 @@ class Interpolator # rubocop:disable Metrics/ClassLength
     prev.value
   end
 
-  def find_bounds(samples)
-    prev = samples.find { |r| r.direction == 'prev' }
-    nxt = samples.find { |r| r.direction == 'next' }
-    [prev, nxt]
-  end
-
-  def interpolate(prev, nxt)
+  def interpolate(prev, nxt, timestamp)
     v0 = prev.value
     v1 = nxt.value
     t0 = prev.timestamp

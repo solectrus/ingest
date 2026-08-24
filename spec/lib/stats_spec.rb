@@ -8,6 +8,12 @@ describe Stats do
     expect { described_class.inc(:foo) }.to change { described_class.counter(:foo) }.from(1).to(2)
   end
 
+  # A caller that counts a whole batch knows the number up front. One call per
+  # item would take the lock once per item.
+  it 'increments a counter by a given step' do
+    expect { described_class.inc(:foo, 5) }.to change { described_class.counter(:foo) }.from(0).to(5)
+  end
+
   it 'resets a single key' do
     described_class.inc(:a)
     described_class.inc(:b)

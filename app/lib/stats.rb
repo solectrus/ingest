@@ -5,8 +5,8 @@ class Stats
   @values = {}
 
   class << self
-    def inc(key)
-      @mutex.synchronize { @counters[key] += 1 }
+    def inc(key, by = 1)
+      @mutex.synchronize { @counters[key] += by }
     end
 
     def inc_many(keys)

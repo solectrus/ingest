@@ -76,13 +76,13 @@ describe Processor do
           :relevant_for_house_power?,
         ).and_return(true)
 
-        house_calc = instance_spy(HousePowerCalculator)
+        house_calc = instance_spy(HousePowerCalculator, recalculate_many: 1)
         allow(HousePowerCalculator).to receive(:new).and_return(house_calc)
 
         run
 
-        expect(house_calc).to have_received(:recalculate).with(
-          timestamp: 1_000_000_000,
+        expect(house_calc).to have_received(:recalculate_many).with(
+          timestamps: [1_000_000_000],
         )
       end
     end
@@ -126,38 +126,38 @@ describe Processor do
       end
 
       def house_calc
-        @house_calc ||= instance_spy(HousePowerCalculator)
+        @house_calc ||= instance_spy(HousePowerCalculator, recalculate_many: 1)
       end
 
-      it 'recalculates once per timestamp' do
+      # The whole batch goes to the calculator at once, so it can answer
+      # every timestamp with a few queries instead of one query per timestamp.
+      it 'hands over the distinct timestamps of the batch in one call' do
         run
 
-        expect(house_calc).to have_received(:recalculate).twice
-        expect(house_calc).to have_received(:recalculate).with(
-          timestamp: 1_000_000_000,
-        ).once
-        expect(house_calc).to have_received(:recalculate).with(
-          timestamp: 2_000_000_000,
-        ).once
+        expect(house_calc).to have_received(:recalculate_many).once
+        expect(house_calc).to have_received(:recalculate_many).with(
+          timestamps: [1_000_000_000, 2_000_000_000],
+        )
       end
 
       # The calculation reads the samples of the batch, so it must run after
       # every line of the batch is stored.
       it 'recalculates after the batch is stored' do
-        allow(house_calc).to receive(:recalculate) do
+        allow(house_calc).to receive(:recalculate_many) do
           expect(Incoming.count).to eq(lines.size)
+          1
         end
 
         run
 
-        expect(house_calc).to have_received(:recalculate).twice
+        expect(house_calc).to have_received(:recalculate_many).once
       end
     end
 
     context 'when a relevant line carries no timestamp' do
       subject(:run) { processor.run(['SENEC inverter_power=500.0']) }
 
-      let(:house_calc) { instance_spy(HousePowerCalculator) }
+      let(:house_calc) { instance_spy(HousePowerCalculator, recalculate_many: 1) }
 
       before do
         allow(HousePowerCalculator).to receive(:new).and_return(house_calc)
@@ -168,8 +168,8 @@ describe Processor do
       it 'recalculates for the stored timestamp' do
         run
 
-        expect(house_calc).to have_received(:recalculate).with(
-          timestamp: Incoming.last.timestamp,
+        expect(house_calc).to have_received(:recalculate_many).with(
+          timestamps: [Incoming.last.timestamp],
         )
       end
     end
