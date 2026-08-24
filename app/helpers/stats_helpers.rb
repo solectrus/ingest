@@ -2,7 +2,7 @@ START_TIME = Time.current
 
 module StatsHelpers # rubocop:disable Metrics/ModuleLength
   def incoming_total
-    @incoming_total ||= Incoming.count
+    @incoming_total ||= incoming_counts.values.sum
   end
 
   def outgoing_total
@@ -95,13 +95,12 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   def incoming_measurement_fields_grouped
-    Incoming
-      .group(:measurement, :field)
-      .count
-      .map { |(measurement, field), count| { measurement:, field:, count: } }
-      .group_by { |entry| entry[:measurement] }
-      .sort_by { |measurement, groups| [-groups.size, measurement] }
-      .to_h
+    @incoming_measurement_fields_grouped ||=
+      incoming_counts
+        .map { |(measurement, field), count| { measurement:, field:, count: } }
+        .group_by { |entry| entry[:measurement] }
+        .sort_by { |measurement, groups| [-groups.size, measurement] }
+        .to_h
   end
 
   # The queue grows in order, so the row with the lowest id carries the oldest
@@ -239,6 +238,12 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   private
+
+  # The stats page needs the same grouped counts for the total and for the
+  # measurement cards. Sharing them avoids scanning the incoming index twice.
+  def incoming_counts
+    @incoming_counts ||= Incoming.group(:measurement, :field).count
+  end
 
   def macos?
     RUBY_PLATFORM.include?('darwin')

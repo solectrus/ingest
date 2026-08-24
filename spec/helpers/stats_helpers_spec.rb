@@ -2,6 +2,52 @@ describe StatsHelpers do
   include described_class
   include ActiveSupport::NumberHelper
 
+  describe 'incoming counts' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    before do
+      2.times do
+        target.incomings.create!(measurement: 'SENEC', field: 'a', value: 1)
+      end
+      target.incomings.create!(measurement: 'SENEC', field: 'b', value: 1)
+    end
+
+    describe '#incoming_total' do
+      it 'sums the grouped counts' do
+        expect(incoming_total).to eq(3)
+      end
+    end
+
+    describe '#incoming_measurement_fields_grouped' do
+      it 'groups the counts by measurement and field' do
+        expect(incoming_measurement_fields_grouped).to eq(
+          'SENEC' => [
+            { measurement: 'SENEC', field: 'a', count: 2 },
+            { measurement: 'SENEC', field: 'b', count: 1 },
+          ],
+        )
+      end
+
+      it 'shares its query with #incoming_total' do
+        queries = 0
+        subscriber =
+          ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+            sql = payload[:sql]
+            queries += 1 if sql.start_with?('SELECT') && sql.include?('FROM "incomings"')
+          end
+
+        incoming_total
+        incoming_measurement_fields_grouped
+
+        expect(queries).to eq(1)
+      ensure
+        ActiveSupport::Notifications.unsubscribe(subscriber)
+      end
+    end
+  end
+
   describe '#value_or_dash' do
     it 'returns a dash for nil' do
       expect(value_or_dash(nil)).to eq('–')
