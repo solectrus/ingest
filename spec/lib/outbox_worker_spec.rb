@@ -102,6 +102,161 @@ describe OutboxWorker do
       end
     end
 
+    # A 400 says InfluxDB wrote no point of the request, so dropping the batch
+    # threw away up to 500 good lines for one bad one.
+    context 'when one line of a batch cannot be parsed (400)' do
+      let(:bad) { 'measurement2 field=2 1000' }
+
+      before do
+        allow(InfluxWriter).to receive(:write) do |lines, **|
+          raise InfluxWriter::ClientError.new('unable to parse', 400) if lines.include?(bad)
+
+          true
+        end
+      end
+
+      it 'drops the refused line only' do
+        expect { described_class.run_once }.to change(Outgoing, :count).by(-3)
+
+        expect(InfluxWriter).to have_received(:write).with([bad], any_args)
+      end
+
+      it 'writes the good lines of the same batch' do
+        described_class.run_once
+
+        written = []
+        expect(InfluxWriter).to have_received(:write).at_least(:once) do |lines, **|
+          written.concat(lines)
+        end
+
+        expect(written).to include('measurement1 field=1 1000')
+        expect(written).to include('measurement3 field=3 2000')
+      end
+
+      it 'counts the good lines only' do
+        expect(described_class.run_once).to eq(2)
+      end
+    end
+
+    context 'when every line of a batch cannot be parsed (400)' do
+      before do
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ClientError.new('unable to parse', 400),
+        )
+      end
+
+      it 'drops them all and counts none' do
+        expect { expect(described_class.run_once).to eq(0) }.to change(
+          Outgoing,
+          :count,
+        ).by(-3)
+      end
+    end
+
+    context 'when InfluxDB goes away after part of a split batch went out' do
+      before do
+        calls = 0
+        allow(InfluxWriter).to receive(:write) do
+          calls += 1
+          raise InfluxWriter::ClientError.new('unable to parse', 400) if calls == 1
+          raise InfluxWriter::ServerError, 'gone' if calls > 2
+
+          true
+        end
+      end
+
+      it 'keeps what did not go out and drops nothing' do
+        expect { described_class.run_once }.to change(Outgoing, :count).by(-1)
+
+        expect(Outgoing.count).to eq(2)
+      end
+    end
+
+    # Splitting must not run into one timeout per half.
+    context 'when InfluxDB goes away while a batch is being split' do
+      before do
+        calls = 0
+        allow(InfluxWriter).to receive(:write) do
+          calls += 1
+          raise InfluxWriter::ClientError.new('unable to parse', 400) if calls == 1
+
+          raise InfluxWriter::ServerError, 'gone'
+        end
+      end
+
+      it 'stops splitting and keeps the batch queued' do
+        expect { expect(described_class.run_once).to eq(0) }.not_to change(
+          Outgoing,
+          :count,
+        )
+
+        # The full batch, then the first half. The second half waits for the
+        # next pass instead of running into another timeout.
+        expect(InfluxWriter).to have_received(:write).twice
+      end
+    end
+
+    # "Some or all of the data has been rejected. Data that has not been
+    # rejected is ingested and queryable." -- so the good lines are already
+    # stored and a split would only repeat what InfluxDB took.
+    context 'when points are rejected on semantic grounds (422)' do
+      before do
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ClientError.new('partial write: field type conflict', 422),
+        )
+      end
+
+      it 'clears the batch without splitting it' do
+        expect { described_class.run_once }.to change(Outgoing, :count).by(-3)
+
+        expect(InfluxWriter).to have_received(:write).once
+      end
+
+      it 'does not report the stored lines as dropped' do
+        described_class.run_once
+
+        expect($stderr.string).to include('it stored the rest')
+        expect($stderr.string).not_to include('dropped')
+      end
+    end
+
+    # A wrong token refuses the batch whatever its size. Splitting a batch of
+    # 500 lines under one sent 999 requests.
+    context 'when the token is refused (401)' do
+      before do
+        1.upto(20) { |i| target.outgoings.create!(line_protocol: "m f=#{i} 1000") }
+
+        allow(InfluxWriter).to receive(:write).and_raise(
+          InfluxWriter::ClientError.new('unauthorized', 401),
+        )
+      end
+
+      it 'gives up after one request instead of splitting' do
+        described_class.run_once
+
+        expect(InfluxWriter).to have_received(:write).once
+      end
+    end
+
+    # InfluxDB names the size it accepts and writes nothing, so a smaller
+    # batch can still get through.
+    context 'when the request is too large (413)' do
+      before do
+        allow(InfluxWriter).to receive(:write) do |lines, **|
+          raise InfluxWriter::ClientError.new('request too large', 413) if lines.size > 1
+
+          true
+        end
+      end
+
+      it 'splits until the lines fit' do
+        expect { expect(described_class.run_once).to eq(3) }.to change(
+          Outgoing,
+          :count,
+        ).by(-3)
+      end
+    end
+
     context 'when a temporary write fails (ServerError)' do
       before do
         allow(InfluxWriter).to receive(:write).and_raise(

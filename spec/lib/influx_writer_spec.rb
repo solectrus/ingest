@@ -77,6 +77,25 @@ describe InfluxWriter do
       )
     end
 
+    # A 429 is not a fault of the data: the token is temporarily over quota.
+    # ClientError would make the caller drop the lines, so it must not be one.
+    it 'raises ServerError on 429' do
+      error =
+        InfluxDB2::InfluxError.new(
+          message: 'over quota',
+          code: '429',
+          reference: nil,
+          retry_after: '90',
+        )
+
+      allow(write_api_double).to receive(:write).and_raise(error)
+
+      expect { described_class.write(lines, **params) }.to raise_error(
+        InfluxWriter::ServerError,
+        /Over quota \(429\)/,
+      )
+    end
+
     it 'raises ServerError on 5xx response' do
       error =
         InfluxDB2::InfluxError.new(

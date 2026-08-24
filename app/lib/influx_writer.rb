@@ -5,7 +5,15 @@ class InfluxWriter
 
   INFLUX_URL = "#{INFLUX_SCHEMA}://#{INFLUX_HOST}:#{INFLUX_PORT}".freeze
 
+  # Carries the HTTP status, because the caller has to tell the 4xx codes
+  # apart: they differ in what InfluxDB did with the data.
   class ClientError < StandardError
+    def initialize(message, code = nil)
+      super(message)
+      @code = code
+    end
+
+    attr_reader :code
   end
 
   class ServerError < StandardError
@@ -25,15 +33,30 @@ class InfluxWriter
         data: payload,
       )
     rescue InfluxDB2::InfluxError => e
-      # InfluxDB2::InfluxError#code is the HTTP status as a String (e.g. "400"),
-      # so it must be coerced before comparing against numeric ranges.
-      case e.code.to_i
+      raise translate(e)
+    end
+
+    # Maps the answer of InfluxDB to what the caller has to do with the lines:
+    # keep them for a retry (429 and 5xx), or deal with the refusal (other
+    # 4xx).
+    #
+    # InfluxDB2::InfluxError#code is the HTTP status as a String (e.g. "400"),
+    # so it must be coerced before comparing against numeric ranges.
+    def translate(error)
+      case error.code.to_i
+      # The token is temporarily over its quota. The data is correct, so the
+      # lines stay queued and the caller writes them again later.
+      when 429
+        ServerError.new("Over quota (#{error.code}): #{error.message}")
       when 400..499
-        raise ClientError, "Client error (#{e.code}): #{e.message}"
+        ClientError.new(
+          "Client error (#{error.code}): #{error.message}",
+          error.code.to_i,
+        )
       when 500..599
-        raise ServerError, "Server error (#{e.code}): #{e.message}"
+        ServerError.new("Server error (#{error.code}): #{error.message}")
       else
-        raise
+        error
       end
     end
 

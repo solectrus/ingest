@@ -31,11 +31,9 @@ class OutboxWorker
       batch.group_by(&:target).each do |target, outgoings|
         next if unreachable.include?(target.id)
 
-        case write_batch(outgoings, target)
-        when :written
-          delete(outgoings)
-          total_processed += outgoings.size
-        when :retry
+        if (handled = deliver(outgoings, target))
+          total_processed += handled
+        else
           unreachable << target.id
         end
       end
@@ -50,27 +48,76 @@ class OutboxWorker
     end
   end
 
-  def self.write_batch(outgoings, target)
-    lines = outgoings.map(&:line_protocol)
-
-    InfluxWriter.write(
-      lines,
-      influx_token: target.influx_token,
-      bucket: target.bucket,
-      org: target.org,
-      precision: target.precision,
-    )
-
-    :written
-  rescue InfluxWriter::ClientError => e
-    warn "[OutboxWorker] Permanent write failure (deleted): #{e.message}"
+  # Sends one batch and clears it from the queue. Returns how many lines
+  # reached InfluxDB, or nil if InfluxDB could not be reached. A line that
+  # InfluxDB refuses is dropped and does not count.
+  def self.deliver(outgoings, target)
+    write(outgoings, target)
     delete(outgoings)
-    :dropped
+    outgoings.size
+  rescue InfluxWriter::ClientError => e
+    reject(outgoings, target, e)
   rescue InfluxWriter::ServerError,
          SocketError,
          Timeout::Error,
          Errno::ECONNREFUSED => e
     warn "[OutboxWorker] Temporary write failure (will retry): #{e.class} - #{e.message}"
-    :retry
+    nil
+  end
+
+  # A batch holds up to 500 lines since the outbox stopped grouping by
+  # timestamp. Splitting it finds the lines InfluxDB refuses and keeps the
+  # rest, but it only helps for the codes that leave the good lines unwritten.
+  def self.reject(outgoings, target, error)
+    return drop(outgoings, error) unless splittable?(outgoings, error)
+
+    half = outgoings.size / 2
+
+    # If InfluxDB is gone, the rest waits for the next pass instead of running
+    # into one timeout per half.
+    return unless (first = deliver(outgoings[0...half], target))
+    return unless (second = deliver(outgoings[half..], target))
+
+    first + second
+  end
+
+  # InfluxDB writes no point of a request it cannot parse (400) or cannot
+  # accept for its size (413), so a smaller batch can still get through.
+  #
+  # The other codes need no split. For 422 the documentation says "data that
+  # has not been rejected is ingested and queryable", so the good lines are
+  # already stored. A 401 or 403 refuses the batch whatever its size: splitting
+  # a batch of 500 lines under a wrong token sent 999 requests.
+  SPLIT_ON = [400, 413].freeze
+
+  def self.splittable?(outgoings, error)
+    SPLIT_ON.include?(error.code) && !outgoings.one?
+  end
+
+  # A 422 is not a loss: InfluxDB stored every line it could and named the
+  # rest. Reporting those lines as dropped would send a reader looking for
+  # data that is there.
+  PARTIAL_WRITE = 422
+
+  def self.drop(outgoings, error)
+    if error.code == PARTIAL_WRITE
+      warn "[OutboxWorker] InfluxDB rejected points of #{outgoings.size} lines, " \
+           "it stored the rest: #{error.message}"
+    else
+      warn "[OutboxWorker] Permanent write failure (dropped #{outgoings.size}): #{error.message}"
+    end
+
+    delete(outgoings)
+    0
+  end
+
+  def self.write(outgoings, target)
+    InfluxWriter.write(
+      outgoings.map(&:line_protocol),
+      influx_token: target.influx_token,
+      bucket: target.bucket,
+      org: target.org,
+      precision: target.precision,
+    )
   end
 end
