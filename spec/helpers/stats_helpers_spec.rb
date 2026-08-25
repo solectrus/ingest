@@ -640,6 +640,46 @@ describe StatsHelpers do
     end
   end
 
+  describe '#targets' do
+    it 'returns nothing without a target' do
+      expect(targets).to be_empty
+    end
+
+    # The token is a secret. The page needs a password only, so it must not
+    # carry the token of an InfluxDB.
+    it 'names the bucket and the org, never the token' do
+      Target.create!(influx_token: 'super-secret', bucket: 'b', org: 'o')
+
+      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 1 }])
+      expect(targets.to_s).not_to include('super-secret')
+    end
+
+    # Two collectors can write to one bucket with tokens of their own. The
+    # rows would look the same, so the count of the tokens tells them apart.
+    it 'counts the tokens of a bucket' do
+      Target.create!(influx_token: 'one', bucket: 'b', org: 'o')
+      Target.create!(influx_token: 'two', bucket: 'b', org: 'o')
+
+      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 2 }])
+    end
+
+    # A collector that changes the precision makes a target of its own. That
+    # is the same token, and it must not count twice.
+    it 'counts one token of two precisions once' do
+      Target.create!(influx_token: 'one', bucket: 'b', org: 'o', precision: 's')
+      Target.create!(influx_token: 'one', bucket: 'b', org: 'o', precision: 'ms')
+
+      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 1 }])
+    end
+
+    it 'keeps the order in which the targets appeared' do
+      Target.create!(influx_token: 't', bucket: 'second', org: 'o')
+      Target.create!(influx_token: 't', bucket: 'first', org: 'o')
+
+      expect(targets.map { it[:bucket] }).to eq(%w[second first])
+    end
+  end
+
   describe 'outgoing counters' do
     it 'has no rate before a line went out' do
       expect(outgoing_delivered).to be_zero

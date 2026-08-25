@@ -58,6 +58,19 @@
       <dt>Refused and lost</dt>
       <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
     </dl>
+
+    <h2>Targets <small>(bucket / org)</small></h2>
+    <dl class="right">
+      <% if targets.any? %>
+        <% targets.each do |target| %>
+          <dt class="font-mono"><%= h target[:bucket] %></dt>
+          <dd class="font-mono"><%= h target[:org] %><% if target[:tokens] > 1 %> <small>(<%= target[:tokens] %> tokens)</small><% end %></dd>
+        <% end %>
+      <% else %>
+        <dt>Targets</dt>
+        <dd>–</dd>
+      <% end %>
+    </dl>
   </section>
 
   <section>

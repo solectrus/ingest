@@ -9,6 +9,30 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
+  # Where the lines go. A collector that sends a different bucket, org or token
+  # makes a target of its own, so a row that nobody expects means that
+  # somebody writes elsewhere.
+  #
+  # Two collectors can write to the same bucket with different tokens. Such
+  # targets share a row, and the count of the tokens tells them apart.
+  #
+  # The token itself stays out of the answer. It is a secret, and the page
+  # needs only a password.
+  TARGET_COLUMNS = <<~SQL.squish
+    bucket,
+    org,
+    COUNT(DISTINCT influx_token) AS tokens
+  SQL
+
+  def targets
+    @targets ||=
+      Target
+        .group(:bucket, :org)
+        .order(Arel.sql('MIN(id)'))
+        .pluck(Arel.sql(TARGET_COLUMNS))
+        .map { |bucket, org, tokens| { bucket:, org:, tokens: } }
+  end
+
   # Lines that reached InfluxDB. The queue length alone does not say whether it
   # drains: a queue of 500,000 looks the same while it falls and while it
   # stands still.
