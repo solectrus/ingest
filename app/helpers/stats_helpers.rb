@@ -500,22 +500,29 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   # When a stream is quiet for long enough that its rate says nothing about
-  # the present. The page uses one pair of limits for every stream, the same
-  # pair that the newest line of the whole buffer uses.
+  # the present. The page uses one limit for every stream, the same limit that
+  # the newest line of the whole buffer uses.
+  #
+  # It is the limit of HousePowerCalculator::MAX_SENSOR_AGE_NS. A sensor that
+  # is older gives no value to the house power, so this is the moment when the
+  # silence starts to hurt.
+  #
+  # One limit, not two. A middle stage at five minutes marked a collector that
+  # sends every ten minutes as late, and a colour that is wrong that often
+  # teaches the reader to ignore it.
   #
   # A rule that measures a stream against its own history looks better and
   # fails. A smart plug that answered three times in an hour has an average
   # interval of 20 minutes, because its own history holds the earlier outages.
   # Such a rule reads a dead plug as a slow one and stays quiet.
-  STALE_WARN = 5.minutes
-  STALE_CRIT = 15.minutes
+  STALE_LIMIT = 15.minutes
 
   def stale?(age)
     stale_level(age).present?
   end
 
   def stale_level(age)
-    level(age, warn: STALE_WARN, crit: STALE_CRIT)
+    level(age, crit: STALE_LIMIT)
   end
 
   # What the last column of a stream says. A quiet stream shows the age of its

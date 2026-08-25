@@ -468,19 +468,20 @@ describe StatsHelpers do
       expect(sensors_summary).to be_nil
     end
 
-    it 'names a sensor that stopped' do
-      deliver_all(stopped: :inverter_power, ago: 10.minutes)
+    it 'stays empty while a sensor is late but within the limit' do
+      deliver_all(stopped: :inverter_power, ago: 14.minutes)
 
-      expect(stale_sensors.map { it[:key] }).to eq([:inverter_power])
-      expect(status_of(:sensors_stale)).to eq('warn')
-      expect(sensors_summary).to eq("1 of #{included_sensors.size} stale")
+      expect(stale_sensors).to be_empty
+      expect(status_of(:sensors_stale)).to be_nil
     end
 
-    it 'lets a sensor that stopped long ago count as critical' do
+    it 'names a sensor that stopped' do
       deliver_all(stopped: :inverter_power, ago: 20.minutes)
 
+      expect(stale_sensors.map { it[:key] }).to eq([:inverter_power])
       expect(status_of(:sensors_stale)).to eq('crit')
       expect(page_status).to eq('crit')
+      expect(sensors_summary).to eq("1 of #{included_sensors.size} stale")
     end
 
     # A typo in an INFLUX_SENSOR_* variable and a collector that stopped need
@@ -489,7 +490,7 @@ describe StatsHelpers do
       measurement, field =
         SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
       target.incomings.create!(
-        measurement:, field:, value: 1, created_at: 10.minutes.ago,
+        measurement:, field:, value: 1, created_at: 20.minutes.ago,
       )
 
       total = included_sensors.size
@@ -497,7 +498,8 @@ describe StatsHelpers do
       expect(sensors_summary).to eq(
         "#{total - 1} of #{total} without data, 1 of #{total} stale",
       )
-      expect(sensors_summary_level).to eq('warn')
+      # A sensor that stopped is the worse of the two faults.
+      expect(sensors_summary_level).to eq('crit')
     end
   end
 
@@ -511,9 +513,9 @@ describe StatsHelpers do
     # The rate of a quiet stream is an average over the whole buffer. It keeps
     # the value it had while the stream ran, so it reads as healthy.
     it 'shows the age instead once the stream goes quiet' do
-      entry = { throughput: 5, age: 600, stale: true, level: 'warn' }
+      entry = { throughput: 5, age: 1200, stale: true, level: 'crit' }
 
-      expect(stream_tag(entry)).to eq('<small class="warn">10m 0s ago</small>')
+      expect(stream_tag(entry)).to eq('<small class="crit">20m 0s ago</small>')
     end
 
     # A forwarded stream can be slow on purpose, so its age is a fact and not
@@ -526,12 +528,8 @@ describe StatsHelpers do
   end
 
   describe '#stale_level' do
-    it 'accepts a stream that sent within five minutes' do
-      expect(stale_level(4.minutes)).to be_nil
-    end
-
-    it 'reports a stream that is late' do
-      expect(stale_level(6.minutes)).to eq('warn')
+    it 'accepts a stream that sent within the limit' do
+      expect(stale_level(14.minutes)).to be_nil
     end
 
     it 'reports a stream that stopped as critical' do
@@ -670,11 +668,11 @@ describe StatsHelpers do
       measurement, field =
         SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
       target.incomings.create!(
-        measurement:, field:, value: 1, created_at: 10.minutes.ago,
+        measurement:, field:, value: 1, created_at: 20.minutes.ago,
       )
 
-      expect(sensor(:inverter_power)).to include(missing: false, level: 'warn')
-      expect(sensor(:inverter_power)[:age]).to be_within(5).of(10.minutes)
+      expect(sensor(:inverter_power)).to include(missing: false, level: 'crit')
+      expect(sensor(:inverter_power)[:age]).to be_within(5).of(20.minutes)
     end
 
     it 'leaves a sensor that still delivers alone' do
@@ -696,7 +694,7 @@ describe StatsHelpers do
     end
 
     before do
-      [60.minutes, 59.minutes, 10.minutes].each do |ago|
+      [60.minutes, 59.minutes, 20.minutes].each do |ago|
         target.incomings.create!(
           measurement: 'Shelly', field: 'power', value: 1, created_at: ago.ago,
         )
