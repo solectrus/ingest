@@ -12,7 +12,9 @@ class BaseRoute < Sinatra::Base
 
   helpers SessionHelper
 
-  PUBLIC_FOLDER = File.expand_path('../../public', __dir__)
+  # Sinatra derives the folder from the file of the app, which is this one.
+  # That gives app/routes/public, a folder that does not exist.
+  set :public_folder, File.expand_path('../../public', __dir__)
 
   helpers do
     def build_info
@@ -23,7 +25,7 @@ class BaseRoute < Sinatra::Base
     # the same name. Without the stamp of the file, a reader gets the new
     # markup with the old CSS until that cache expires.
     def asset_path(file)
-      "/#{file}?v=#{File.mtime(File.join(PUBLIC_FOLDER, file)).to_i}"
+      "/#{file}?v=#{File.mtime(File.join(settings.public_folder, file)).to_i}"
     end
 
     def h(text)
