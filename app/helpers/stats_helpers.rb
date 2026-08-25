@@ -147,8 +147,17 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (60.0 * count / incoming_range).round(1)
   end
 
+  # How long the buffer keeps a line. It explains the ceiling of the incoming
+  # time span, and it says how far back a restart can replay.
   def retention_hours
     CleanupWorker::RETENTION.in_hours.to_i
+  end
+
+  # The cleanup deletes what is older than the retention, but it runs once per
+  # interval. The range thus goes up to one interval above the retention
+  # before the next cleanup cuts it back.
+  def max_range_hours
+    (CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL).in_hours.to_i
   end
 
   def throughput_tag(value)

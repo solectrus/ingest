@@ -253,6 +253,23 @@ describe StatsHelpers do
     end
   end
 
+  describe '#retention_hours' do
+    it 'reports how long the buffer keeps a line' do
+      expect(retention_hours).to eq(CleanupWorker::RETENTION.in_hours.to_i)
+    end
+  end
+
+  # The cleanup runs once per interval, so the buffer holds more than the
+  # retention until it runs again.
+  describe '#max_range_hours' do
+    it 'adds one cleanup interval to the retention' do
+      expect(max_range_hours).to be > retention_hours
+      expect(max_range_hours).to eq(
+        (CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL).in_hours.to_i,
+      )
+    end
+  end
+
   describe '#database_size' do
     it 'returns the size of the database file' do
       expect(database_size).to be_positive
