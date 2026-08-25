@@ -76,6 +76,8 @@ The formula needs every term. If a term is missing, the result is wrong. Ingest 
 
 The stats page shows these skips as `Skipped (value missing)`, plus a `Missing values by sensor` list that names the sensors which caused them.
 
+The `Configured sensors` list gives a second view. While a sensor delivers, the list shows its rate. If a sensor sends nothing for more than 5 minutes, the list shows the age of its last line instead. The buffer keeps the lines of a stopped collector for the whole retention period, so the count and the rate stay unchanged.
+
 So every configured sensor must send data **continuously**, even when its true value is zero. There are two different causes for a gap:
 
 - The sensor is **broken or offline** and sends nothing at all. Then the gap is correct. Ingest cannot know whether the true value is zero, so it shows no value instead of a wrong one. Repair the sensor or the collector.
@@ -189,7 +191,11 @@ Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculat
 
 ### GET `/`
 
-Displays a basic stats page (requires password if configured), showing throughput, queue size, buffer status, etc.
+Displays a basic stats page (requires password if configured), showing throughput, queue size, buffer status, and more.
+
+While a stream delivers, the page shows its rate. If a stream sends nothing for more than 5 minutes, the page shows the age of its last line instead.
+
+Only a configured sensor gets a colour for this, because SOLECTRUS needs its value. In the `Other incoming data` list the age is a fact and not a fault: a collector can send slower on purpose, and Ingest does not know how often such a stream arrives.
 
 ### GET `/health`
 

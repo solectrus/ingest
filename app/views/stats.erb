@@ -183,7 +183,7 @@
       <% if configured_sensors.empty? %>
         (no INFLUX_SENSOR_* variable is set)
       <% elsif sensors_summary %>
-        (<span class="<%= status_of(:sensors_without_data) %>"><%= sensors_summary %></span>)
+        (<span class="<%= sensors_summary_level %>"><%= sensors_summary %></span>)
       <% else %>
         (all <%= configured_sensors.size %> receive data)
       <% end %>
@@ -196,12 +196,12 @@
         <ul class="card__list card__list--sensors">
           <% configured_sensors.each do |sensor| %>
             <li>
-              <span class="<%= 'warn' if sensor[:missing] %>"><%= sensor[:key] %></span>
+              <span class="<%= sensor[:missing] ? 'warn' : sensor[:level] %>"><%= sensor[:key] %></span>
               <span class="font-mono"><%= h sensor[:target] %></span>
               <% if sensor[:missing] %>
                 <small class="warn">no data</small>
               <% else %>
-                <%= throughput_tag(sensor[:throughput]) %>
+                <%= stream_tag(sensor) %>
               <% end %>
             </li>
           <% end %>
@@ -231,7 +231,7 @@
           <% groups.each do |group| %>
             <li>
               <span class="font-mono"><%= h group[:field] %></span>
-              <%= throughput_tag(incoming_throughput_for(group[:count])) %>
+              <%= stream_tag(group) %>
             </li>
           <% end %>
         </ul>

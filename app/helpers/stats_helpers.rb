@@ -1,6 +1,26 @@
 START_TIME = Time.current
 
 module StatsHelpers # rubocop:disable Metrics/ModuleLength
+  # What arrives, per measurement and field: how many lines, and the row that
+  # brought the last one. The page needs both, for the total, for the sensor
+  # list and for the measurement cards. One scan answers them.
+  #
+  # It asks for MAX(id) and not for MAX(created_at), and the difference is
+  # large. SQLite holds the rowid in every index, and `id` is the rowid, so
+  # the scan reads the index alone. `created_at` is not in the index, and the
+  # scan then reads the table row of every line: 369ms against 73ms on a
+  # buffer of 800,000 lines. The ids go to #last_arrivals, which reads about
+  # 60 rows by primary key.
+  #
+  # The queue grows in order, so the highest id of a group carries its newest
+  # time.
+  INCOMING_COLUMNS = <<~SQL.squish
+    measurement,
+    field,
+    COUNT(*) AS count,
+    MAX(id) AS id
+  SQL
+
   def incoming_total
     @incoming_total ||= incoming_counts.values.sum
   end
@@ -205,8 +225,20 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @configured_sensors ||= SensorEnvConfig.config.map { configured_sensor(*it) }
   end
 
-  # The one line above the sensor list. It names the sensors that nobody
-  # sends, because they need a look at the INFLUX_SENSOR_* variable.
+  # Every configured sensor that arrived once and then stopped. The buffer
+  # keeps the lines of a dead collector for the whole retention period, so the
+  # count, the time span and the throughput of the sensor all keep the value
+  # they had while it ran. Only the age of its last line falls behind.
+  #
+  # This is the case that #sensors_without_data cannot see: the sensor has
+  # data, and it is old.
+  def stale_sensors
+    @stale_sensors ||= configured_sensors.select { it[:level] }
+  end
+
+  # The one line above the sensor list. It has to name two faults apart,
+  # because they need different repairs. A sensor without data points at the
+  # INFLUX_SENSOR_* variable, a stale sensor at the collector that stopped.
   #
   # It returns nothing while every sensor delivers, and the page then says so
   # in its own words.
@@ -214,8 +246,13 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     total = configured_sensors.size
     parts = []
     parts << "#{sensors_without_data.size} of #{total} without data" if sensors_without_data.any?
+    parts << "#{stale_sensors.size} of #{total} stale" if stale_sensors.any?
 
     parts.join(', ').presence
+  end
+
+  def sensors_summary_level
+    worst_level([status_of(:sensors_without_data), status_of(:sensors_stale)])
   end
 
   # The sensor key that a measurement and a field belong to. The cards list
@@ -255,9 +292,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # nothing to say.
   def other_measurement_fields_grouped
     @other_measurement_fields_grouped ||=
-      incoming_counts
-        .reject { |(measurement, field), _| sensor_key_for(measurement, field) }
-        .map { |(measurement, field), count| { measurement:, field:, count: } }
+      incoming_by_target
+        .filter_map { |target, entry| other_stream(target, entry) }
         .group_by { |entry| entry[:measurement] }
         .sort_by { |measurement, groups| [-groups.size, measurement] }
         .to_h
@@ -337,38 +373,6 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL).in_hours.to_i
   end
 
-  # SOLECTRUS does not use data that arrives faster than every 4 seconds. A
-  # higher rate fills the buffer and gives no gain.
-  THROUGHPUT_WARN = 60 / 4
-  THROUGHPUT_CRIT = 2 * THROUGHPUT_WARN
-
-  def throughput_tag(value)
-    return '<small>-</small>' unless value
-
-    css_class =
-      if value <= THROUGHPUT_WARN
-        'ok'
-      elsif value <= THROUGHPUT_CRIT
-        'warn'
-      else
-        'crit'
-      end
-
-    "<small class=\"#{css_class}\">#{format_rate(value)}</small>"
-  end
-
-  # A rate of 10 and above needs no decimal: the reader wants the size, not the
-  # tenth. Below 10 the decimal carries the message, because a rate that rounds
-  # to 0 reads as "nothing arrives".
-  def format_rate(value)
-    return unless value
-
-    rounded = value.round(1)
-    number = rounded >= 10 ? value.round : rounded
-
-    "#{number_to_delimited(number)} /min"
-  end
-
   GIGABYTE = 1024**3
 
   # One place decides what counts as a problem. The badge in the header and the
@@ -382,6 +386,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @statuses ||= {
       incoming_age: stale_level(incoming_age),
       sensors_without_data: level(sensors_without_data.size, warn: 1),
+      sensors_stale: worst_level(stale_sensors.map { it[:level] }),
       queued: level(outgoing_total, warn: 1_000, crit: 10_000),
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
       dropped: level(outgoing_dropped, crit: 1),
@@ -430,14 +435,74 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     'crit' unless http_status_ok?(key)
   end
 
-  # When the newest line is old enough that the page must say so. 15 minutes
-  # is the age at which a sensor value stops the house power calculation, so
-  # from that point the silence costs data.
+  # When a stream is quiet for long enough that its rate says nothing about
+  # the present. The page uses one pair of limits for every stream, the same
+  # pair that the newest line of the whole buffer uses.
+  #
+  # A rule that measures a stream against its own history looks better and
+  # fails. A smart plug that answered three times in an hour has an average
+  # interval of 20 minutes, because its own history holds the earlier outages.
+  # Such a rule reads a dead plug as a slow one and stays quiet.
   STALE_WARN = 5.minutes
   STALE_CRIT = 15.minutes
 
+  def stale?(age)
+    stale_level(age).present?
+  end
+
   def stale_level(age)
     level(age, warn: STALE_WARN, crit: STALE_CRIT)
+  end
+
+  # What the last column of a stream says. A quiet stream shows the age of its
+  # last line instead of its rate. The rate of a quiet stream is an average
+  # over the whole buffer, and it keeps the value it had while the stream ran,
+  # so it reads as healthy for the whole retention period. Only the age says
+  # that nothing arrives now.
+  #
+  # The colour comes from the entry, and only a configured sensor carries one.
+  # A forwarded stream can be slow on purpose: the tibber-collector sends once
+  # an hour, and the forecast-collector every 15 to 60 minutes. Ingest does
+  # not know the cadence of such a stream, so it reports the age and leaves
+  # the judgement to the reader.
+  def stream_tag(entry)
+    return throughput_tag(entry[:throughput]) unless entry[:stale]
+
+    css_class = %( class="#{entry[:level]}") if entry[:level]
+
+    %(<small#{css_class}>#{age_tag(entry[:age])}</small>)
+  end
+
+  # SOLECTRUS does not use data that arrives faster than every 4 seconds. A
+  # higher rate fills the buffer and gives no gain.
+  THROUGHPUT_WARN = 60 / 4
+  THROUGHPUT_CRIT = 2 * THROUGHPUT_WARN
+
+  def throughput_tag(value)
+    return '<small>-</small>' unless value
+
+    css_class =
+      if value <= THROUGHPUT_WARN
+        'ok'
+      elsif value <= THROUGHPUT_CRIT
+        'warn'
+      else
+        'crit'
+      end
+
+    "<small class=\"#{css_class}\">#{format_rate(value)}</small>"
+  end
+
+  # A rate of 10 and above needs no decimal: the reader wants the size, not the
+  # tenth. Below 10 the decimal carries the message, because a rate that rounds
+  # to 0 reads as "nothing arrives".
+  def format_rate(value)
+    return unless value
+
+    rounded = value.round(1)
+    number = rounded >= 10 ? value.round : rounded
+
+    "#{number_to_delimited(number)} /min"
   end
 
   def memory_usage
@@ -551,13 +616,34 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # no number, and `missing` says whether that is a fault: while the buffer is
   # empty it marks every sensor, and that says nothing.
   def configured_sensor(key, sensor)
-    count = incoming_counts[[sensor[:measurement], sensor[:field]]]
+    entry = incoming_by_target[[sensor[:measurement], sensor[:field]]]
+    age = age_from(entry&.fetch(:last_at))
 
     {
       key:,
       target: "#{sensor[:measurement]}:#{sensor[:field]}",
-      throughput: (incoming_throughput_for(count) if count),
-      missing: count.nil? && incoming_counts.any?,
+      throughput: (incoming_throughput_for(entry[:count]) if entry),
+      age:,
+      stale: stale?(age),
+      level: stale_level(age),
+      missing: entry.nil? && incoming_by_target.any?,
+    }
+  end
+
+  # One entry of the list of forwarded streams, or nothing for a stream that a
+  # configured sensor reads. Such a stream carries no level: SOLECTRUS does
+  # not read it, and Ingest does not know how often it arrives.
+  def other_stream((measurement, field), entry)
+    return if sensor_key_for(measurement, field)
+
+    age = age_from(entry[:last_at])
+
+    {
+      measurement:,
+      field:,
+      throughput: incoming_throughput_for(entry[:count]),
+      age:,
+      stale: stale?(age),
     }
   end
 
@@ -568,10 +654,28 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       end
   end
 
-  # The stats page needs the same grouped counts for the total and for the
-  # measurement cards. Sharing them avoids scanning the incoming index twice.
+  # Everything the page knows about what arrives. One scan of the index
+  # answers the total, the sensor list and the measurement cards together.
+  def incoming_by_target
+    @incoming_by_target ||=
+      begin
+        rows = Incoming.group(:measurement, :field).pluck(Arel.sql(INCOMING_COLUMNS))
+        times = last_arrivals(rows.map(&:last))
+
+        rows.to_h do |measurement, field, count, id|
+          [[measurement, field], { count:, last_at: times[id] }]
+        end
+      end
+  end
+
+  # The time of each newest line, by primary key. The list holds one id per
+  # measurement and field, so this reads a few dozen rows.
+  def last_arrivals(ids)
+    Incoming.where(id: ids).pluck(:id, :created_at).to_h
+  end
+
   def incoming_counts
-    @incoming_counts ||= Incoming.group(:measurement, :field).count
+    @incoming_counts ||= incoming_by_target.transform_values { it[:count] }
   end
 
   def macos?

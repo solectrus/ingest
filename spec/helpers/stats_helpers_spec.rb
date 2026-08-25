@@ -60,6 +60,29 @@ describe StatsHelpers do
       ensure
         ActiveSupport::Notifications.unsubscribe(subscriber)
       end
+
+      # MAX(created_at) makes the scan read the table row of every line,
+      # because `created_at` is not in the index. MAX(id) reads the rowid,
+      # which every index holds: 369ms against 73ms on 800,000 lines.
+      it 'reads the index alone' do
+        sql = Incoming.group(:measurement, :field).select(Arel.sql(described_class::INCOMING_COLUMNS)).to_sql
+        plan = ActiveRecord::Base.connection.select_all("EXPLAIN QUERY PLAN #{sql}")
+
+        expect(plan.map { it['detail'] }).to all(include('COVERING INDEX'))
+      end
+
+      # A line that arrived once and stopped keeps its throughput for the
+      # whole retention period. Only the age says that nothing arrives now.
+      it 'reports the age of the last line of a field' do
+        target.incomings.create!(
+          measurement: 'Shelly', field: 'power', value: 1,
+          created_at: 10.minutes.ago,
+        )
+
+        entry = other_measurement_fields_grouped['Shelly'].first
+
+        expect(entry[:age]).to be_within(5).of(10.minutes)
+      end
     end
   end
 
@@ -344,6 +367,94 @@ describe StatsHelpers do
     end
   end
 
+  describe '#stale_sensors' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    # Every configured sensor gets a line. The named one gets its last line
+    # earlier, so it alone falls behind.
+    def deliver_all(stopped: nil, ago: 0.seconds)
+      SensorEnvConfig.config.each do |key, sensor|
+        target.incomings.create!(
+          measurement: sensor[:measurement],
+          field: sensor[:field],
+          value: 1,
+          created_at: (key == stopped ? ago.ago : Time.current),
+        )
+      end
+    end
+
+    it 'stays empty while every sensor delivers' do
+      deliver_all
+
+      expect(stale_sensors).to be_empty
+      expect(status_of(:sensors_stale)).to be_nil
+      expect(sensors_summary).to be_nil
+    end
+
+    it 'names a sensor that stopped' do
+      deliver_all(stopped: :inverter_power, ago: 10.minutes)
+
+      expect(stale_sensors.map { it[:key] }).to eq([:inverter_power])
+      expect(status_of(:sensors_stale)).to eq('warn')
+      expect(sensors_summary).to eq("1 of #{SensorEnvConfig.config.size} stale")
+    end
+
+    it 'lets a sensor that stopped long ago count as critical' do
+      deliver_all(stopped: :inverter_power, ago: 20.minutes)
+
+      expect(status_of(:sensors_stale)).to eq('crit')
+      expect(page_status).to eq('crit')
+    end
+
+    # A typo in an INFLUX_SENSOR_* variable and a collector that stopped need
+    # different repairs, so the summary must not merge them into one number.
+    it 'names a sensor without data apart from a stale one' do
+      measurement, field =
+        SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+      target.incomings.create!(
+        measurement:, field:, value: 1, created_at: 10.minutes.ago,
+      )
+
+      total = SensorEnvConfig.config.size
+
+      expect(sensors_summary).to eq(
+        "#{total - 1} of #{total} without data, 1 of #{total} stale",
+      )
+      expect(sensors_summary_level).to eq('warn')
+    end
+  end
+
+  describe '#stream_tag' do
+    it 'shows the rate while the stream runs' do
+      entry = { throughput: 5, age: 12, stale: false, level: nil }
+
+      expect(stream_tag(entry)).to eq('<small class="ok">5 /min</small>')
+    end
+
+    # The rate of a quiet stream is an average over the whole buffer. It keeps
+    # the value it had while the stream ran, so it reads as healthy.
+    it 'shows the age instead once the stream goes quiet' do
+      entry = { throughput: 5, age: 600, stale: true, level: 'warn' }
+
+      expect(stream_tag(entry)).to eq(
+        '<small class="warn">' \
+          '<span data-age="600" data-age-suffix="ago">10m 0s ago</span></small>',
+      )
+    end
+
+    # A forwarded stream can be slow on purpose, so its age is a fact and not
+    # a fault.
+    it 'leaves the age plain without a level' do
+      entry = { throughput: 5, age: 600, stale: true, level: nil }
+
+      expect(stream_tag(entry)).to eq(
+        '<small><span data-age="600" data-age-suffix="ago">10m 0s ago</span></small>',
+      )
+    end
+  end
+
   describe '#stale_level' do
     it 'accepts a stream that sent within five minutes' do
       expect(stale_level(4.minutes)).to be_nil
@@ -432,6 +543,61 @@ describe StatsHelpers do
       expect(sensor(:inverter_power)).to include(missing: false)
       expect(sensor(:inverter_power)[:throughput]).to be_positive
       expect(sensor(:house_power)).to include(missing: true, throughput: nil)
+    end
+
+    # The buffer keeps the lines of a dead collector for the whole retention
+    # period. The count, the time span and the throughput of the sensor all
+    # keep the value they had while it ran, so only the age can report it.
+    it 'reports a sensor that arrived and then stopped' do
+      measurement, field =
+        SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+      target.incomings.create!(
+        measurement:, field:, value: 1, created_at: 10.minutes.ago,
+      )
+
+      expect(sensor(:inverter_power)).to include(missing: false, level: 'warn')
+      expect(sensor(:inverter_power)[:age]).to be_within(5).of(10.minutes)
+    end
+
+    it 'leaves a sensor that still delivers alone' do
+      measurement, field =
+        SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+      target.incomings.create!(measurement:, field:, value: 1)
+
+      expect(sensor(:inverter_power)).to include(level: nil)
+    end
+  end
+
+  # A smart plug that answered three times in an hour has an average interval
+  # of 20 minutes, because its own history holds the earlier outages. A rule
+  # that measures the stream against that average reads a dead plug as a slow
+  # one, so the page uses one fixed pair of limits instead.
+  describe 'a forwarded stream that sent a few times and stopped' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    before do
+      [60.minutes, 59.minutes, 10.minutes].each do |ago|
+        target.incomings.create!(
+          measurement: 'Shelly', field: 'power', value: 1, created_at: ago.ago,
+        )
+      end
+    end
+
+    it 'shows its age' do
+      entry = other_measurement_fields_grouped['Shelly'].first
+
+      expect(entry[:stale]).to be(true)
+    end
+
+    # SOLECTRUS does not read the stream, and Ingest does not know how often
+    # it arrives. A stream that is slow on purpose must not look broken.
+    it 'calls it no fault' do
+      entry = other_measurement_fields_grouped['Shelly'].first
+
+      expect(entry[:level]).to be_nil
+      expect(status_of(:sensors_stale)).to be_nil
     end
   end
 
