@@ -92,14 +92,20 @@ describe SessionHelper do
   end
 
   describe '#authorized?' do
-    it 'accepts a matching cookie' do
-      helper.request.cookies['password'] = 'secret'
+    it 'accepts a cookie with the token of the password' do
+      helper.request.cookies['token'] = described_class.token('secret')
 
       expect(helper).to be_authorized
     end
 
+    it 'rejects a cookie that holds the password itself' do
+      helper.request.cookies['token'] = 'secret'
+
+      expect(helper).not_to be_authorized
+    end
+
     it 'rejects a wrong cookie' do
-      helper.request.cookies['password'] = 'wrong'
+      helper.request.cookies['token'] = 'wrong'
 
       expect(helper).not_to be_authorized
     end

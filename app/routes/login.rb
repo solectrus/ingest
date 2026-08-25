@@ -5,13 +5,17 @@ class LoginRoute < BaseRoute
 
   post '/login' do
     if correct_password?(params[:password])
-      response.set_cookie 'password',
-                          value: password,
+      response.set_cookie 'token',
+                          value: session_token,
                           path: '/',
                           httponly: true,
                           same_site: :lax,
                           secure: request.secure?,
                           expires: 30.days.from_now
+
+      # An older version put the password itself into a cookie. Without this,
+      # it stays in the browser until it expires.
+      response.delete_cookie 'password'
 
       target = safe_return_to
       response.delete_cookie 'return_to'

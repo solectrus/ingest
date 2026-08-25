@@ -54,7 +54,7 @@ RSpec.configure do |config|
 end
 
 def login
-  rack_mock_session.cookie_jar['password'] = ENV.fetch('STATS_PASSWORD', nil)
+  rack_mock_session.cookie_jar['token'] = SessionHelper.token(ENV.fetch('STATS_PASSWORD'))
 end
 
 def parsed_body

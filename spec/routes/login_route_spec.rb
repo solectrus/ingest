@@ -20,8 +20,17 @@ describe LoginRoute do
     context 'with valid password' do
       before { post '/login', password: valid_password }
 
-      it 'sets the password cookie' do
-        expect(last_response.cookies['password'].value).to eq([valid_password])
+      it 'sets a token cookie' do
+        expect(last_response.cookies['token'].value)
+          .to eq([SessionHelper.token(valid_password)])
+      end
+
+      it 'keeps the password out of the cookie' do
+        expect(last_response.headers['set-cookie']).not_to include(valid_password)
+      end
+
+      it 'removes the cookie of an older version' do
+        expect(last_response.cookies['password'].value).to eq([''])
       end
 
       it 'redirects to the target page' do
@@ -63,8 +72,8 @@ describe LoginRoute do
     context 'with invalid password' do
       before { post '/login', password: 'invalid_password' }
 
-      it 'does not set the password cookie' do
-        expect(last_response.cookies['password']).to be_nil
+      it 'does not set a token cookie' do
+        expect(last_response.cookies['token']).to be_nil
       end
 
       it 'renders the login form with an error message' do
