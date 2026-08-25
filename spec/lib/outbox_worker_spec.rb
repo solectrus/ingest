@@ -36,7 +36,12 @@ describe OutboxWorker do
   before do
     target.outgoings.create!(line_protocol: 'measurement1 field=1 1000')
     target.outgoings.create!(line_protocol: 'measurement2 field=2 1000')
-    target.outgoings.create!(line_protocol: 'measurement3 field=3 2000')
+    # Two fields in one line: the delivered values and the delivered lines
+    # are then different numbers.
+    target.outgoings.create!(
+      line_protocol: 'measurement3 field=3 2000',
+      values_count: 2,
+    )
   end
 
   describe '.run_once' do
@@ -55,6 +60,14 @@ describe OutboxWorker do
         described_class.run_once
 
         expect(Stats.counter(:outgoing_delivered)).to eq(3)
+      end
+
+      # The stats page compares the values that leave with the values that
+      # arrive, so it counts the fields of the delivered lines, not the lines.
+      it 'counts the delivered values' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_delivered_values)).to eq(4)
       end
 
       # Line protocol carries the timestamp per line, so one request holds the

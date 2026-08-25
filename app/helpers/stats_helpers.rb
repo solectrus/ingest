@@ -66,6 +66,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     60.0 * outgoing_delivered / container_uptime
   end
 
+  # The same measure as the incoming values, on the other side of the buffer.
+  # The two numbers do not have to match: the incoming house power is dropped,
+  # and the calculated one takes its place.
+  def outgoing_delivered_values
+    Stats.counter(:outgoing_delivered_values)
+  end
+
+  def outgoing_delivered_values_rate
+    return unless outgoing_delivered_values.positive?
+
+    60.0 * outgoing_delivered_values / container_uptime
+  end
+
   # InfluxDB refused these lines for good, so they are gone. Only the log knew
   # about it before.
   def outgoing_dropped
@@ -347,6 +360,23 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return unless incoming_lines.positive?
 
     60.0 * incoming_lines / container_uptime
+  end
+
+  # One measured value, one field. A line carries as many values as it has
+  # fields, so the number of lines says little about the load: one collector
+  # sends 26 fields in one line, the next one sends 1 field per line.
+  #
+  # This counter and the buffer count the same thing. The buffer holds the
+  # retention period only, so it cannot answer how much arrived since the
+  # start.
+  def incoming_values
+    Stats.counter(:incoming_values)
+  end
+
+  def incoming_values_rate
+    return unless incoming_values.positive?
+
+    60.0 * incoming_values / container_uptime
   end
 
   # How long ago the last line arrived. Without it a page of an ingest that

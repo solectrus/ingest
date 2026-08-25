@@ -9,6 +9,10 @@ class Processor
 
     outbox_written = false
 
+    # Counted before the transaction runs. #drop_house_power removes a field
+    # from a point, so the same count after the transaction is too low.
+    incoming_values = points.sum { it.fields.size }
+
     # One transaction for the whole batch. A database error in the middle must
     # not keep the lines before it. The write route answers 500 for such an
     # error, and the client then retries the full batch. Without the
@@ -27,9 +31,11 @@ class Processor
     end
 
     # After the transaction: a rollback keeps nothing, so it must count
-    # nothing. One point is one line of the request. The buffer counts a row
-    # per field instead, and a line of 26 fields is 26 rows there.
+    # nothing. One point is one line of the request, and one value is one
+    # field of such a line. A line of 26 fields is thus 1 line and 26 values,
+    # and it is 26 rows in the buffer.
     Stats.inc(:incoming_lines, points.size)
+    Stats.inc(:incoming_values, incoming_values)
 
     OutboxNotifier.notify! if outbox_written
   end
@@ -95,6 +101,7 @@ class Processor
         {
           target_id: target.id,
           line_protocol: point.to_line_protocol,
+          values_count: point.fields.size,
           created_at: now,
         }
       end

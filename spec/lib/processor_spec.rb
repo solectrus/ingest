@@ -104,6 +104,15 @@ describe Processor do
         expect(outgoing.line_protocol).to eq(line)
       end
 
+      # The queue carries the number of fields of its line. The stats page
+      # counts the values that reach InfluxDB, and it must not parse the line
+      # again to do so.
+      it 'queues a line of three fields with its field count' do
+        processor.run(['SENEC a=1,b=2,c=3 1000000000'])
+
+        expect(Outgoing.last.values_count).to eq(3)
+      end
+
       # The buffer holds a row per field, so it counts a line of three fields
       # three times. The stats page compares the incoming lines with the
       # delivered lines, and both must count the same thing.
@@ -116,6 +125,14 @@ describe Processor do
           processor.run(['SENEC a=1,b=2,c=3 1000000000'])
         end.to change { Stats.counter(:incoming_lines) }.by(1)
         expect(Incoming.count).to eq(3)
+      end
+
+      # One value is one field, so this counter follows the buffer and not the
+      # lines.
+      it 'counts a line of three fields as three values' do
+        expect do
+          processor.run(['SENEC a=1,b=2,c=3 1000000000'])
+        end.to change { Stats.counter(:incoming_values) }.by(3)
       end
 
       it 'triggers house power recalculation if relevant' do

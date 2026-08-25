@@ -87,6 +87,7 @@ class OutboxWorker
     write(outgoings, target)
     delete(outgoings)
     Stats.inc(:outgoing_delivered, outgoings.size)
+    Stats.inc(:outgoing_delivered_values, outgoings.sum(&:values_count))
     outgoings.size
   rescue InfluxWriter::ClientError => e
     reject(outgoings, target, e)

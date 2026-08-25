@@ -77,6 +77,8 @@ class HousePowerCalculator
       {
         target_id: target.id,
         line_protocol: line_protocol(house_power, timestamp_ns),
+        # One line, one field: the house power itself.
+        values_count: 1,
         created_at: now,
       }
     end

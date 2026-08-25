@@ -271,6 +271,34 @@ describe StatsHelpers do
       end
     end
 
+    describe '#incoming_values_rate' do
+      it 'returns nothing before the first value' do
+        expect(incoming_values).to eq(0)
+        expect(incoming_values_rate).to be_nil
+      end
+
+      it 'returns the values per minute since the start' do
+        Stats.inc(:incoming_values, 60)
+        allow(self).to receive(:container_uptime).and_return(120)
+
+        expect(incoming_values_rate).to eq(30.0)
+      end
+    end
+
+    describe '#outgoing_delivered_values_rate' do
+      it 'returns nothing before the first value' do
+        expect(outgoing_delivered_values).to eq(0)
+        expect(outgoing_delivered_values_rate).to be_nil
+      end
+
+      it 'returns the values per minute since the start' do
+        Stats.inc(:outgoing_delivered_values, 90)
+        allow(self).to receive(:container_uptime).and_return(120)
+
+        expect(outgoing_delivered_values_rate).to eq(45.0)
+      end
+    end
+
     describe '#incoming_throughput_for' do
       it 'returns nil without a range' do
         expect(incoming_throughput_for(10)).to be_nil
