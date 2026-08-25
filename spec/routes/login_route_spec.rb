@@ -31,6 +31,35 @@ describe LoginRoute do
       end
     end
 
+    context 'with a return_to cookie' do
+      subject(:location) do
+        set_cookie "return_to=#{return_to}"
+        post '/login', password: valid_password
+
+        last_response.headers['Location']
+      end
+
+      context 'with a path' do
+        let(:return_to) { '/stats' }
+
+        it { is_expected.to end_with('/stats') }
+      end
+
+      context 'with a foreign host' do
+        let(:return_to) { 'https://evil.example.com/x' }
+
+        it { is_expected.to end_with('/') }
+        it { is_expected.not_to include('evil') }
+      end
+
+      context 'with a protocol-relative host' do
+        let(:return_to) { '//evil.example.com/x' }
+
+        it { is_expected.to end_with('/') }
+        it { is_expected.not_to include('evil') }
+      end
+    end
+
     context 'with invalid password' do
       before { post '/login', password: 'invalid_password' }
 
