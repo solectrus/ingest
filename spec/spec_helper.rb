@@ -24,6 +24,7 @@ RSpec.configure do |config|
     Outgoing.delete_all
     Target.delete_all
 
+    Target.reset!
     SensorValueCache.instance.reset!
     SensorEnvConfig.reset!
     OutboxNotifier.reset!

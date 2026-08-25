@@ -37,7 +37,7 @@ class Processor
   private
 
   def target
-    @target ||= Target.find_or_create_by!(**@target_args)
+    @target ||= Target.fetch(**@target_args)
   end
 
   # The whole request goes to the database in one statement. One statement per
