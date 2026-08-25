@@ -47,6 +47,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     100.0 * Stats.counter(:house_power_recalculate_skipped) / calculation_count
   end
 
+  # How many skipped calculations missed each sensor. One skipped calculation
+  # can miss more than one sensor, and it counts each of them. The numbers
+  # thus add up to more than the number of skips.
   def calculation_skips_by_sensor
     prefix = HousePowerCalculator::SKIP_STAT_PREFIX
     Stats

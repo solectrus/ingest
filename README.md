@@ -74,7 +74,7 @@ All configured sensors must contribute a value. If one of them is **older than 1
 
 The formula needs every term. If a term is missing, the result is wrong. Ingest does not replace the missing term with a guess, so it writes nothing at all. A gap in the dashboard is better than a wrong value in the database.
 
-The stats page shows these skips as `Skipped (stale)`, plus a `Skipped by Sensor` list that names the sensors which caused them.
+The stats page shows these skips as `Skipped (stale)`, plus a `Missing values by sensor` list that names the sensors which caused them.
 
 So every configured sensor must send data **continuously**, even when its true value is zero. There are two different causes for a gap:
 

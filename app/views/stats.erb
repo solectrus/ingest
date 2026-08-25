@@ -61,7 +61,7 @@
     </dl>
 
     <% if calculation_skips_by_sensor.any? %>
-      <h2>Skipped by Sensor</h2>
+      <h2>Missing values by sensor <small>(one skip can miss several)</small></h2>
       <dl class="right">
         <% calculation_skips_by_sensor.each do |sensor, count| %>
           <dt class="font-mono"><%= h sensor %></dt>
