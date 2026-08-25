@@ -253,6 +253,39 @@ describe StatsHelpers do
     end
   end
 
+  describe '#house_power_destination' do
+    it 'names the measurement and the field of the result' do
+      expect(house_power_destination).to eq('SENEC:house_power')
+    end
+
+    it 'returns nothing while no sensor is configured' do
+      allow(SensorEnvConfig).to receive(:house_power_destination).and_return(nil)
+
+      expect(house_power_destination).to be_nil
+    end
+  end
+
+  describe '#house_power_inputs' do
+    # The configuration excludes the heat pump, and the house power itself is
+    # the result, not an input.
+    it 'counts the sensors of the formula' do
+      expect(house_power_inputs).to eq(
+        SensorEnvConfig.sensor_keys_for_house_power.size,
+      )
+      expect(house_power_inputs).to be < SensorEnvConfig.config.size
+    end
+  end
+
+  describe '#http_status_label' do
+    it 'adds the text of the status to the code' do
+      expect(http_status_label(:http_response_204)).to eq('204 No Content')
+    end
+
+    it 'keeps the code alone when no text belongs to it' do
+      expect(http_status_label(:http_response_299)).to eq('299')
+    end
+  end
+
   describe '#retention_hours' do
     it 'reports how long the buffer keeps a line' do
       expect(retention_hours).to eq(CleanupWorker::RETENTION.in_hours.to_i)

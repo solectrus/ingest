@@ -1,63 +1,66 @@
 <div class="grid">
   <section>
-    <h2>Incoming</h2>
+    <h2>Incoming <small>(from collectors)</small></h2>
     <dl class="right">
-      <dt>Total</dt>
-      <dd><%= number_to_delimited(incoming_total) %></dd>
-
-      <dt>Range <small>(max <%= max_range_hours %>h)</small></dt>
-      <dd><%= format_duration(incoming_range) %></dd>
-
       <dt>Throughput</dt>
       <dd><%= number_to_delimited(incoming_throughput) %> /min</dd>
 
-      <dt>Skipped (invalid)</dt>
+      <dt>Invalid lines <small>(not parsable)</small></dt>
       <dd><%= number_to_delimited(skipped_lines) %></dd>
+    </dl>
+
+    <h2>Buffer <small>(SQLite on disk)</small></h2>
+    <dl class="right">
+      <dt>Values buffered <small>(one per field)</small></dt>
+      <dd><%= number_to_delimited(incoming_total) %></dd>
+
+      <dt>Time span <small>(max <%= max_range_hours %>h)</small></dt>
+      <dd><%= format_duration(incoming_range) %></dd>
+
+      <dt>Retention</dt>
+      <dd><%= retention_hours %>h</dd>
+
+      <dt>Database size</dt>
+      <dd><%= number_to_human_size(database_size) %></dd>
+
+      <dt>Disk free</dt>
+      <dd><%= number_to_human_size(disk_free) %></dd>
     </dl>
   </section>
 
   <section>
-    <h2>Outgoing</h2>
+    <h2>Outgoing <small>(to InfluxDB)</small></h2>
     <dl class="right">
-      <dt>Queued</dt>
+      <dt>Waiting in queue</dt>
       <dd><%= number_to_delimited(outgoing_total) %></dd>
 
-      <dt>Queue age (oldest)</dt>
+      <dt>Oldest in queue</dt>
       <dd><%= format_duration(queue_oldest_age) %></dd>
     </dl>
   </section>
 
   <section>
-    <h2>Cache</h2>
+    <h2>House power <small>(recalculated)</small></h2>
     <dl class="right">
-      <dt>Size</dt>
-      <dd><%= number_to_delimited(cache_size) %></dd>
+      <div class="wide">
+        <dt>Written to</dt>
+        <dd class="font-mono"><%= value_or_dash(house_power_destination) { |d| h d } %></dd>
+      </div>
 
-      <dt>Range</dt>
-      <dd><%= format_duration(cache_range) %></dd>
-    </dl>
-  </section>
+      <dt>Sensors in the formula</dt>
+      <dd><%= number_to_delimited(house_power_inputs) %></dd>
 
-  <section>
-    <h2>HousePower Calculation</h2>
-    <dl class="right">
-      <dt>Count</dt>
+      <dt>Values calculated</dt>
       <dd><%= number_to_delimited(calculation_count) %></dd>
 
-      <dt>Rate</dt>
+      <dt>Calculation rate</dt>
       <dd><%= value_or_dash(calculation_rate) { |r| "#{number_to_delimited(r.round)} /min" } %></dd>
 
-      <dt>Cache hits</dt>
-      <dd><%= value_or_dash(calculation_cache_hits) { |v| number_to_percentage(v, precision: 0) } %></dd>
-
-      <dt>Interpolator queries</dt>
-      <dd><%= number_to_delimited(interpolate_queries) %></dd>
-
-      <dt>Skipped (stale)</dt>
-      <dd><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
-
-      <dt>Last success</dt>
+      <dt>Last calculation</dt>
       <dd><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
+
+      <dt>Skipped <small>(value missing)</small></dt>
+      <dd><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
     </dl>
 
     <% if calculation_skips_by_sensor.any? %>
@@ -72,18 +75,26 @@
   </section>
 
   <section>
-    <h2>Responses</h2>
+    <h2>Requests <small>(from collectors)</small></h2>
     <dl class="right">
-      <% Stats.counters_by(:http_response).sort.each do |key, value| %>
-        <dt><%= key.to_s.gsub('http_response_', 'HTTP ') %></dt>
-        <dd><%= number_to_delimited(value) %></dd>
-      <% end %>
-
-      <dt>Total requests</dt>
+      <dt>Total</dt>
       <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
 
-      <dt>⌀ Time</dt>
+      <dt>Response time <small>(average)</small></dt>
       <dd><%= value_or_dash(response_time) { |t| "#{number_to_delimited(t)} ms" } %></dd>
+    </dl>
+
+    <h2>Responses <small>(by HTTP status)</small></h2>
+    <dl class="right">
+      <% if Stats.counters_by(:http_response).any? %>
+        <% Stats.counters_by(:http_response).sort.each do |key, value| %>
+          <dt><%= http_status_label(key) %></dt>
+          <dd><%= number_to_delimited(value) %></dd>
+        <% end %>
+      <% else %>
+        <dt>No request yet</dt>
+        <dd>–</dd>
+      <% end %>
     </dl>
   </section>
 
@@ -93,32 +104,43 @@
       <dt>CPU usage</dt>
       <dd><%= number_to_percentage(cpu_usage, precision: 1) %></dd>
 
-      <dt>Threads</dt>
-      <dd><%= thread_count %></dd>
-
       <dt>Memory usage</dt>
       <dd><%= number_to_human_size(memory_usage) %></dd>
 
-      <dt>SQLite database</dt>
-      <dd><%= number_to_human_size(database_size) %></dd>
-
-      <dt>Disk free</dt>
-      <dd><%= number_to_human_size(disk_free) %></dd>
+      <dt>Threads</dt>
+      <dd><%= thread_count %></dd>
     </dl>
 
     <h2>Uptime</h2>
     <dl class="right">
-      <dt>Container</dt>
+      <dt>Ingest</dt>
       <dd><%= format_duration(container_uptime) %></dd>
 
-      <dt>System</dt>
+      <dt>Host</dt>
       <dd><%= format_duration(system_uptime) %></dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Sensor cache <small>(for the house power)</small></h2>
+    <dl class="right">
+      <dt>Sensors cached</dt>
+      <dd><%= number_to_delimited(cache_size) %></dd>
+
+      <dt>Cached time span</dt>
+      <dd><%= format_duration(cache_range) %></dd>
+
+      <dt>Cache hits <small>(of all calculations)</small></dt>
+      <dd><%= value_or_dash(calculation_cache_hits) { |v| number_to_percentage(v, precision: 0) } %></dd>
+
+      <dt>Interpolator queries <small>(after a miss)</small></dt>
+      <dd><%= number_to_delimited(interpolate_queries) %></dd>
     </dl>
   </section>
 </div>
 
 <section class="section">
-  <h2 class="section__label">Measurements &amp; Fields <small>(with throughput)</small></h2>
+  <h2 class="section__label">Incoming data <small>(measurement, field and throughput)</small></h2>
 
   <div class="cards">
     <% incoming_measurement_fields_grouped.each do |measurement, groups| %>

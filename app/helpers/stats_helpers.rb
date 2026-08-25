@@ -97,6 +97,30 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     # simplecov:enable
   end
 
+  # Where the calculated house power goes. Without it a reader cannot tell
+  # whether the result overwrites the value of the collector or goes to a
+  # field of its own.
+  def house_power_destination
+    destination = SensorEnvConfig.house_power_destination
+    return unless destination
+
+    "#{destination[:measurement]}:#{destination[:field]}"
+  end
+
+  # How many sensors the formula adds up. The configuration can exclude a
+  # sensor, so this number can be below the number of configured sensors.
+  def house_power_inputs
+    SensorEnvConfig.sensor_keys_for_house_power.size
+  end
+
+  # "204" alone makes the reader look the code up.
+  def http_status_label(key)
+    code = key.to_s.delete_prefix('http_response_')
+    text = Rack::Utils::HTTP_STATUS_CODES[code.to_i]
+
+    text ? "#{code} #{text}" : code
+  end
+
   def incoming_measurement_fields_grouped
     @incoming_measurement_fields_grouped ||=
       incoming_counts

@@ -152,15 +152,20 @@ header.brand {
   margin-left: 0.4rem;
 }
 
+/* Columns, not a grid: a card keeps the height of its list, and the next card
+   starts where it ends. A grid would give every card of a row the height of
+   the longest one, and one measurement with 25 fields would then leave a hole
+   below a measurement with 6. */
 .cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.75rem;
+  columns: 1;
+  column-gap: 0.75rem;
 }
-@media (min-width: 640px)  { .cards { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1000px) { .cards { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 640px)  { .cards { columns: 2; } }
+@media (min-width: 1000px) { .cards { columns: 3; } }
 
 .card {
+  break-inside: avoid;
+  margin-bottom: 0.75rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -194,6 +199,12 @@ header.brand {
   gap: 1rem;
   font-size: 0.85rem;
   min-width: 0;
+}
+.card__list li > span {
+  min-width: 0;
+}
+.card__list li > small {
+  white-space: nowrap;
 }
 .card__list li .font-mono {
   color: var(--fg-muted);
@@ -249,6 +260,29 @@ dd {
 }
 dl.left dd { text-align: left; }
 dl.right dd { text-align: right; }
+
+/* A row with a long value, like a measurement and its field. In the value
+   column that value makes the column so wide that the labels of the other
+   rows break into two lines. This row takes the full width instead: the
+   label stays left, the value stays right, and the columns of the other
+   rows do not change. */
+dl > .wide {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1.25rem;
+}
+/* If the column is too narrow for both, the value moves below the label and
+   stays right. Only a value that is wider than the full column breaks. */
+dl > .wide dt { flex-shrink: 0; }
+dl > .wide dd {
+  flex: 0 0 auto;
+  max-width: 100%;
+  margin-left: auto;
+  overflow-wrap: anywhere;
+}
 
 small { color: var(--fg-subtle); font-size: 0.78rem; }
 
