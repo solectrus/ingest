@@ -23,7 +23,13 @@ describe SessionHelper do
     end
   end
 
-  let(:request_double) { Struct.new(:path, :cookies).new(path, {}) }
+  let(:request_double) do
+    Struct
+      .new(:path, :cookies) do
+        def secure? = false
+      end
+      .new(path, {})
+  end
 
   let(:response_double) do
     Struct
@@ -71,6 +77,16 @@ describe SessionHelper do
 
       it 'remembers the root page instead of the login form' do
         expect(helper.response.cookies['return_to']).to include(value: '/')
+      end
+    end
+  end
+
+  describe '#correct_password?' do
+    context 'without a password' do
+      let(:password) { '' }
+
+      it 'accepts nothing, so the login form stays closed' do
+        expect(helper).not_to be_correct_password('')
       end
     end
   end

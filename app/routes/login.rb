@@ -4,11 +4,13 @@ class LoginRoute < BaseRoute
   end
 
   post '/login' do
-    if params[:password] == password
+    if correct_password?(params[:password])
       response.set_cookie 'password',
                           value: password,
                           path: '/',
                           httponly: true,
+                          same_site: :lax,
+                          secure: request.secure?,
                           expires: 30.days.from_now
 
       target = safe_return_to
