@@ -9,7 +9,7 @@
       <dd><%= value_or_dash(incoming_lines_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Last line</dt>
-      <dd class="<%= status_of(:incoming_age) %>"><%= value_or_dash(incoming_age) { |a| "#{format_duration(a)} ago" } %></dd>
+      <dd class="<%= status_of(:incoming_age) %>"><%= value_or_dash(incoming_age) { |a| age_tag(a) } %></dd>
 
       <dt>Invalid lines <small>(not parsable)</small></dt>
       <dd class="<%= status_of(:skipped_lines) %>"><%= number_to_delimited(skipped_lines) %></dd>
@@ -91,7 +91,7 @@
       <dd><%= value_or_dash(calculation_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Last calculation</dt>
-      <dd class="<%= status_of(:last_success) %>"><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
+      <dd class="<%= status_of(:last_success) %>"><%= value_or_dash(last_calculation_age) { |a| age_tag(a) } %></dd>
 
       <dt>Skipped <small>(value missing)</small></dt>
       <dd class="<%= status_of(:skipped_stale) %>"><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
@@ -148,10 +148,10 @@
     <h2>Uptime</h2>
     <dl class="right">
       <dt>Ingest</dt>
-      <dd><%= format_duration(container_uptime) %></dd>
+      <dd><%= duration_tag(container_uptime) %></dd>
 
       <dt>Host</dt>
-      <dd><%= format_duration(system_uptime) %></dd>
+      <dd><%= duration_tag(system_uptime) %></dd>
     </dl>
   </section>
 

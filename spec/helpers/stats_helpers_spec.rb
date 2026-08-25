@@ -77,6 +77,20 @@ describe StatsHelpers do
     end
   end
 
+  describe '#duration_tag' do
+    # The script counts up from this number, so the markup must carry the
+    # value, not only its text.
+    it 'carries the value for the script' do
+      expect(duration_tag(65.4)).to eq('<span data-age="65">1m 5s</span>')
+    end
+
+    it 'carries the suffix for the script' do
+      expect(age_tag(65.4)).to eq(
+        '<span data-age="65" data-age-suffix="ago">1m 5s ago</span>',
+      )
+    end
+  end
+
   describe '#format_duration' do
     it 'returns a dash for nil' do
       expect(format_duration(nil)).to eq('–')

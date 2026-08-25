@@ -143,6 +143,21 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (Stats.sum(:http_duration_total) / Stats.counter(:http_requests)).round
   end
 
+  # A duration that grows while the page stands. The page refreshes every 30
+  # seconds, so the value is wrong for most of the time it stands there. The
+  # script counts the seconds up from what the server measured.
+  def duration_tag(seconds, suffix: nil)
+    attributes = [%(data-age="#{seconds.round}")]
+    attributes << %(data-age-suffix="#{suffix}") if suffix
+    text = [format_duration(seconds), suffix].compact.join(' ')
+
+    %(<span #{attributes.join(' ')}>#{text}</span>)
+  end
+
+  def age_tag(seconds)
+    duration_tag(seconds, suffix: 'ago')
+  end
+
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
     return '–' unless seconds
 
