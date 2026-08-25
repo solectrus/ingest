@@ -100,17 +100,16 @@ describe StatsHelpers do
     end
   end
 
-  describe '#duration_tag' do
-    # The script counts up from this number, so the markup must carry the
-    # value, not only its text.
-    it 'carries the value for the script' do
-      expect(duration_tag(65.4)).to eq('<span data-age="65">1m 5s</span>')
+  describe '#format_age' do
+    it 'names how long ago the server measured the value' do
+      expect(format_age(65.4)).to eq('1m 5s ago')
     end
 
-    it 'carries the suffix for the script' do
-      expect(age_tag(65.4)).to eq(
-        '<span data-age="65" data-age-suffix="ago">1m 5s ago</span>',
-      )
+    # The script counted these values up before, and they then disagreed with
+    # the throughput and the counts, which keep the moment of the request.
+    # Only the header of the page carries a value that grows.
+    it 'carries nothing for the script to count up' do
+      expect(format_age(65.4)).not_to include('data-age')
     end
   end
 
@@ -514,10 +513,7 @@ describe StatsHelpers do
     it 'shows the age instead once the stream goes quiet' do
       entry = { throughput: 5, age: 600, stale: true, level: 'warn' }
 
-      expect(stream_tag(entry)).to eq(
-        '<small class="warn">' \
-          '<span data-age="600" data-age-suffix="ago">10m 0s ago</span></small>',
-      )
+      expect(stream_tag(entry)).to eq('<small class="warn">10m 0s ago</small>')
     end
 
     # A forwarded stream can be slow on purpose, so its age is a fact and not
@@ -525,9 +521,7 @@ describe StatsHelpers do
     it 'leaves the age plain without a level' do
       entry = { throughput: 5, age: 600, stale: true, level: nil }
 
-      expect(stream_tag(entry)).to eq(
-        '<small><span data-age="600" data-age-suffix="ago">10m 0s ago</span></small>',
-      )
+      expect(stream_tag(entry)).to eq('<small>10m 0s ago</small>')
     end
   end
 

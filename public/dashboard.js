@@ -1,6 +1,11 @@
 (() => {
+  // The one value of the page that grows while the page stands: how old the
+  // whole page is. Every other value keeps the moment of the request, so it
+  // must not count up, or the page would disagree with itself.
+  const element = document.querySelector('[data-page-age]');
+  if (!element) return;
+
   const start = Date.now();
-  const elapsed = () => (Date.now() - start) / 1000;
 
   // The same format as `format_duration` of the server. Both must agree,
   // because the script continues the value that the server rendered.
@@ -20,26 +25,12 @@
     return parts.join(' ');
   };
 
-  // Every duration of the page that grows, with the value that the server
-  // measured. An age carries a suffix ("ago"), an uptime carries none. The
-  // header holds one too, with a value of 0.
-  const ages = [...document.querySelectorAll('[data-age]')]
-    .map((el) => ({
-      el,
-      base: Number(el.dataset.age),
-      suffix: el.dataset.ageSuffix ? ` ${el.dataset.ageSuffix}` : '',
-    }))
-    .filter(({ base }) => Number.isFinite(base));
-
+  // The page reloads every 30 seconds, so this normally counts to 30. It runs
+  // longer when the tab sleeps in the background, or when the server is slow.
   const tick = () => {
-    const seconds = elapsed();
-
-    ages.forEach(({ el, base, suffix }) => {
-      const next = `${formatDuration(base + seconds)}${suffix}`;
-      if (el.textContent !== next) el.textContent = next;
-    });
+    const next = formatDuration((Date.now() - start) / 1000);
+    if (element.textContent !== next) element.textContent = next;
   };
 
-  tick();
   setInterval(tick, 1000);
 })();

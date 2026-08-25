@@ -28,7 +28,7 @@
       <% if authorized? %>
         <div class="brand__meta">
           <span class="brand__live <%= @page_status %>" title="<%= @page_status ? 'Live data, some values need attention' : 'Live data' %>">Live</span>
-          <span class="brand__updated" title="<%= Time.current.strftime('%H:%M:%S') %>">Updated <span data-age="0" data-age-suffix="ago">0s ago</span></span>
+          <span class="brand__updated" title="<%= Time.current.strftime('%H:%M:%S') %>">Updated <span data-page-age>0s</span> ago</span>
         </div>
       <% end %>
     </header>

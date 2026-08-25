@@ -176,19 +176,17 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (Stats.sum(:http_duration_total) / Stats.counter(:http_requests)).round
   end
 
-  # A duration that grows while the page stands. The page refreshes every 30
-  # seconds, so the value is wrong for most of the time it stands there. The
-  # script counts the seconds up from what the server measured.
-  def duration_tag(seconds, suffix: nil)
-    attributes = [%(data-age="#{seconds.round}")]
-    attributes << %(data-age-suffix="#{suffix}") if suffix
-    text = [format_duration(seconds), suffix].compact.join(' ')
-
-    %(<span #{attributes.join(' ')}>#{text}</span>)
-  end
-
-  def age_tag(seconds)
-    duration_tag(seconds, suffix: 'ago')
+  # How long ago the server measured something. It does not grow while the page
+  # stands.
+  #
+  # The script counted these values up before, second by second. That made
+  # them disagree with every other value of the page, because those keep the
+  # moment of the request: the age of the last line ran ahead while the
+  # throughput and the counts stood still. One moment for the whole page reads
+  # better than one field that is right. The header says how old that moment
+  # is.
+  def format_age(seconds)
+    "#{format_duration(seconds)} ago"
   end
 
   def format_duration(seconds) # rubocop:disable Metrics/CyclomaticComplexity,Metrics/PerceivedComplexity
@@ -525,7 +523,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
     css_class = %( class="#{entry[:level]}") if entry[:level]
 
-    %(<small#{css_class}>#{age_tag(entry[:age])}</small>)
+    %(<small#{css_class}>#{format_age(entry[:age])}</small>)
   end
 
   # SOLECTRUS does not use data that arrives faster than every 4 seconds. A
