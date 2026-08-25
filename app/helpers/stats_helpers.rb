@@ -145,6 +145,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       )
   end
 
+  # Lines that arrived and were stored. The buffer holds a row per field, so a
+  # line of 26 fields counts 26 there. Only this number compares with the
+  # delivered lines, and both count since the start of the container.
+  def incoming_lines
+    Stats.counter(:incoming_lines)
+  end
+
+  def incoming_lines_rate
+    return unless incoming_lines.positive?
+
+    60.0 * incoming_lines / container_uptime
+  end
+
   def cache_range
     @cache_range ||=
       range_between(
@@ -159,13 +172,6 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def cache_stats
     @cache_stats ||= SensorValueCache.instance.stats
-  end
-
-  def incoming_throughput
-    minutes = incoming_range&.fdiv(60)
-    return 0 if minutes.nil? || minutes.zero?
-
-    (incoming_total / minutes).round(1)
   end
 
   def incoming_throughput_for(count)

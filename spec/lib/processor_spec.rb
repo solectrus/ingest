@@ -104,6 +104,20 @@ describe Processor do
         expect(outgoing.line_protocol).to eq(line)
       end
 
+      # The buffer holds a row per field, so it counts a line of three fields
+      # three times. The stats page compares the incoming lines with the
+      # delivered lines, and both must count the same thing.
+      it 'counts the line' do
+        expect { run }.to change { Stats.counter(:incoming_lines) }.by(1)
+      end
+
+      it 'counts a line of three fields once' do
+        expect do
+          processor.run(['SENEC a=1,b=2,c=3 1000000000'])
+        end.to change { Stats.counter(:incoming_lines) }.by(1)
+        expect(Incoming.count).to eq(3)
+      end
+
       it 'triggers house power recalculation if relevant' do
         allow(SensorEnvConfig).to receive(
           :relevant_for_house_power?,

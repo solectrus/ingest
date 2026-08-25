@@ -26,6 +26,11 @@ class Processor
       end
     end
 
+    # After the transaction: a rollback keeps nothing, so it must count
+    # nothing. One point is one line of the request. The buffer counts a row
+    # per field instead, and a line of 26 fields is 26 rows there.
+    Stats.inc(:incoming_lines, points.size)
+
     OutboxNotifier.notify! if outbox_written
   end
 

@@ -2,8 +2,11 @@
   <section>
     <h2>Incoming <small>(from collectors)</small></h2>
     <dl class="right">
+      <dt>Lines received <small>(since start)</small></dt>
+      <dd><%= number_to_delimited(incoming_lines) %></dd>
+
       <dt>Throughput</dt>
-      <dd><%= number_to_delimited(incoming_throughput) %> /min</dd>
+      <dd><%= value_or_dash(incoming_lines_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Invalid lines <small>(not parsable)</small></dt>
       <dd><%= number_to_delimited(skipped_lines) %></dd>

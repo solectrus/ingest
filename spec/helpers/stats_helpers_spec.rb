@@ -188,26 +188,19 @@ describe StatsHelpers do
       Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
     end
 
-    describe '#incoming_throughput' do
-      it 'returns 0 without incoming data' do
-        expect(incoming_throughput).to eq(0)
+    describe '#incoming_lines_rate' do
+      it 'returns nothing before the first line' do
+        expect(incoming_lines).to eq(0)
+        expect(incoming_lines_rate).to be_nil
       end
 
-      it 'returns the lines per minute' do
-        target.incomings.create!(
-          measurement: 'SENEC',
-          field: 'test',
-          value: 42,
-          created_at: 2.minutes.ago,
-        )
-        target.incomings.create!(
-          measurement: 'SENEC',
-          field: 'test',
-          value: 42,
-          created_at: Time.current,
-        )
+      # The buffer holds a row per field, so it cannot answer how many lines
+      # arrived. The counter can, and only it compares with the delivery rate.
+      it 'returns the lines per minute since the start' do
+        Stats.inc(:incoming_lines, 20)
+        allow(self).to receive(:container_uptime).and_return(120)
 
-        expect(incoming_throughput).to eq(1.0)
+        expect(incoming_lines_rate).to eq(10.0)
       end
     end
 
