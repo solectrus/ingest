@@ -240,16 +240,18 @@ describe StatsHelpers do
       expect(throughput_tag(nil)).to eq('<small>-</small>')
     end
 
-    it 'marks a low rate as ok' do
-      expect(throughput_tag(12)).to eq('<small class="ok">12 /min</small>')
+    # Every 4 seconds is the fastest rate that SOLECTRUS uses.
+    it 'marks a rate up to every 4 seconds as ok' do
+      expect(throughput_tag(15)).to eq('<small class="ok">15 /min</small>')
     end
 
-    it 'marks a medium rate as warn' do
-      expect(throughput_tag(24)).to eq('<small class="warn">24 /min</small>')
+    it 'marks a faster rate as warn' do
+      expect(throughput_tag(15.2)).to eq('<small class="warn">15 /min</small>')
+      expect(throughput_tag(30)).to eq('<small class="warn">30 /min</small>')
     end
 
-    it 'marks a high rate as crit' do
-      expect(throughput_tag(25)).to eq('<small class="crit">25 /min</small>')
+    it 'marks a rate above every 2 seconds as crit' do
+      expect(throughput_tag(31)).to eq('<small class="crit">31 /min</small>')
     end
 
     it 'keeps the decimal of a slow rate' do

@@ -187,13 +187,18 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     (CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL).in_hours.to_i
   end
 
+  # SOLECTRUS does not use data that arrives faster than every 4 seconds. A
+  # higher rate fills the buffer and gives no gain.
+  THROUGHPUT_WARN = 60 / 4
+  THROUGHPUT_CRIT = 2 * THROUGHPUT_WARN
+
   def throughput_tag(value)
     return '<small>-</small>' unless value
 
     css_class =
-      if value <= 12
+      if value <= THROUGHPUT_WARN
         'ok'
-      elsif value <= 24
+      elsif value <= THROUGHPUT_CRIT
         'warn'
       else
         'crit'
