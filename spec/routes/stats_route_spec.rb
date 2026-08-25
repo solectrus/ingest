@@ -75,6 +75,16 @@ describe StatsRoute do
         expect(last_response.body).to include('>Live</span>')
       end
 
+      # A bucket and an org are as long as somebody makes them, so each one
+      # gets a row with a label of its own.
+      it 'names the bucket, the org and the tokens of a target' do
+        get '/'
+
+        expect(last_response.body).to include('<dt>Bucket</dt>')
+        expect(last_response.body).to include('<dt>Org</dt>')
+        expect(last_response.body).to include('<dt>Tokens</dt>')
+      end
+
       # The badge renders in the header, before the fields of the page. Its
       # colour must still show what those fields say. The text stays "Live".
       it 'shows a red badge when a line was lost' do

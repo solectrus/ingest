@@ -143,18 +143,33 @@
       <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
     </dl>
 
-    <h2>Targets <small>(bucket / org)</small></h2>
-    <dl class="right">
-      <% if targets.any? %>
-        <% targets.each do |target| %>
-          <dt class="font-mono"><%= h target[:bucket] %></dt>
-          <dd class="font-mono"><%= h target[:org] %><% if target[:tokens] > 1 %> <small>(<%= target[:tokens] %> tokens)</small><% end %></dd>
-        <% end %>
-      <% else %>
+    <!-- One block per target, not one row: a bucket and an org are names of
+         the configuration, and they are as long as somebody makes them. Two
+         of them on one row break in the middle of a word. -->
+    <h2>Targets <small>(where the lines go)</small></h2>
+    <% if targets.any? %>
+      <% targets.each do |target| %>
+        <dl class="right">
+          <div class="wide">
+            <dt>Bucket</dt>
+            <dd class="font-mono"><%= h target[:bucket] %></dd>
+          </div>
+
+          <div class="wide">
+            <dt>Org</dt>
+            <dd class="font-mono"><%= h target[:org] %></dd>
+          </div>
+
+          <dt>Tokens</dt>
+          <dd><%= number_to_delimited(target[:tokens]) %></dd>
+        </dl>
+      <% end %>
+    <% else %>
+      <dl class="right">
         <dt>Targets</dt>
         <dd>&ndash;</dd>
-      <% end %>
-    </dl>
+      </dl>
+    <% end %>
   </article>
 </section>
 

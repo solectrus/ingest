@@ -347,19 +347,24 @@ header.brand {
   word-break: break-word;
 }
 
-/* Several sensors per row. Over the full width the key and its measurement
-   would sit an entire screen apart, and the eye loses the line. Each row
-   holds three columns: the sensor key, the measurement and field it reads,
-   and what arrives for it. */
+/* One sensor per line. Two sensors per line fit on a wide screen, but the
+   names come from the configuration, and a long one then breaks in the middle
+   of a word.
+   Each row holds three columns: the sensor key, the measurement and field it
+   reads, and what arrives for it. The rows share the columns, so the key and
+   its measurement stay side by side and the eye keeps the line. The first
+   column holds a width of its own, so that two lists below each other keep
+   the same columns. */
 .card__list--sensors {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(28rem, 1fr));
+  grid-template-columns:
+    minmax(13rem, max-content) minmax(0, max-content) minmax(4.5rem, 1fr);
   column-gap: 2rem;
 }
 .card__list--sensors li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 4.5rem;
-  column-gap: 0.8rem;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
 }
 .card__list--sensors li > :last-child { text-align: right; }
 
@@ -368,11 +373,11 @@ header.brand {
 @media (max-width: 700px) {
   /* The two lines of an entry must sit closer to each other than two
      entries do, otherwise the eye reads the wrong pair. */
-  .card__list--sensors { row-gap: 0.9rem; }
-  .card__list--sensors li {
+  .card__list--sensors {
     grid-template-columns: minmax(0, 1fr) auto;
-    row-gap: 0.1rem;
+    row-gap: 0.9rem;
   }
+  .card__list--sensors li { row-gap: 0.1rem; }
   .card__list--sensors li > :nth-child(1) { grid-area: 1 / 1; }
   .card__list--sensors li > :nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
   .card__list--sensors li > :nth-child(3) { grid-area: 1 / 2; }
@@ -428,27 +433,28 @@ dd {
 dl.left dd { text-align: left; }
 dl.right dd { text-align: right; }
 
-/* A row with a long value, like a measurement and its field. In the value
-   column that value makes the column so wide that the labels of the other
-   rows break into two lines. This row takes the full width instead: the
-   label stays left, the value stays right, and the columns of the other
-   rows do not change. */
+/* A row with a long value, like a measurement and its field. The value comes
+   from the configuration, so it is as long as somebody makes it. It takes a
+   line of its own below the label: beside the label it makes the value column
+   so wide that the labels of the other rows break into two lines, and a value
+   that is longer than the rest of the line breaks in the middle of a word. */
 dl > .wide {
   grid-column: 1 / -1;
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0 1.25rem;
+  flex-direction: column;
+  gap: 0.1rem;
 }
-/* If the column is too narrow for both, the value moves below the label and
-   stays right. Only a value that is wider than the full column breaks. */
-dl > .wide dt { flex-shrink: 0; }
 dl > .wide dd {
-  flex: 0 0 auto;
-  max-width: 100%;
-  margin-left: auto;
+  text-align: left;
   overflow-wrap: anywhere;
+}
+
+/* Two lists in one box, like the targets. Each one holds the rows that belong
+   together, and the line says where the next one starts. */
+dl + dl {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border);
 }
 
 small { color: var(--fg-subtle); font-size: 0.78rem; }
