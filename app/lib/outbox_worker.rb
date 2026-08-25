@@ -18,6 +18,13 @@ class OutboxWorker
       run_once
       OutboxNotifier.wait
       sleep LINGER
+
+      # The lines that arrived during the wait have signalled as well. The
+      # next pass reads them anyway, so their signals would only buy a pass
+      # that finds nothing: four of eleven passes ran empty. Dropping them
+      # is safe, because a line that arrives after this point keeps its own
+      # signal.
+      OutboxNotifier.reset!
     rescue StandardError => e
       warn "[OutboxWorker] Error: #{e.class} - #{e.message}"
       warn e.backtrace.join("\n")

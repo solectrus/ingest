@@ -446,6 +446,29 @@ describe OutboxWorker do
       expect(described_class).to have_received(:run_once).once
     end
 
+    # The lines of one poll signal while the worker lingers. The pass that
+    # follows reads them, so their signals bought an empty pass: four of
+    # eleven passes found nothing.
+    it 'runs no second pass for the signals it has just covered' do
+      stub_const("#{described_class}::LINGER", 0.1)
+
+      thread = Thread.new { described_class.run_loop }
+      sleep 0.05 # the first pass runs before the wait
+
+      # Three writes of one poll, all of them inside the wait.
+      3.times do
+        OutboxNotifier.notify!
+        sleep 0.01
+      end
+      sleep 0.2
+
+      thread.kill
+      thread.join
+
+      # One pass on entering the loop, one for the three writes together.
+      expect(described_class).to have_received(:run_once).twice
+    end
+
     it 'runs the pass once the wait is over' do
       stub_const("#{described_class}::LINGER", 0.05)
 
