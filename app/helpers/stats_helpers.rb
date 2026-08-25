@@ -302,16 +302,34 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # The queue grows in order, so the row with the lowest id carries the oldest
   # time. MIN(created_at) has no index and scans the whole table: 37ms against
   # 0.6ms on a queue of 1,000,000 rows.
+  #
+  # An empty queue has no oldest row, and `||=` keeps no nil. The badge and the
+  # field both read this, so the query ran twice while the queue was empty. The
+  # count is memoized and comes first, so it can answer that case alone.
   def queue_oldest_age
+    return if outgoing_total.zero?
+
     @queue_oldest_age ||= age_from(Outgoing.order(:id).pick(:created_at))
   end
 
+  # An empty buffer has no oldest row, and `||=` keeps no nil. The counts come
+  # from one scan that the page makes anyway, so they answer that case without
+  # a query of their own.
   def incoming_oldest
+    return if incoming_counts.empty?
+
     @incoming_oldest ||= Incoming.minimum(:created_at)
   end
 
+  # The newest line of the whole buffer. #incoming_by_target already carries
+  # the newest time of every measurement and field, and the newest of those is
+  # the newest of all. The page thus needs no MAX(created_at) of its own.
+  #
+  # A row can go away between the two queries of that scan, and its time is
+  # then absent. The remaining ones still give the answer.
   def incoming_newest
-    @incoming_newest ||= Incoming.maximum(:created_at)
+    @incoming_newest ||=
+      incoming_by_target.each_value.filter_map { it[:last_at] }.max
   end
 
   def incoming_range

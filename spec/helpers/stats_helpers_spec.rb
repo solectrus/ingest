@@ -367,6 +367,54 @@ describe StatsHelpers do
     end
   end
 
+  describe '#incoming_newest' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    before do
+      target.incomings.create!(
+        measurement: 'SENEC', field: 'a', value: 1, created_at: 3.minutes.ago,
+      )
+      target.incomings.create!(
+        measurement: 'SENEC', field: 'b', value: 1, created_at: 2.minutes.ago,
+      )
+      target.incomings.create!(
+        measurement: 'OTHER', field: 'a', value: 1, created_at: 1.minute.ago,
+      )
+    end
+
+    it 'matches the maximum of the table' do
+      expect(incoming_newest).to eq(Incoming.maximum(:created_at))
+    end
+
+    # The scan of the measurements and fields already holds the answer.
+    it 'asks no query of its own' do
+      incoming_counts
+
+      queries = count_queries { incoming_newest }
+
+      expect(queries).to be_zero
+    end
+
+    # The cleanup can delete a row between the two queries of the scan.
+    it 'ignores an entry whose row went away' do
+      allow(self).to receive(:incoming_by_target).and_return(
+        { %w[SENEC a] => { count: 1, last_at: nil } },
+      )
+
+      expect(incoming_newest).to be_nil
+    end
+  end
+
+  describe '#incoming_oldest' do
+    it 'asks no query for an empty buffer' do
+      queries = count_queries { 2.times { incoming_oldest } }
+
+      expect(queries).to eq(1) # The scan of the measurements and fields
+    end
+  end
+
   describe '#stale_sensors' do
     let(:target) do
       Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
@@ -729,6 +777,25 @@ describe StatsHelpers do
 
       expect(queue_oldest_age).to be_within(5).of(60)
     end
+
+    # The badge and the field both read this, and nil does not memoize.
+    it 'asks no query for an empty queue' do
+      outgoing_total
+
+      queries = count_queries { 2.times { queue_oldest_age } }
+
+      expect(queries).to be_zero
+    end
+
+    it 'asks one query for a filled queue' do
+      target = Target.create!(influx_token: 'foo', bucket: 'b', org: 'o')
+      target.outgoings.create!(line_protocol: 'M f=1 1000')
+      outgoing_total
+
+      queries = count_queries { 2.times { queue_oldest_age } }
+
+      expect(queries).to eq(1)
+    end
   end
 
   describe '#memory_usage' do
@@ -1079,5 +1146,17 @@ describe StatsHelpers do
         expect(page_status).to eq('crit')
       end
     end
+  end
+
+  def count_queries
+    count = 0
+    subscriber =
+      ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        count += 1 unless payload[:name] == 'SCHEMA'
+      end
+    yield
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
   end
 end
