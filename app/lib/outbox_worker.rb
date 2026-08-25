@@ -1,10 +1,23 @@
 class OutboxWorker
   BATCH_SIZE = 500
 
+  # How long the worker waits after a signal before it reads the queue.
+  #
+  # A collector sends one request per sensor, and the requests of one poll
+  # arrive a few milliseconds apart. The worker woke on the first of them and
+  # sent it alone, so the rest of the poll needed a second request: four lines
+  # of a 22 ms window went out as two writes to InfluxDB. The wait lets them
+  # share one.
+  #
+  # The delay costs no accuracy. Every line carries its own timestamp, so the
+  # moment it reaches InfluxDB does not change the data.
+  LINGER = 0.25
+
   def self.run_loop
     loop do
       run_once
       OutboxNotifier.wait
+      sleep LINGER
     rescue StandardError => e
       warn "[OutboxWorker] Error: #{e.class} - #{e.message}"
       warn e.backtrace.join("\n")

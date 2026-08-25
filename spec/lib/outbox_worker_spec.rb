@@ -366,18 +366,38 @@ describe OutboxWorker do
   describe '.run_loop' do
     before { allow(described_class).to receive(:run_once).and_return(0) }
 
-    it 'waits for signal and runs run_once' do
+    # A collector sends one request per sensor, and the requests of one poll
+    # arrive a few milliseconds apart. The worker sent the first one alone
+    # before, so the rest of the poll needed a second write to InfluxDB.
+    it 'waits after a signal so the batch can grow' do
+      stub_const("#{described_class}::LINGER", 0.2)
+
       thread = Thread.new { described_class.run_loop }
+      sleep 0.05 # the first pass runs before the wait
 
-      # Simulate a signal to wake up the thread
-      sleep 0.1
       OutboxNotifier.notify!
+      sleep 0.05
 
-      sleep 0.1
       thread.kill
       thread.join
 
-      expect(described_class).to have_received(:run_once).at_least(:once)
+      # One pass on entering the loop. The signal starts no second one yet.
+      expect(described_class).to have_received(:run_once).once
+    end
+
+    it 'runs the pass once the wait is over' do
+      stub_const("#{described_class}::LINGER", 0.05)
+
+      thread = Thread.new { described_class.run_loop }
+      sleep 0.05
+
+      OutboxNotifier.notify!
+      sleep 0.2
+
+      thread.kill
+      thread.join
+
+      expect(described_class).to have_received(:run_once).at_least(:twice)
     end
 
     context 'when run_once raises' do
