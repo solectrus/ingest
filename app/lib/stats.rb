@@ -39,18 +39,18 @@ class Stats
       @mutex.synchronize { @values[key] }
     end
 
-    if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
-      def reset!(key = nil)
-        @mutex.synchronize do
-          if key
-            @counters.delete(key)
-            @sums.delete(key)
-            @values.delete(key)
-          else
-            @counters.clear
-            @sums.clear
-            @values.clear
-          end
+    # Clears the counter, the sum and the value of one key, or of every key if
+    # no key is given.
+    def reset!(key = nil)
+      @mutex.synchronize do
+        if key
+          @counters.delete(key)
+          @sums.delete(key)
+          @values.delete(key)
+        else
+          @counters.clear
+          @sums.clear
+          @values.clear
         end
       end
     end

@@ -68,13 +68,13 @@ class SensorEnvConfig
       { measurement:, field: }
     end
 
-    if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
-      def reset!
-        @config = nil
-        @exclude_from_house_power_keys = nil
-        @sensor_keys_for_house_power = nil
-        @house_power_destination = nil
-      end
+    # Drops the memoized configuration. The values come from the environment,
+    # so a caller that changes it has to clear them.
+    def reset!
+      @config = nil
+      @exclude_from_house_power_keys = nil
+      @sensor_keys_for_house_power = nil
+      @house_power_destination = nil
     end
   end
 end

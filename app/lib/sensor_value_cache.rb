@@ -28,17 +28,19 @@ class SensorValueCache
     data
   end
 
-  if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
-    def reset!
-      @mutex.synchronize { @cache.clear }
-    end
+  # Drops every reading. The cache lives as long as the process, so a caller
+  # that must not see what an earlier write left behind has to clear it.
+  def reset!
+    @mutex.synchronize { @cache.clear }
+  end
 
-    def delete(measurement:, field:)
-      key = key_for(measurement, field)
+  # Drops the reading of one sensor. The next read of it goes to the database
+  # again.
+  def delete(measurement:, field:)
+    key = key_for(measurement, field)
 
-      @mutex.synchronize do
-        @cache.delete(key)
-      end
+    @mutex.synchronize do
+      @cache.delete(key)
     end
   end
 

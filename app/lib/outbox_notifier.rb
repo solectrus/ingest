@@ -37,12 +37,12 @@ class OutboxNotifier
       end
     end
 
-    if ENV['APP_ENV'] == 'test' # simplecov:disable branch — the non-test path never runs in tests
-      # Drops a pending notification, so an example never sees a signal that
-      # another example has left behind
-      def reset!
-        @mutex.synchronize { @notified = false }
-      end
+    # Drops a pending notification. A caller that reads the queue right after
+    # it can do this, because that read covers the lines which signalled. A
+    # caller that does not read leaves those lines in the database until
+    # another write signals again.
+    def reset!
+      @mutex.synchronize { @notified = false }
     end
   end
 end
