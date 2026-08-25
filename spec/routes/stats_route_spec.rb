@@ -11,13 +11,17 @@ describe StatsRoute do
         org: 'o',
       )
 
-      Incoming.create!(
-        target: Target.first,
-        measurement: 'test',
-        field: 'val',
-        value: 42,
-        timestamp: Time.current.to_i * 1_000_000_000,
-      )
+      # Every configured sensor needs a line, otherwise the page reports the
+      # missing ones and the badge is no longer quiet.
+      SensorEnvConfig.config.each_value do |sensor|
+        Incoming.create!(
+          target: Target.first,
+          measurement: sensor[:measurement],
+          field: sensor[:field],
+          value: 42,
+          timestamp: Time.current.to_i * 1_000_000_000,
+        )
+      end
 
       Outgoing.create!(
         target: Target.first,

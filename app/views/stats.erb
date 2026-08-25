@@ -177,10 +177,54 @@
 </div>
 
 <section class="section">
-  <h2 class="section__label">Incoming data <small>(measurement, field and throughput)</small></h2>
+  <h2 class="section__label">
+    Configured sensors
+    <small>
+      <% if configured_sensors.empty? %>
+        (no INFLUX_SENSOR_* variable is set)
+      <% elsif sensors_summary %>
+        (<span class="<%= status_of(:sensors_without_data) %>"><%= sensors_summary %></span>)
+      <% else %>
+        (all <%= configured_sensors.size %> receive data)
+      <% end %>
+    </small>
+  </h2>
+
+  <% if configured_sensors.any? %>
+    <div class="cards cards--wide">
+      <article class="card">
+        <ul class="card__list card__list--sensors">
+          <% configured_sensors.each do |sensor| %>
+            <li>
+              <span class="<%= 'warn' if sensor[:missing] %>"><%= sensor[:key] %></span>
+              <span class="font-mono"><%= h sensor[:target] %></span>
+              <% if sensor[:missing] %>
+                <small class="warn">no data</small>
+              <% else %>
+                <%= throughput_tag(sensor[:throughput]) %>
+              <% end %>
+            </li>
+          <% end %>
+        </ul>
+      </article>
+    </div>
+  <% end %>
+</section>
+
+<section class="section">
+  <h2 class="section__label">
+    Other incoming data
+    <small>
+      <% if other_measurement_fields_grouped.any? %>
+        (forwarded, not a configured sensor)
+      <% else %>
+        (nothing arrives besides the sensors above)
+      <% end %>
+    </small>
+  </h2>
 
   <div class="cards">
-    <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
+    <% other_measurement_fields_grouped.each do |measurement, groups| %>
       <article class="card">
         <h3 class="card__title"><%= h measurement %></h3>
         <ul class="card__list">

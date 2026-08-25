@@ -20,28 +20,43 @@ describe StatsHelpers do
       end
     end
 
-    describe '#incoming_measurement_fields_grouped' do
-      it 'groups the counts by measurement and field' do
-        expect(incoming_measurement_fields_grouped).to eq(
-          'SENEC' => [
-            { measurement: 'SENEC', field: 'a', count: 2 },
-            { measurement: 'SENEC', field: 'b', count: 1 },
-          ],
-        )
+    describe '#other_measurement_fields_grouped' do
+      it 'groups the fields by measurement' do
+        expect(other_measurement_fields_grouped.keys).to eq(%w[SENEC])
+        expect(other_measurement_fields_grouped['SENEC'].map { it[:field] })
+          .to eq(%w[a b])
       end
 
-      it 'shares its query with #incoming_total' do
-        queries = 0
+      # The list of sensors above already names it, with the same throughput.
+      it 'leaves out a field that a configured sensor reads' do
+        measurement, field =
+          SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+        target.incomings.create!(measurement:, field:, value: 1)
+
+        fields =
+          other_measurement_fields_grouped
+            .values
+            .flatten
+            .map { |entry| entry[:field] }
+
+        expect(fields).not_to include(field)
+      end
+
+      # The total, the sensor list and the cards all read the same grouped
+      # scan. Each one of its own would scan the index again.
+      it 'shares its scan with #incoming_total and #configured_sensors' do
+        scans = 0
         subscriber =
           ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
             sql = payload[:sql]
-            queries += 1 if sql.start_with?('SELECT') && sql.include?('FROM "incomings"')
+            scans += 1 if sql.include?('FROM "incomings"') && sql.include?('GROUP BY')
           end
 
         incoming_total
-        incoming_measurement_fields_grouped
+        configured_sensors
+        other_measurement_fields_grouped
 
-        expect(queries).to eq(1)
+        expect(scans).to eq(1)
       ensure
         ActiveSupport::Notifications.unsubscribe(subscriber)
       end
@@ -326,6 +341,96 @@ describe StatsHelpers do
 
     it 'reports a stream that stopped as critical' do
       expect(stale_level(16.minutes)).to eq('crit')
+    end
+  end
+
+  describe '#sensors_without_data' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    def configured(key)
+      SensorEnvConfig[key].values_at(:measurement, :field)
+    end
+
+    it 'reports nothing while the buffer is empty' do
+      expect(sensors_without_data).to be_empty
+      expect(status_of(:sensors_without_data)).to be_nil
+    end
+
+    # A typo in an INFLUX_SENSOR_* variable and a collector that does not send
+    # look the same otherwise: the sensor is absent from the measurements.
+    it 'names a configured sensor that never arrives' do
+      measurement, field = configured(:inverter_power)
+      target.incomings.create!(measurement:, field:, value: 1)
+
+      expect(sensors_without_data).to include(
+        [:inverter_power_1, configured(:inverter_power_1).join(':')],
+      )
+      expect(sensors_without_data).not_to include(
+        [:inverter_power, "#{measurement}:#{field}"],
+      )
+      expect(status_of(:sensors_without_data)).to eq('warn')
+    end
+
+    it 'stays quiet once every sensor has arrived' do
+      SensorEnvConfig.config.each_value do |sensor|
+        target.incomings.create!(
+          measurement: sensor[:measurement], field: sensor[:field], value: 1,
+        )
+      end
+
+      expect(sensors_without_data).to be_empty
+      expect(status_of(:sensors_without_data)).to be_nil
+    end
+  end
+
+  describe '#configured_sensors' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    def sensor(key)
+      configured_sensors.find { |entry| entry[:key] == key }
+    end
+
+    # An empty buffer would mark every sensor, which says nothing. The age of
+    # the newest line covers that case.
+    it 'marks nothing while the buffer is empty' do
+      expect(configured_sensors).to all(include(missing: false))
+      expect(configured_sensors).to all(include(throughput: nil))
+    end
+
+    it 'names the measurement and the field of every configured sensor' do
+      expect(sensor(:inverter_power)).to include(
+        target: SensorEnvConfig[:inverter_power].values_at(:measurement, :field).join(':'),
+      )
+    end
+
+    it 'marks a sensor that no line arrives for' do
+      measurement, field =
+        SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+      target.incomings.create!(
+        measurement:, field:, value: 1, created_at: 1.minute.ago,
+      )
+      target.incomings.create!(measurement:, field:, value: 2)
+
+      expect(sensor(:inverter_power)).to include(missing: false)
+      expect(sensor(:inverter_power)[:throughput]).to be_positive
+      expect(sensor(:house_power)).to include(missing: true, throughput: nil)
+    end
+  end
+
+  describe '#sensor_key_for' do
+    it 'names the sensor of a measurement and a field' do
+      measurement, field =
+        SensorEnvConfig[:inverter_power].values_at(:measurement, :field)
+
+      expect(sensor_key_for(measurement, field)).to eq(:inverter_power)
+    end
+
+    it 'returns nothing for a field that no sensor reads' do
+      expect(sensor_key_for('SENEC', 'case_temp')).to be_nil
     end
   end
 

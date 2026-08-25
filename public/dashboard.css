@@ -166,6 +166,10 @@ header.brand {
 @media (min-width: 640px)  { .cards { columns: 2; } }
 @media (min-width: 1000px) { .cards { columns: 3; } }
 
+/* One card over the full width. A sensor name and its measurement need the
+   room: in a third of the row they break in the middle of a word. */
+.cards--wide { columns: 1; }
+
 .card {
   break-inside: avoid;
   margin-bottom: 0.75rem;
@@ -212,6 +216,37 @@ header.brand {
 .card__list li .font-mono {
   color: var(--fg-muted);
   word-break: break-word;
+}
+
+/* Several sensors per row. Over the full width the key and its measurement
+   would sit an entire screen apart, and the eye loses the line. Each row
+   holds three columns: the sensor key, the measurement and field it reads,
+   and what arrives for it. */
+.card__list--sensors {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28rem, 1fr));
+  column-gap: 2rem;
+}
+.card__list--sensors li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 4.5rem;
+  column-gap: 0.8rem;
+}
+.card__list--sensors li > :last-child { text-align: right; }
+
+/* Too narrow for three columns. The sensor key and what arrives for it stay
+   on one line, the measurement and field take the line below. */
+@media (max-width: 700px) {
+  /* The two lines of an entry must sit closer to each other than two
+     entries do, otherwise the eye reads the wrong pair. */
+  .card__list--sensors { row-gap: 0.9rem; }
+  .card__list--sensors li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.1rem;
+  }
+  .card__list--sensors li > :nth-child(1) { grid-area: 1 / 1; }
+  .card__list--sensors li > :nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
+  .card__list--sensors li > :nth-child(3) { grid-area: 1 / 2; }
 }
 
 h2 {

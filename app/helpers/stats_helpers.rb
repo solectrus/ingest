@@ -171,6 +171,44 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     # simplecov:enable
   end
 
+  # Every sensor of the configuration that has no line in the buffer. A typo in
+  # an INFLUX_SENSOR_* variable and a collector that does not send look the
+  # same on the page otherwise: the sensor is simply absent from the list of
+  # measurements, and a reader has to compare that list against the
+  # configuration by hand.
+  #
+  # The buffer holds the retention period only, so a sensor that stopped
+  # before it appears here too. That is the point.
+  def sensors_without_data
+    @sensors_without_data ||= find_sensors_without_data
+  end
+
+  # The whole sensor configuration, each entry with what arrives for it. The
+  # page lists every configured sensor, not the missing ones alone: a reader
+  # can then tell a sensor that nobody sends from one that is not configured.
+  def configured_sensors
+    @configured_sensors ||= SensorEnvConfig.config.map { configured_sensor(*it) }
+  end
+
+  # The one line above the sensor list. It names the sensors that nobody
+  # sends, because they need a look at the INFLUX_SENSOR_* variable.
+  #
+  # It returns nothing while every sensor delivers, and the page then says so
+  # in its own words.
+  def sensors_summary
+    total = configured_sensors.size
+    parts = []
+    parts << "#{sensors_without_data.size} of #{total} without data" if sensors_without_data.any?
+
+    parts.join(', ').presence
+  end
+
+  # The sensor key that a measurement and a field belong to. The cards list
+  # what arrives, and the key says which of those lines SOLECTRUS reads.
+  def sensor_key_for(measurement, field)
+    sensor_keys_by_target[[measurement, field]]
+  end
+
   # Where the calculated house power goes. Without it a reader cannot tell
   # whether the result overwrites the value of the collector or goes to a
   # field of its own.
@@ -195,9 +233,15 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     text ? "#{code} #{text}" : code
   end
 
-  def incoming_measurement_fields_grouped
-    @incoming_measurement_fields_grouped ||=
+  # Everything that arrives and is not a configured sensor. Ingest forwards it
+  # unchanged, and the list is the only place that names it. A configured
+  # sensor stays out: it stands in the list of sensors above, with the same
+  # throughput, and one number in two places invites a comparison that has
+  # nothing to say.
+  def other_measurement_fields_grouped
+    @other_measurement_fields_grouped ||=
       incoming_counts
+        .reject { |(measurement, field), _| sensor_key_for(measurement, field) }
         .map { |(measurement, field), count| { measurement:, field:, count: } }
         .group_by { |entry| entry[:measurement] }
         .sort_by { |measurement, groups| [-groups.size, measurement] }
@@ -322,6 +366,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   def statuses # rubocop:disable Metrics/AbcSize
     @statuses ||= {
       incoming_age: stale_level(incoming_age),
+      sensors_without_data: level(sensors_without_data.size, warn: 1),
       queued: level(outgoing_total, warn: 1_000, crit: 10_000),
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
       dropped: level(outgoing_dropped, crit: 1),
@@ -474,6 +519,38 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return 'warn' if value <= warn
 
     nil
+  end
+
+  # An empty buffer would report every sensor, which says nothing. The age of
+  # the newest line covers that case.
+  def find_sensors_without_data
+    return [] if incoming_counts.empty?
+
+    SensorEnvConfig.config.filter_map do |key, sensor|
+      pair = [sensor[:measurement], sensor[:field]]
+      [key, pair.join(':')] unless incoming_counts.key?(pair)
+    end
+  end
+
+  # One entry of the sensor list. A sensor without a line of its own carries
+  # no number, and `missing` says whether that is a fault: while the buffer is
+  # empty it marks every sensor, and that says nothing.
+  def configured_sensor(key, sensor)
+    count = incoming_counts[[sensor[:measurement], sensor[:field]]]
+
+    {
+      key:,
+      target: "#{sensor[:measurement]}:#{sensor[:field]}",
+      throughput: (incoming_throughput_for(count) if count),
+      missing: count.nil? && incoming_counts.any?,
+    }
+  end
+
+  def sensor_keys_by_target
+    @sensor_keys_by_target ||=
+      SensorEnvConfig.config.to_h do |key, sensor|
+        [[sensor[:measurement], sensor[:field]], key]
+      end
   end
 
   # The stats page needs the same grouped counts for the total and for the
