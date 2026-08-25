@@ -5,7 +5,7 @@ class BaseRoute < Sinatra::Base
   set :views, File.expand_path('../views', __dir__)
 
   logger = Logger.new($stdout)
-  logger.level = Logger::DEBUG
+  logger.level = development? ? Logger::DEBUG : Logger::INFO # simplecov:disable branch — the specs run in the test environment
   set :logger, logger
 
   before { env['rack.logger'] = settings.logger }
