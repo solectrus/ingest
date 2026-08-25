@@ -62,6 +62,13 @@ describe StatsRoute do
         expect(last_response.body).not_to include('<img src=x onerror=alert(2)>')
         expect(last_response.body).to include('&lt;script&gt;alert(1)&lt;/script&gt;')
       end
+
+      it 'shows a quiet badge while every value is fine' do
+        get '/'
+
+        expect(last_response.body).to include('class="brand__live "')
+        expect(last_response.body).to include('>Live</span>')
+      end
     end
   end
 end

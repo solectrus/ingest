@@ -580,4 +580,64 @@ describe StatsHelpers do
       expect(send(:cpu_cores)).to eq(1)
     end
   end
+
+  describe 'status levels' do
+    describe '#status_of' do
+      it 'stays silent while every value is fine' do
+        expect(status_of(:queued)).to be_nil
+      end
+
+      it 'reports a range above the retention as critical' do
+        allow(self).to receive(:incoming_range).and_return(
+          (max_range_hours + 1).hours.to_i,
+        )
+
+        expect(status_of(:range)).to eq('crit')
+      end
+
+      it 'stays silent for a value it cannot read' do
+        allow(self).to receive(:disk_free).and_return('No such file')
+
+        expect(status_of(:disk_free)).to be_nil
+      end
+
+      it 'warns about a disk that runs low' do
+        allow(self).to receive(:disk_free).and_return(StatsHelpers::GIGABYTE)
+
+        expect(status_of(:disk_free)).to eq('warn')
+      end
+
+      it 'reports an almost full disk as critical' do
+        allow(self).to receive(:disk_free).and_return(100)
+
+        expect(status_of(:disk_free)).to eq('crit')
+      end
+    end
+
+    describe '#http_error_count' do
+      it 'counts every response that is not a 2xx' do
+        3.times { Stats.inc(:http_response_204) }
+        2.times { Stats.inc(:http_response_500) }
+        Stats.inc(:http_response_400)
+
+        expect(http_error_count).to eq(3)
+      end
+    end
+
+    describe '#http_status_level' do
+      it 'accepts a 2xx' do
+        expect(http_status_level(:http_response_204)).to be_nil
+      end
+
+      it 'reports any other code as critical' do
+        expect(http_status_level(:http_response_500)).to eq('crit')
+      end
+    end
+
+    describe '#page_status' do
+      it 'stays silent while every value is fine' do
+        expect(page_status).to be_nil
+      end
+    end
+  end
 end

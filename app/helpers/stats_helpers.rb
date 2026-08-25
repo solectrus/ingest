@@ -225,6 +225,62 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     "#{number_to_delimited(number)} /min"
   end
 
+  GIGABYTE = 1024**3
+
+  # One place decides what counts as a problem. The badge in the header and the
+  # fields of the page read the same source, so the two cannot disagree.
+  #
+  # The average response time and the CPU usage have no entry on purpose. Both
+  # divide by the container uptime, so a backfill right after a start pushes
+  # them up and they fall back on their own. A field that turns red without a
+  # fault teaches the reader to ignore red.
+  def statuses # rubocop:disable Metrics/AbcSize
+    @statuses ||= {
+      queued: level(outgoing_total, warn: 1_000, crit: 10_000),
+      queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
+      skipped_lines: level(skipped_lines, crit: 1),
+      skipped_stale: level(calculation_skipped, warn: 5, crit: 25),
+      last_success: level(last_calculation_age, warn: 5.minutes, crit: 30.minutes),
+      http_errors: level(http_error_count, crit: 1),
+      range: level(incoming_range, crit: max_range_hours.hours),
+      disk_free: level_below(disk_free, warn: 2 * GIGABYTE, crit: GIGABYTE / 2),
+    }
+  end
+
+  # Not `status`: Sinatra defines that one to set the response status, and
+  # `redirect` calls it.
+  def status_of(key)
+    statuses[key]
+  end
+
+  # The worst status of the page. It colours the badge in the header.
+  def page_status
+    worst_level(statuses.values)
+  end
+
+  def worst_level(levels)
+    return 'crit' if levels.include?('crit')
+    return 'warn' if levels.include?('warn')
+
+    nil
+  end
+
+  # A response that is not a 2xx means the collector got an error back.
+  def http_error_count
+    @http_error_count ||=
+      Stats
+        .counters_by(:http_response)
+        .sum { |key, count| http_status_ok?(key) ? 0 : count }
+  end
+
+  def http_status_ok?(key)
+    (200..299).cover?(key.to_s.delete_prefix('http_response_').to_i)
+  end
+
+  def http_status_level(key)
+    'crit' unless http_status_ok?(key)
+  end
+
   def memory_usage
     return rss_from_ps_macos if macos?
 
@@ -287,16 +343,39 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     Thread.list.count
   end
 
+  # `df` forks a process, and the page asks twice: once for the badge and once
+  # for the field. One call per request is enough.
   def disk_free
-    available_kb = `df -k /`.lines[1].split[3].to_i
-    available_kb * 1024
-  rescue StandardError => e
-    # simplecov:disable
-    e.message
-    # simplecov:enable
+    @disk_free ||=
+      begin
+        available_kb = `df -k /`.lines[1].split[3].to_i
+        available_kb * 1024
+      rescue StandardError => e
+        # simplecov:disable
+        e.message
+        # simplecov:enable
+      end
   end
 
   private
+
+  # The CSS class of a value that gets worse as it grows.
+  def level(value, warn: nil, crit: nil)
+    return unless value.is_a?(Numeric)
+    return 'crit' if crit && value >= crit
+    return 'warn' if warn && value >= warn
+
+    nil
+  end
+
+  # The CSS class of a value that gets worse as it falls.
+  def level_below(value, warn:, crit:)
+    return unless value.is_a?(Numeric)
+    return 'crit' if value <= crit
+    return 'warn' if value <= warn
+
+    nil
+  end
 
   # The stats page needs the same grouped counts for the total and for the
   # measurement cards. Sharing them avoids scanning the incoming index twice.

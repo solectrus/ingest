@@ -27,7 +27,7 @@
       </div>
       <% if authorized? %>
         <div class="brand__meta">
-          <span class="brand__live" title="Live data">Live</span>
+          <span class="brand__live <%= @page_status %>" title="<%= @page_status ? 'Live data, some values need attention' : 'Live data' %>">Live</span>
           <span class="brand__updated" title="<%= Time.current.strftime('%H:%M:%S') %>">Updated just now</span>
         </div>
       <% end %>

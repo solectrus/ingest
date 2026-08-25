@@ -9,7 +9,7 @@
       <dd><%= value_or_dash(incoming_lines_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Invalid lines <small>(not parsable)</small></dt>
-      <dd><%= number_to_delimited(skipped_lines) %></dd>
+      <dd class="<%= status_of(:skipped_lines) %>"><%= number_to_delimited(skipped_lines) %></dd>
     </dl>
 
     <h2>Buffer <small>(SQLite on disk)</small></h2>
@@ -18,7 +18,7 @@
       <dd><%= number_to_delimited(incoming_total) %></dd>
 
       <dt>Time span <small>(max <%= max_range_hours %>h)</small></dt>
-      <dd><%= format_duration(incoming_range) %></dd>
+      <dd class="<%= status_of(:range) %>"><%= format_duration(incoming_range) %></dd>
 
       <dt>Retention</dt>
       <dd><%= retention_hours %>h</dd>
@@ -27,7 +27,7 @@
       <dd><%= number_to_human_size(database_size) %></dd>
 
       <dt>Disk free</dt>
-      <dd><%= number_to_human_size(disk_free) %></dd>
+      <dd class="<%= status_of(:disk_free) %>"><%= number_to_human_size(disk_free) %></dd>
     </dl>
   </section>
 
@@ -35,10 +35,10 @@
     <h2>Outgoing <small>(to InfluxDB)</small></h2>
     <dl class="right">
       <dt>Waiting in queue</dt>
-      <dd><%= number_to_delimited(outgoing_total) %></dd>
+      <dd class="<%= status_of(:queued) %>"><%= number_to_delimited(outgoing_total) %></dd>
 
       <dt>Oldest in queue</dt>
-      <dd><%= format_duration(queue_oldest_age) %></dd>
+      <dd class="<%= status_of(:queue_age) %>"><%= format_duration(queue_oldest_age) %></dd>
     </dl>
   </section>
 
@@ -60,10 +60,10 @@
       <dd><%= value_or_dash(calculation_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Last calculation</dt>
-      <dd><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
+      <dd class="<%= status_of(:last_success) %>"><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
 
       <dt>Skipped <small>(value missing)</small></dt>
-      <dd><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
+      <dd class="<%= status_of(:skipped_stale) %>"><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
     </dl>
 
     <% if calculation_skips_by_sensor.any? %>
@@ -92,7 +92,7 @@
       <% if Stats.counters_by(:http_response).any? %>
         <% Stats.counters_by(:http_response).sort.each do |key, value| %>
           <dt><%= http_status_label(key) %></dt>
-          <dd><%= number_to_delimited(value) %></dd>
+          <dd class="<%= http_status_level(key) %>"><%= number_to_delimited(value) %></dd>
         <% end %>
       <% else %>
         <dt>No request yet</dt>

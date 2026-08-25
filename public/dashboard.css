@@ -90,6 +90,7 @@ header.brand {
   letter-spacing: 0.02em;
 }
 .brand__live {
+  --live-color: var(--accent);
   display: inline-flex; align-items: center; gap: 0.55rem;
   font-size: 0.68rem;
   text-transform: uppercase;
@@ -97,12 +98,14 @@ header.brand {
   color: var(--fg-subtle);
   font-weight: 500;
 }
+.brand__live.warn { --live-color: var(--warn); color: var(--warn); }
+.brand__live.crit { --live-color: var(--crit); color: var(--crit); }
 .brand__live::before {
-  --pulse-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  --pulse-color: color-mix(in srgb, var(--live-color) 55%, transparent);
   content: '';
   width: 6px; height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--live-color);
   box-shadow: 0 0 0 0 var(--pulse-color);
   animation: pulse 2.4s ease-out infinite;
 }
