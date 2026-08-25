@@ -141,6 +141,9 @@
 
       <dt>Interpolator queries <small>(after a miss)</small></dt>
       <dd><%= number_to_delimited(interpolate_queries) %></dd>
+
+      <dt>Interpolator queries <small>(per request)</small></dt>
+      <dd><%= value_or_dash(interpolate_queries_per_request) { |v| v.round(2) } %></dd>
     </dl>
   </section>
 </div>

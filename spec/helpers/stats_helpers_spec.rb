@@ -102,6 +102,21 @@ describe StatsHelpers do
       end
     end
 
+    describe '#interpolate_queries_per_request' do
+      it 'returns nil without requests' do
+        expect(interpolate_queries_per_request).to be_nil
+      end
+
+      # The misses of one request share a single query, so the ratio stays
+      # near or below 1 even when the hit rate is low.
+      it 'returns the queries per request' do
+        4.times { Stats.inc(:http_requests) }
+        3.times { Stats.inc(:interpolate_queries) }
+
+        expect(interpolate_queries_per_request).to eq(0.75)
+      end
+    end
+
     describe '#calculation_cache_hits' do
       it 'returns nil without calculations' do
         expect(calculation_cache_hits).to be_nil

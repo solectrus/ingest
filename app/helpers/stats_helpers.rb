@@ -35,6 +35,24 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @interpolate_queries ||= Stats.counter(:interpolate_queries)
   end
 
+  # What a miss costs. The misses of one request share a single query, so this
+  # ratio stays near or below 1, whatever the hit rate is. It is the number to
+  # watch, not the hit rate.
+  def interpolate_queries_per_request
+    requests = Stats.counter(:http_requests)
+    return unless requests.positive?
+
+    interpolate_queries / requests.to_f
+  end
+
+  # The cache holds the newest value of a sensor only. It can thus answer the
+  # newest timestamp of a batch and no other one, because an older timestamp
+  # needs a value that the newer one already replaced.
+  #
+  # The hit rate is therefore about 1 divided by the number of timestamps per
+  # batch. A collector that sends 5 timestamps per request gives 20 percent,
+  # and that is correct behaviour, not a fault. Read the rate as a measure of
+  # how dense the batches are. To see the cost, read the queries per request.
   def calculation_cache_hits
     return unless calculation_count.positive?
 
