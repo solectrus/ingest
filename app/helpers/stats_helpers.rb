@@ -137,12 +137,16 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @queue_oldest_age ||= age_from(Outgoing.order(:id).pick(:created_at))
   end
 
+  def incoming_oldest
+    @incoming_oldest ||= Incoming.minimum(:created_at)
+  end
+
+  def incoming_newest
+    @incoming_newest ||= Incoming.maximum(:created_at)
+  end
+
   def incoming_range
-    @incoming_range ||=
-      range_between(
-        Incoming.minimum(:created_at),
-        Incoming.maximum(:created_at),
-      )
+    @incoming_range ||= range_between(incoming_oldest, incoming_newest)
   end
 
   # Lines that arrived and were stored. The buffer holds a row per field, so a
@@ -156,6 +160,13 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return unless incoming_lines.positive?
 
     60.0 * incoming_lines / container_uptime
+  end
+
+  # How long ago the last line arrived. Without it a page of an ingest that
+  # nobody feeds looks healthy: the total, the range and the throughput all
+  # keep their value while no collector sends.
+  def incoming_age
+    @incoming_age ||= age_from(incoming_newest)
   end
 
   def cache_range
@@ -236,6 +247,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # fault teaches the reader to ignore red.
   def statuses # rubocop:disable Metrics/AbcSize
     @statuses ||= {
+      incoming_age: stale_level(incoming_age),
       queued: level(outgoing_total, warn: 1_000, crit: 10_000),
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
       skipped_lines: level(skipped_lines, crit: 1),
@@ -279,6 +291,16 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def http_status_level(key)
     'crit' unless http_status_ok?(key)
+  end
+
+  # When the newest line is old enough that the page must say so. 15 minutes
+  # is the age at which a sensor value stops the house power calculation, so
+  # from that point the silence costs data.
+  STALE_WARN = 5.minutes
+  STALE_CRIT = 15.minutes
+
+  def stale_level(age)
+    level(age, warn: STALE_WARN, crit: STALE_CRIT)
   end
 
   def memory_usage

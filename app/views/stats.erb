@@ -8,6 +8,9 @@
       <dt>Throughput</dt>
       <dd><%= value_or_dash(incoming_lines_rate) { |r| format_rate(r) } %></dd>
 
+      <dt>Last line</dt>
+      <dd class="<%= status_of(:incoming_age) %>"><%= value_or_dash(incoming_age) { |a| "#{format_duration(a)} ago" } %></dd>
+
       <dt>Invalid lines <small>(not parsable)</small></dt>
       <dd class="<%= status_of(:skipped_lines) %>"><%= number_to_delimited(skipped_lines) %></dd>
     </dl>

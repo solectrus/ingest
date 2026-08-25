@@ -270,6 +270,50 @@ describe StatsHelpers do
     end
   end
 
+  describe '#incoming_age' do
+    let(:target) do
+      Target.create!(influx_token: 'foo', bucket: 'test', org: 'test')
+    end
+
+    it 'returns nil without a line' do
+      expect(incoming_age).to be_nil
+      expect(status_of(:incoming_age)).to be_nil
+    end
+
+    it 'returns how long ago the last line arrived' do
+      target.incomings.create!(
+        measurement: 'SENEC', field: 'a', value: 1, created_at: 2.minutes.ago,
+      )
+
+      expect(incoming_age).to be_within(5).of(120)
+      expect(status_of(:incoming_age)).to be_nil
+    end
+
+    # An ingest that nobody feeds keeps its total, its range and its
+    # throughput, so only the age tells that the collectors stopped.
+    it 'reports a long silence as critical' do
+      target.incomings.create!(
+        measurement: 'SENEC', field: 'a', value: 1, created_at: 20.minutes.ago,
+      )
+
+      expect(status_of(:incoming_age)).to eq('crit')
+    end
+  end
+
+  describe '#stale_level' do
+    it 'accepts a stream that sent within five minutes' do
+      expect(stale_level(4.minutes)).to be_nil
+    end
+
+    it 'reports a stream that is late' do
+      expect(stale_level(6.minutes)).to eq('warn')
+    end
+
+    it 'reports a stream that stopped as critical' do
+      expect(stale_level(16.minutes)).to eq('crit')
+    end
+  end
+
   describe '#house_power_destination' do
     it 'names the measurement and the field of the result' do
       expect(house_power_destination).to eq('SENEC:house_power')
