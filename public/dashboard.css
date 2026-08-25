@@ -320,6 +320,13 @@ header.brand {
   font-weight: 500;
   word-break: break-word;
 }
+/* The name of a variable is no title, so it keeps the letters of its own. */
+.card__title small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.9em;
+  margin-left: 0.4rem;
+}
 .card__list {
   margin: 0;
   padding: 0;

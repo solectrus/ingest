@@ -1,0 +1,15 @@
+<!-- One row per configured sensor: the key, the measurement and field it
+     reads, and what arrives for it. -->
+<ul class="card__list card__list--sensors">
+  <% sensors.each do |sensor| %>
+    <li>
+      <span class="<%= sensor[:missing] && !sensor[:excluded] ? 'warn' : sensor[:level] %>"><%= sensor[:key] %><% if sensor[:result] %> <small>(result)</small><% end %></span>
+      <span class="font-mono"><%= h sensor[:target] %></span>
+      <% if sensor[:missing] %>
+        <small class="<%= 'warn' unless sensor[:excluded] %>">no data</small>
+      <% else %>
+        <%= stream_tag(sensor) %>
+      <% end %>
+    </li>
+  <% end %>
+</ul>

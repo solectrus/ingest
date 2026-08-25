@@ -473,7 +473,7 @@ describe StatsHelpers do
 
       expect(stale_sensors.map { it[:key] }).to eq([:inverter_power])
       expect(status_of(:sensors_stale)).to eq('warn')
-      expect(sensors_summary).to eq("1 of #{SensorEnvConfig.config.size} stale")
+      expect(sensors_summary).to eq("1 of #{included_sensors.size} stale")
     end
 
     it 'lets a sensor that stopped long ago count as critical' do
@@ -492,7 +492,7 @@ describe StatsHelpers do
         measurement:, field:, value: 1, created_at: 10.minutes.ago,
       )
 
-      total = SensorEnvConfig.config.size
+      total = included_sensors.size
 
       expect(sensors_summary).to eq(
         "#{total - 1} of #{total} without data, 1 of #{total} stale",
@@ -577,6 +577,54 @@ describe StatsHelpers do
 
       expect(sensors_without_data).to be_empty
       expect(status_of(:sensors_without_data)).to be_nil
+    end
+
+    # INFLUX_EXCLUDE_FROM_HOUSE_POWER says that Ingest must not use the
+    # sensor. A value that nobody wants cannot be missing.
+    it 'keeps a sensor that the house power excludes out of the list' do
+      excluded = SensorEnvConfig.exclude_from_house_power_keys.first
+      measurement, field = configured(:inverter_power)
+      target.incomings.create!(measurement:, field:, value: 1)
+
+      expect(sensors_without_data.map(&:first)).not_to include(excluded)
+      expect(sensors_without_data.map(&:first)).to include(:inverter_power_1)
+    end
+  end
+
+  describe '#included_sensors and #excluded_sensors' do
+    let(:excluded) { SensorEnvConfig.exclude_from_house_power_keys.first }
+
+    it 'splits the configuration along INFLUX_EXCLUDE_FROM_HOUSE_POWER' do
+      expect(excluded_sensors.map { it[:key] }).to eq([excluded])
+      expect(included_sensors.map { it[:key] }).not_to include(excluded)
+      expect(included_sensors.size + excluded_sensors.size).to eq(
+        configured_sensors.size,
+      )
+    end
+
+    # The house power is the result of the formula, never an input, so the
+    # variable cannot exclude it.
+    it 'keeps the house power itself among the included sensors' do
+      allow(SensorEnvConfig).to receive(:exclude_from_house_power_keys)
+        .and_return(Set[:house_power])
+
+      expect(excluded_sensors).to be_empty
+      expect(included_sensors.map { it[:key] }).to include(:house_power)
+    end
+  end
+
+  describe 'the result of the formula' do
+    def sensor(key)
+      configured_sensors.find { |entry| entry[:key] == key }
+    end
+
+    # Ingest calculates the house power from the other sensors. The list holds
+    # it beside them, so the row has to say that it is the result.
+    it 'marks the house power and nothing else' do
+      expect(sensor(:house_power)).to include(result: true)
+
+      others = configured_sensors.reject { it[:key] == :house_power }
+      expect(others).to all(include(result: false))
     end
   end
 
@@ -693,17 +741,6 @@ describe StatsHelpers do
       allow(SensorEnvConfig).to receive(:house_power_destination).and_return(nil)
 
       expect(house_power_destination).to be_nil
-    end
-  end
-
-  describe '#house_power_inputs' do
-    # The configuration excludes the heat pump, and the house power itself is
-    # the result, not an input.
-    it 'counts the sensors of the formula' do
-      expect(house_power_inputs).to eq(
-        SensorEnvConfig.sensor_keys_for_house_power.size,
-      )
-      expect(house_power_inputs).to be < SensorEnvConfig.config.size
     end
   end
 

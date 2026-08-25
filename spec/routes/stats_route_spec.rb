@@ -3,6 +3,9 @@ describe StatsRoute do
     StatsRoute.new
   end
 
+  # INFLUX_EXCLUDE_FROM_HOUSE_POWER of the test environment names it.
+  let(:excluded_key) { SensorEnvConfig.exclude_from_house_power_keys.first }
+
   describe 'GET /' do
     before do
       Target.create!(
@@ -83,6 +86,40 @@ describe StatsRoute do
         expect(last_response.body).to include('<dt>Bucket</dt>')
         expect(last_response.body).to include('<dt>Org</dt>')
         expect(last_response.body).to include('<dt>Tokens</dt>')
+      end
+
+      # The two groups of the configuration look the same in one list, so each
+      # one carries a title of its own.
+      it 'gives every group of sensors a card of its own' do
+        get '/'
+
+        expect(last_response.body).to include('The house power</h3>')
+        expect(last_response.body).to include('Excluded from the house power')
+        expect(last_response.body).to include(excluded_key.to_s)
+      end
+
+      # Ingest calculates the house power, so the sensor of the collector is
+      # the result of the formula and not a term of it.
+      it 'marks the house power as the result' do
+        get '/'
+
+        expect(last_response.body).to include(
+          'house_power <small>(result)</small>',
+        )
+      end
+
+      # A sensor that the house power excludes can be absent on purpose. Such
+      # a sensor must not colour the badge.
+      it 'stays quiet while an excluded sensor has no data' do
+        sensor = SensorEnvConfig[excluded_key]
+        Incoming.where(
+          measurement: sensor[:measurement], field: sensor[:field],
+        ).delete_all
+
+        get '/'
+
+        expect(last_response.body).to include('class="brand__live "')
+        expect(last_response.body).not_to include('without data')
       end
 
       # The badge renders in the header, before the fields of the page. Its

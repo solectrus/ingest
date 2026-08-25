@@ -83,9 +83,6 @@
         <dd class="font-mono"><%= value_or_dash(house_power_destination) { |d| h d } %></dd>
       </div>
 
-      <dt>Sensors in the formula</dt>
-      <dd><%= number_to_delimited(house_power_inputs) %></dd>
-
       <dt>Values calculated</dt>
       <dd><%= number_to_delimited(calculation_count) %></dd>
 
@@ -236,31 +233,38 @@
     <small>
       <% if configured_sensors.empty? %>
         (no INFLUX_SENSOR_* variable is set)
+      <% elsif included_sensors.empty? %>
+        (the house power excludes every one of them)
       <% elsif sensors_summary %>
         (<span class="<%= sensors_summary_level %>"><%= sensors_summary %></span>)
       <% else %>
-        (all <%= configured_sensors.size %> receive data)
+        (all <%= included_sensors.size %> receive data)
       <% end %>
     </small>
   </h2>
 
   <% if configured_sensors.any? %>
     <div class="cards cards--wide">
-      <article class="card">
-        <ul class="card__list card__list--sensors">
-          <% configured_sensors.each do |sensor| %>
-            <li>
-              <span class="<%= sensor[:missing] ? 'warn' : sensor[:level] %>"><%= sensor[:key] %></span>
-              <span class="font-mono"><%= h sensor[:target] %></span>
-              <% if sensor[:missing] %>
-                <small class="warn">no data</small>
-              <% else %>
-                <%= stream_tag(sensor) %>
-              <% end %>
-            </li>
-          <% end %>
-        </ul>
-      </article>
+      <!-- Two cards: what the house power needs, and what it leaves out. One
+           list would carry both, and a reader would then read a missing value
+           as the same fault in each case. Only the first card can hold the
+           house power back. -->
+      <% if included_sensors.any? %>
+        <article class="card">
+          <h3 class="card__title">The house power</h3>
+          <%= erb :_sensors, layout: false, locals: { sensors: included_sensors } %>
+        </article>
+      <% end %>
+
+      <% if excluded_sensors.any? %>
+        <article class="card">
+          <h3 class="card__title">
+            Excluded from the house power
+            <small>(INFLUX_EXCLUDE_FROM_HOUSE_POWER)</small>
+          </h3>
+          <%= erb :_sensors, layout: false, locals: { sensors: excluded_sensors } %>
+        </article>
+      <% end %>
     </div>
   <% end %>
 </section>

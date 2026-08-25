@@ -225,6 +225,10 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   #
   # The buffer holds the retention period only, so a sensor that stopped
   # before it appears here too. That is the point.
+  #
+  # A sensor that the house power excludes stays out of the list. The
+  # configuration says that Ingest must not use it, and an alarm about a
+  # sensor that nobody wants is a false alarm.
   def sensors_without_data
     @sensors_without_data ||= find_sensors_without_data
   end
@@ -236,6 +240,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @configured_sensors ||= SensorEnvConfig.config.map { configured_sensor(*it) }
   end
 
+  # Every configured sensor that the page watches for a fault. The excluded
+  # ones stay out: the configuration says that Ingest must not use them.
+  def included_sensors
+    @included_sensors ||= configured_sensors.reject { it[:excluded] }
+  end
+
+  # What INFLUX_EXCLUDE_FROM_HOUSE_POWER leaves out. The page keeps these
+  # sensors apart from the others, because a missing value means something
+  # different here: the house power does not wait for it.
+  def excluded_sensors
+    @excluded_sensors ||= configured_sensors.select { it[:excluded] }
+  end
+
   # Every configured sensor that arrived once and then stopped. The buffer
   # keeps the lines of a dead collector for the whole retention period, so the
   # count, the time span and the throughput of the sensor all keep the value
@@ -244,7 +261,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # This is the case that #sensors_without_data cannot see: the sensor has
   # data, and it is old.
   def stale_sensors
-    @stale_sensors ||= configured_sensors.select { it[:level] }
+    @stale_sensors ||= included_sensors.select { it[:level] }
   end
 
   # The one line above the sensor list. It has to name two faults apart,
@@ -254,7 +271,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # It returns nothing while every sensor delivers, and the page then says so
   # in its own words.
   def sensors_summary
-    total = configured_sensors.size
+    total = included_sensors.size
     parts = []
     parts << "#{sensors_without_data.size} of #{total} without data" if sensors_without_data.any?
     parts << "#{stale_sensors.size} of #{total} stale" if stale_sensors.any?
@@ -280,12 +297,6 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return unless destination
 
     "#{destination[:measurement]}:#{destination[:field]}"
-  end
-
-  # How many sensors the formula adds up. The configuration can exclude a
-  # sensor, so this number can be below the number of configured sensors.
-  def house_power_inputs
-    SensorEnvConfig.sensor_keys_for_house_power.size
   end
 
   # "204" alone makes the reader look the code up.
@@ -662,6 +673,8 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     return [] if incoming_counts.empty?
 
     SensorEnvConfig.config.filter_map do |key, sensor|
+      next if excluded_from_house_power?(key)
+
       pair = [sensor[:measurement], sensor[:field]]
       [key, pair.join(':')] unless incoming_counts.key?(pair)
     end
@@ -682,7 +695,20 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       stale: stale?(age),
       level: stale_level(age),
       missing: entry.nil? && incoming_by_target.any?,
+      excluded: excluded_from_house_power?(key),
+      # Ingest calculates the house power from the other sensors, so the list
+      # marks it as the result of the formula and not as a term of it.
+      result: key == :house_power,
     }
+  end
+
+  # Whether the house power ignores this sensor.
+  # INFLUX_EXCLUDE_FROM_HOUSE_POWER names the sensors it leaves out. The house
+  # power is the result of the formula and never an input, so the variable
+  # cannot exclude it.
+  def excluded_from_house_power?(key)
+    key != :house_power &&
+      SensorEnvConfig.exclude_from_house_power_keys.include?(key)
   end
 
   # One entry of the list of forwarded streams, or nothing for a stream that a
