@@ -1,5 +1,3 @@
-# Puma reads this file on its own, so `rackup` picks it up too.
-
 # The pool of ActiveRecord gets its size from the same variable, see
 # Database.pool_size. Without this file, the variable changed the pool only,
 # and Puma kept its default of 5 threads.

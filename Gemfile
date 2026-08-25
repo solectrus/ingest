@@ -17,9 +17,6 @@ gem 'sinatra', require: 'sinatra/base'
 # Collection of useful Sinatra extensions. (http://sinatrarb.com/contrib/)
 gem 'sinatra-contrib'
 
-# A general server command for Rack applications. (https://github.com/rack/rackup)
-gem 'rackup'
-
 # A Ruby/Rack web server built for parallelism. (https://puma.io)
 gem 'puma'
 

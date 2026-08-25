@@ -89,4 +89,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --start-interval=1s -
     CMD ["curl", "-fs", "http://localhost:4567/ping"]
 
 ENTRYPOINT ["bundle", "exec"]
-CMD ["rackup", "--host", "0.0.0.0", "--port", "4567"]
+CMD ["puma", "--bind", "tcp://0.0.0.0:4567"]

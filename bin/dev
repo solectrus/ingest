@@ -4,8 +4,8 @@
 require 'bundler/setup'
 require 'listen'
 
-CMD = %w[rackup --host 0.0.0.0 --port 4567].freeze
-WATCH_ONLY = %r{\A(app/.*\.rb|(app|boot)\.rb|config\.ru)\z}
+CMD = %w[puma --bind tcp://0.0.0.0:4567].freeze
+WATCH_ONLY = %r{\A(app/.*\.rb|(app|boot)\.rb|config\.ru|config/puma\.rb)\z}
 IGNORE_DIRS = %r{\A(coverage|data|public|spec|db|src|bin|node_modules)/}
 
 pid = nil
