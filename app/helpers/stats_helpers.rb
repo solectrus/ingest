@@ -199,7 +199,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
         'crit'
       end
 
-    "<small class=\"#{css_class}\">#{number_to_delimited(value)} /min</small>"
+    "<small class=\"#{css_class}\">#{format_rate(value)}</small>"
+  end
+
+  # A rate of 10 and above needs no decimal: the reader wants the size, not the
+  # tenth. Below 10 the decimal carries the message, because a rate that rounds
+  # to 0 reads as "nothing arrives".
+  def format_rate(value)
+    return unless value
+
+    rounded = value.round(1)
+    number = rounded >= 10 ? value.round : rounded
+
+    "#{number_to_delimited(number)} /min"
   end
 
   def memory_usage

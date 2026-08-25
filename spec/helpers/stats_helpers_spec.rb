@@ -251,6 +251,28 @@ describe StatsHelpers do
     it 'marks a high rate as crit' do
       expect(throughput_tag(25)).to eq('<small class="crit">25 /min</small>')
     end
+
+    it 'keeps the decimal of a slow rate' do
+      expect(throughput_tag(0.4)).to eq('<small class="ok">0.4 /min</small>')
+    end
+  end
+
+  describe '#format_rate' do
+    it 'returns nothing without a value' do
+      expect(format_rate(nil)).to be_nil
+    end
+
+    # A rate that rounds to 0 reads as "nothing arrives".
+    it 'keeps one decimal below 10' do
+      expect(format_rate(0.44)).to eq('0.4 /min')
+      expect(format_rate(9.94)).to eq('9.9 /min')
+    end
+
+    it 'drops the decimal from 10 upwards' do
+      expect(format_rate(9.96)).to eq('10 /min')
+      expect(format_rate(24.2)).to eq('24 /min')
+      expect(format_rate(1234.5)).to eq('1,235 /min')
+    end
   end
 
   describe '#house_power_destination' do

@@ -54,7 +54,7 @@
       <dd><%= number_to_delimited(calculation_count) %></dd>
 
       <dt>Calculation rate</dt>
-      <dd><%= value_or_dash(calculation_rate) { |r| "#{number_to_delimited(r.round)} /min" } %></dd>
+      <dd><%= value_or_dash(calculation_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Last calculation</dt>
       <dd><%= value_or_dash(last_calculation_age) { |a| "#{format_duration(a)} ago" } %></dd>
