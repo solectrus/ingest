@@ -385,10 +385,17 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   end
 
   # The cleanup deletes what is older than the retention, but it runs once per
-  # interval. The range thus goes up to one interval above the retention
-  # before the next cleanup cuts it back.
+  # interval. The range thus goes above the retention before the next cleanup
+  # cuts it back.
+  #
+  # Two intervals, not one: the worker sleeps first, so a restart shortly
+  # before a cleanup delays that cleanup by a full interval. A restart is
+  # normal, and the buffer survives it on disk. Only above this ceiling did a
+  # cleanup really fail.
   def max_range_hours
-    (CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL).in_hours.to_i
+    (
+      CleanupWorker::RETENTION + (2 * CleanupWorker::CLEANUP_INTERVAL)
+    ).in_hours.to_i
   end
 
   GIGABYTE = 1024**3
