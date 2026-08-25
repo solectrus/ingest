@@ -83,7 +83,7 @@
       <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
 
       <dt>⌀ Time</dt>
-      <dd><%= number_to_delimited(response_time) %> ms</dd>
+      <dd><%= value_or_dash(response_time) { |t| "#{number_to_delimited(t)} ms" } %></dd>
     </dl>
   </section>
 
