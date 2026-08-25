@@ -64,7 +64,7 @@
       <h2>Skipped by Sensor</h2>
       <dl class="right">
         <% calculation_skips_by_sensor.each do |sensor, count| %>
-          <dt class="font-mono"><%= sensor %></dt>
+          <dt class="font-mono"><%= h sensor %></dt>
           <dd><%= number_to_delimited(count) %></dd>
         <% end %>
       </dl>
@@ -123,11 +123,11 @@
   <div class="cards">
     <% incoming_measurement_fields_grouped.each do |measurement, groups| %>
       <article class="card">
-        <h3 class="card__title"><%= measurement %></h3>
+        <h3 class="card__title"><%= h measurement %></h3>
         <ul class="card__list">
           <% groups.each do |group| %>
             <li>
-              <span class="font-mono"><%= group[:field] %></span>
+              <span class="font-mono"><%= h group[:field] %></span>
               <%= throughput_tag(incoming_throughput_for(group[:count])) %>
             </li>
           <% end %>

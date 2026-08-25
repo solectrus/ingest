@@ -44,6 +44,24 @@ describe StatsRoute do
         expect(last_response.body).to include('Incoming')
         expect(last_response.body).to include('Outgoing')
       end
+
+      # The write route takes any token, so anybody who reaches the port can
+      # choose the measurement and field names. They must not run as markup in
+      # the browser of the reader.
+      it 'escapes a measurement and a field name' do
+        Target.first.incomings.create!(
+          measurement: '<script>alert(1)</script>',
+          field: '<img src=x onerror=alert(2)>',
+          value: 1,
+          timestamp: Time.current.to_i * 1_000_000_000,
+        )
+
+        get '/'
+
+        expect(last_response.body).not_to include('<script>alert(1)</script>')
+        expect(last_response.body).not_to include('<img src=x onerror=alert(2)>')
+        expect(last_response.body).to include('&lt;script&gt;alert(1)&lt;/script&gt;')
+      end
     end
   end
 end
