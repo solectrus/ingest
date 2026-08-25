@@ -9,6 +9,19 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
+  # Lines that reached InfluxDB. The queue length alone does not say whether it
+  # drains: a queue of 500,000 looks the same while it falls and while it
+  # stands still.
+  def outgoing_delivered
+    Stats.counter(:outgoing_delivered)
+  end
+
+  def outgoing_delivered_rate
+    return unless outgoing_delivered.positive?
+
+    60.0 * outgoing_delivered / container_uptime
+  end
+
   # InfluxDB refused these lines for good, so they are gone. Only the log knew
   # about it before.
   def outgoing_dropped

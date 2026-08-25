@@ -37,6 +37,12 @@
   <section>
     <h2>Outgoing <small>(to InfluxDB)</small></h2>
     <dl class="right">
+      <dt>Lines delivered <small>(since start)</small></dt>
+      <dd><%= number_to_delimited(outgoing_delivered) %></dd>
+
+      <dt>Delivery rate</dt>
+      <dd><%= value_or_dash(outgoing_delivered_rate) { |r| format_rate(r) } %></dd>
+
       <dt>Waiting in queue</dt>
       <dd class="<%= status_of(:queued) %>"><%= number_to_delimited(outgoing_total) %></dd>
 

@@ -641,6 +641,18 @@ describe StatsHelpers do
   end
 
   describe 'outgoing counters' do
+    it 'has no rate before a line went out' do
+      expect(outgoing_delivered).to be_zero
+      expect(outgoing_delivered_rate).to be_nil
+    end
+
+    it 'turns the delivered lines into a rate per minute' do
+      Stats.inc(:outgoing_delivered, 120)
+      allow(self).to receive(:container_uptime).and_return(60)
+
+      expect(outgoing_delivered_rate).to eq(120.0)
+    end
+
     it 'reads the counters of the outbox worker' do
       Stats.inc(:outgoing_dropped, 7)
       Stats.inc(:outgoing_partial, 3)

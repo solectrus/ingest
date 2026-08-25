@@ -37,6 +37,13 @@ describe OutboxWorker do
         end.to change(Outgoing, :count).by(-3)
       end
 
+      # The queue length alone does not say whether it drains.
+      it 'counts the delivered lines' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_delivered)).to eq(3)
+      end
+
       # Line protocol carries the timestamp per line, so one request holds the
       # lines of every timestamp. One request per timestamp made a backlog need
       # as many connections as the collector had polls.
@@ -283,6 +290,12 @@ describe OutboxWorker do
           processed = described_class.run_once
           expect(processed).to eq(0)
         end.not_to change(Outgoing, :count)
+      end
+
+      it 'counts no delivery' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_delivered)).to be_zero
       end
 
       it 'counts the failure' do

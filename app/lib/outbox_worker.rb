@@ -54,6 +54,7 @@ class OutboxWorker
   def self.deliver(outgoings, target)
     write(outgoings, target)
     delete(outgoings)
+    Stats.inc(:outgoing_delivered, outgoings.size)
     outgoings.size
   rescue InfluxWriter::ClientError => e
     reject(outgoings, target, e)
