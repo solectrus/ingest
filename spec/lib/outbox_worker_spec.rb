@@ -218,6 +218,13 @@ describe OutboxWorker do
         expect($stderr.string).to include('it stored the rest')
         expect($stderr.string).not_to include('dropped')
       end
+
+      it 'counts the lines as a partial write, not as dropped' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_partial)).to eq(3)
+        expect(Stats.counter(:outgoing_dropped)).to be_zero
+      end
     end
 
     # A wrong token refuses the batch whatever its size. Splitting a batch of
@@ -235,6 +242,13 @@ describe OutboxWorker do
         described_class.run_once
 
         expect(InfluxWriter).to have_received(:write).once
+      end
+
+      # The log named the loss, but the statistics page showed nothing of it.
+      it 'counts the lost lines' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_dropped)).to eq(23)
       end
     end
 
@@ -269,6 +283,12 @@ describe OutboxWorker do
           processed = described_class.run_once
           expect(processed).to eq(0)
         end.not_to change(Outgoing, :count)
+      end
+
+      it 'counts the failure' do
+        described_class.run_once
+
+        expect(Stats.counter(:outgoing_failures)).to eq(1)
       end
     end
 

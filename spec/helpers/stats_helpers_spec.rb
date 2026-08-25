@@ -640,10 +640,41 @@ describe StatsHelpers do
     end
   end
 
+  describe 'outgoing counters' do
+    it 'reads the counters of the outbox worker' do
+      Stats.inc(:outgoing_dropped, 7)
+      Stats.inc(:outgoing_partial, 3)
+      Stats.inc(:outgoing_failures)
+
+      expect(outgoing_dropped).to eq(7)
+      expect(outgoing_partial).to eq(3)
+      expect(outgoing_failures).to eq(1)
+    end
+
+    it 'returns zero without a failure' do
+      expect(outgoing_dropped).to be_zero
+      expect(outgoing_partial).to be_zero
+      expect(outgoing_failures).to be_zero
+    end
+  end
+
   describe 'status levels' do
     describe '#status_of' do
       it 'stays silent while every value is fine' do
+        expect(status_of(:dropped)).to be_nil
         expect(status_of(:queued)).to be_nil
+      end
+
+      it 'warns about a value that passes its warn threshold' do
+        Stats.inc(:outgoing_partial)
+
+        expect(status_of(:partial)).to eq('warn')
+      end
+
+      it 'reports a lost line as critical' do
+        Stats.inc(:outgoing_dropped)
+
+        expect(status_of(:dropped)).to eq('crit')
       end
 
       it 'reports a range above the retention as critical' do
@@ -696,6 +727,19 @@ describe StatsHelpers do
     describe '#page_status' do
       it 'stays silent while every value is fine' do
         expect(page_status).to be_nil
+      end
+
+      it 'reports the worst status of the page' do
+        Stats.inc(:outgoing_partial)
+
+        expect(page_status).to eq('warn')
+      end
+
+      it 'lets a critical value win over a warning' do
+        Stats.inc(:outgoing_partial)
+        Stats.inc(:outgoing_dropped)
+
+        expect(page_status).to eq('crit')
       end
     end
   end

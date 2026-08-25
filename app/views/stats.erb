@@ -42,6 +42,15 @@
 
       <dt>Oldest in queue</dt>
       <dd class="<%= status_of(:queue_age) %>"><%= format_duration(queue_oldest_age) %></dd>
+
+      <dt>Failed, will retry</dt>
+      <dd class="<%= status_of(:failures) %>"><%= number_to_delimited(outgoing_failures) %></dd>
+
+      <dt>Partly written <small>(lines affected)</small></dt>
+      <dd class="<%= status_of(:partial) %>"><%= number_to_delimited(outgoing_partial) %></dd>
+
+      <dt>Refused and lost</dt>
+      <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
     </dl>
   </section>
 

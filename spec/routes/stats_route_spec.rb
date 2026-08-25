@@ -69,6 +69,17 @@ describe StatsRoute do
         expect(last_response.body).to include('class="brand__live "')
         expect(last_response.body).to include('>Live</span>')
       end
+
+      # The badge renders in the header, before the fields of the page. Its
+      # colour must still show what those fields say. The text stays "Live".
+      it 'shows a red badge when a line was lost' do
+        Stats.inc(:outgoing_dropped)
+
+        get '/'
+
+        expect(last_response.body).to include('class="brand__live crit"')
+        expect(last_response.body).to include('>Live</span>')
+      end
     end
   end
 end

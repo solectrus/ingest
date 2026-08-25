@@ -9,6 +9,25 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @outgoing_total ||= Outgoing.count
   end
 
+  # InfluxDB refused these lines for good, so they are gone. Only the log knew
+  # about it before.
+  def outgoing_dropped
+    Stats.counter(:outgoing_dropped)
+  end
+
+  # InfluxDB answered a batch of these lines with a 422. It stored the points
+  # it could and named the rest in the error text only, so the number counts
+  # the lines of the batch, not the points it refused.
+  def outgoing_partial
+    Stats.counter(:outgoing_partial)
+  end
+
+  # InfluxDB could not be reached. The lines stay in the queue and go out
+  # again on the next pass.
+  def outgoing_failures
+    Stats.counter(:outgoing_failures)
+  end
+
   def skipped_lines
     Stats.counter(LineBatch::SKIPPED_STAT)
   end
@@ -268,6 +287,9 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       incoming_age: stale_level(incoming_age),
       queued: level(outgoing_total, warn: 1_000, crit: 10_000),
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
+      dropped: level(outgoing_dropped, crit: 1),
+      partial: level(outgoing_partial, warn: 1),
+      failures: level(outgoing_failures, warn: 1),
       skipped_lines: level(skipped_lines, crit: 1),
       skipped_stale: level(calculation_skipped, warn: 5, crit: 25),
       last_success: level(last_calculation_age, warn: 5.minutes, crit: 30.minutes),

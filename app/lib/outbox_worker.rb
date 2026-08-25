@@ -61,6 +61,7 @@ class OutboxWorker
          SocketError,
          Timeout::Error,
          Errno::ECONNREFUSED => e
+    Stats.inc(:outgoing_failures)
     warn "[OutboxWorker] Temporary write failure (will retry): #{e.class} - #{e.message}"
     nil
   end
@@ -99,11 +100,16 @@ class OutboxWorker
   # data that is there.
   PARTIAL_WRITE = 422
 
+  # The log holds the reason, but only the counters reach the statistics page.
+  # A wrong token drops every line of a batch, and the page showed nothing of
+  # it before.
   def self.drop(outgoings, error)
     if error.code == PARTIAL_WRITE
+      Stats.inc(:outgoing_partial, outgoings.size)
       warn "[OutboxWorker] InfluxDB rejected points of #{outgoings.size} lines, " \
            "it stored the rest: #{error.message}"
     else
+      Stats.inc(:outgoing_dropped, outgoings.size)
       warn "[OutboxWorker] Permanent write failure (dropped #{outgoings.size}): #{error.message}"
     end
 
