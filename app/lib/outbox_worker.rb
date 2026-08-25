@@ -50,9 +50,21 @@ class OutboxWorker
           unreachable << target.id
         end
       end
+
+      break if all_targets_unreachable?(unreachable)
     end
 
     total_processed
+  end
+
+  # No target is left to try, so the batches after this one deliver nothing
+  # either. Reading them costs one query per batch: a queue of 100,000 rows
+  # made 200 of them, and every incoming write started the pass again.
+  #
+  # The count runs only after a failure, so a pass that delivers everything
+  # keeps its single query on the targets table.
+  def self.all_targets_unreachable?(unreachable)
+    unreachable.any? && unreachable.size >= Target.count
   end
 
   def self.delete(outgoings)

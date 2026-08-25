@@ -1,4 +1,17 @@
 describe OutboxWorker do
+  # Counts the SELECTs that read rows from the outgoings table.
+  def outgoing_selects
+    count = 0
+    subscriber =
+      ActiveSupport::Notifications.subscribe('sql.active_record') do |*, payload|
+        count += 1 if payload[:sql].start_with?('SELECT "outgoings"')
+      end
+    yield
+    count
+  ensure
+    ActiveSupport::Notifications.unsubscribe(subscriber)
+  end
+
   # Counts the SELECTs on the targets table of a block.
   def target_queries
     count = 0
@@ -325,6 +338,12 @@ describe OutboxWorker do
 
         expect(InfluxWriter).to have_received(:write).once
       end
+
+      # Skipping the batches was not enough: reading them still cost a query
+      # each, and every incoming write started the pass again.
+      it 'stops reading the queue instead of walking it to the end' do
+        expect(outgoing_selects { described_class.run_once }).to eq(1)
+      end
     end
 
     # A target that InfluxDB cannot reach must not hold back the queue of
@@ -359,6 +378,48 @@ describe OutboxWorker do
           'measurement2 field=2 1000',
           'measurement3 field=3 2000',
         )
+      end
+    end
+
+    # The pass stops once no target answers any more. A target that still
+    # answers must keep its lines moving, even from a batch after the failure.
+    context 'when one of two targets is unreachable and the queue needs two batches' do
+      let(:other_target) do
+        Target.create!(
+          influx_token: 'other-token',
+          bucket: 'other-bucket',
+          org: 'other-org',
+        )
+      end
+
+      before do
+        # Fills the first batch with the unreachable target, so the line of
+        # the other one lands in the second.
+        1.upto(described_class::BATCH_SIZE) do |i|
+          target.outgoings.create!(line_protocol: "m field=#{i} 1000")
+        end
+        other_target.outgoings.create!(line_protocol: 'measurement4 field=4 1000')
+
+        allow(InfluxWriter).to receive(:write).and_return(true)
+        allow(InfluxWriter).to receive(:write).with(
+          anything,
+          hash_including(influx_token: target.influx_token),
+        ).and_raise(InfluxWriter::ServerError.new('Influx down'))
+      end
+
+      it 'delivers the reachable target from the later batch' do
+        expect(described_class.run_once).to eq(1)
+
+        expect(Outgoing.where(target: other_target)).to be_empty
+      end
+
+      it 'skips the unreachable target instead of trying it again' do
+        described_class.run_once
+
+        expect(InfluxWriter).to have_received(:write).with(
+          anything,
+          hash_including(influx_token: target.influx_token),
+        ).once
       end
     end
   end
