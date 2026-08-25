@@ -551,13 +551,15 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # A rate of 10 and above needs no decimal: the reader wants the size, not the
   # tenth. Below 10 the decimal carries the message, because a rate that rounds
   # to 0 reads as "nothing arrives".
+  def rate_number(value)
+    rounded = value.round(1)
+    rounded >= 10 ? value.round : rounded
+  end
+
   def format_rate(value)
     return unless value
 
-    rounded = value.round(1)
-    number = rounded >= 10 ? value.round : rounded
-
-    "#{number_to_delimited(number)} /min"
+    "#{number_to_delimited(rate_number(value))} /min"
   end
 
   def memory_usage

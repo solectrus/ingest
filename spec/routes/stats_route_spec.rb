@@ -46,7 +46,8 @@ describe StatsRoute do
 
         expect(last_response).to be_ok
         expect(last_response.body).to include('Incoming')
-        expect(last_response.body).to include('Outgoing')
+        expect(last_response.body).to include('Buffer')
+        expect(last_response.body).to include('InfluxDB')
       end
 
       # The write route takes any token, so anybody who reaches the port can

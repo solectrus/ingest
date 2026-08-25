@@ -115,6 +115,127 @@ header.brand {
   100% { box-shadow: 0 0 0 0 transparent; }
 }
 
+/* The data path as a row: what the collectors send, what Ingest holds, and
+   what reaches InfluxDB. The arrows between the stages are not decoration.
+   Each one carries what happens on the way: a line that does not parse never
+   enters, and a line that waits for InfluxDB sits in the queue.
+
+   The middle stage is wider than the two others, because it holds the buffer
+   and the calculation that reads it. */
+.flow {
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1fr) auto minmax(0, 1.2fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  margin-bottom: 1.75rem;
+}
+.flow__node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem 1.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+/* Centred against the whole row, not against the tallest node: the arrow
+   points from one node to the next, and the eye follows it across. */
+.flow__link {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  padding: 0 0.7rem;
+}
+/* The dashes move in the direction the data takes. A still line says the same
+   thing about a stream that runs and about one that stopped. */
+.flow__arrow {
+  position: relative;
+  width: 3rem;
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--border-strong) 0 6px,
+    transparent 6px 12px
+  );
+  animation: flow-right 900ms linear infinite;
+}
+.flow__arrow::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: -3px;
+  transform: translateY(-50%);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 7px solid var(--border-strong);
+}
+@keyframes flow-right {
+  to { background-position: 12px 0; }
+}
+@keyframes flow-down {
+  to { background-position: 0 12px; }
+}
+
+/* Too narrow for three stages beside each other. The row becomes a column,
+   and the arrows then point down. */
+@media (max-width: 1000px) {
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .flow__link {
+    justify-content: center;
+    padding: 0.85rem 0;
+  }
+  .flow__arrow {
+    width: 2px;
+    height: 2.75rem;
+    background-image: repeating-linear-gradient(
+      180deg,
+      var(--border-strong) 0 6px,
+      transparent 6px 12px
+    );
+    animation-name: flow-down;
+  }
+  .flow__arrow::after {
+    top: auto;
+    bottom: -3px;
+    right: 50%;
+    transform: translateX(50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid var(--border-strong);
+    border-bottom: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow__arrow { animation: none; }
+  .brand__live::before { animation: none; }
+}
+
+/* The one number of a stage. The unit stands below it in a smaller type, so
+   the eye reads the three numbers of the row before it reads their units. */
+.metric {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.metric__value {
+  font-family: var(--font-mono);
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.metric__unit {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--fg-subtle);
+  font-weight: 500;
+}
+
 .grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -126,6 +247,14 @@ header.brand {
 }
 @media (min-width: 640px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
 @media (min-width: 1000px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+
+/* Three sections in two columns leave the last cell of the row empty, and an
+   empty cell is not white here: the grid paints its gaps, so the colour of
+   the border shows. The last section takes that space instead.
+   `nth-child(odd)` asks whether it starts a row of its own. */
+@media (min-width: 640px) and (max-width: 999px) {
+  .grid > section:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
 .grid > section,
 .grid > div {
   background: var(--surface);
@@ -416,12 +545,13 @@ footer {
   }
   footer { padding: 0 1rem; }
   .brand__title { font-size: 1.1rem; }
-  .grid {
+  .grid,
+  .flow__node {
     border-radius: 0;
     border-left: 0;
     border-right: 0;
   }
-  .grid > section, .grid > div { padding: 1.25rem 1.25rem 1.4rem; }
+  .grid > section, .grid > div, .flow__node { padding: 1.25rem 1.25rem 1.4rem; }
   .section__label { padding: 0 1.25rem; }
   .card {
     border-radius: 0;

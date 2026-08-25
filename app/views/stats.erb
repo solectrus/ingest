@@ -1,25 +1,68 @@
-<div class="grid">
-  <section>
+<!-- The three stages of the data path, in the order the data takes. Both
+     stages that carry values report them per minute, so the reader can
+     compare what arrives with what leaves. What holds a line back stands in
+     the box that holds it: an invalid line never leaves the incoming stage,
+     and a line that waits for InfluxDB waits inside Ingest. -->
+<section class="flow">
+  <article class="flow__node">
     <h2>Incoming <small>(from collectors)</small></h2>
-    <dl class="right">
-      <dt>Lines received <small>(since start)</small></dt>
-      <dd><%= number_to_delimited(incoming_lines) %></dd>
+    <p class="metric">
+      <span class="metric__value"><%= value_or_dash(incoming_values_rate) { |r| number_to_delimited(rate_number(r)) } %></span>
+      <span class="metric__unit">values /min</span>
+    </p>
 
-      <dt>Throughput</dt>
+    <dl class="right">
+      <dt>Line throughput</dt>
       <dd><%= value_or_dash(incoming_lines_rate) { |r| format_rate(r) } %></dd>
 
       <dt>Last line</dt>
       <dd class="<%= status_of(:incoming_age) %>"><%= value_or_dash(incoming_age) { |a| age_tag(a) } %></dd>
 
+      <dt>Response time <small>(average)</small></dt>
+      <dd><%= value_or_dash(response_time) { |t| "#{number_to_delimited(t)} ms" } %></dd>
+    </dl>
+
+    <h2>Since start</h2>
+    <dl class="right">
+      <dt>Values received</dt>
+      <dd><%= number_to_delimited(incoming_values) %></dd>
+
+      <dt>Lines received</dt>
+      <dd><%= number_to_delimited(incoming_lines) %></dd>
+
+      <dt>Requests</dt>
+      <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
+
       <dt>Invalid lines <small>(not parsable)</small></dt>
       <dd class="<%= status_of(:skipped_lines) %>"><%= number_to_delimited(skipped_lines) %></dd>
     </dl>
 
-    <h2>Buffer <small>(SQLite on disk)</small></h2>
+    <h2>Responses <small>(what they get back)</small></h2>
     <dl class="right">
-      <dt>Values buffered <small>(one per field)</small></dt>
-      <dd><%= number_to_delimited(incoming_total) %></dd>
+      <% if Stats.counters_by(:http_response).any? %>
+        <% Stats.counters_by(:http_response).sort.each do |key, value| %>
+          <dt><%= http_status_label(key) %></dt>
+          <dd class="<%= http_status_level(key) %>"><%= number_to_delimited(value) %></dd>
+        <% end %>
+      <% else %>
+        <dt>No request yet</dt>
+        <dd>&ndash;</dd>
+      <% end %>
+    </dl>
+  </article>
 
+  <div class="flow__link">
+    <span class="flow__arrow" aria-hidden="true"></span>
+  </div>
+
+  <article class="flow__node flow__node--wide">
+    <h2>Buffer <small>(SQLite on disk)</small></h2>
+    <p class="metric">
+      <span class="metric__value"><%= number_to_delimited(incoming_total) %></span>
+      <span class="metric__unit">values buffered</span>
+    </p>
+
+    <dl class="right">
       <dt>Time span <small>(max <%= max_range_hours %>h)</small></dt>
       <dd class="<%= status_of(:range) %>"><%= format_duration(incoming_range) %></dd>
 
@@ -32,49 +75,8 @@
       <dt>Disk free</dt>
       <dd class="<%= status_of(:disk_free) %>"><%= number_to_human_size(disk_free) %></dd>
     </dl>
-  </section>
 
-  <section>
-    <h2>Outgoing <small>(to InfluxDB)</small></h2>
-    <dl class="right">
-      <dt>Lines delivered <small>(since start)</small></dt>
-      <dd><%= number_to_delimited(outgoing_delivered) %></dd>
-
-      <dt>Delivery rate</dt>
-      <dd><%= value_or_dash(outgoing_delivered_rate) { |r| format_rate(r) } %></dd>
-
-      <dt>Waiting in queue</dt>
-      <dd class="<%= status_of(:queued) %>"><%= number_to_delimited(outgoing_total) %></dd>
-
-      <dt>Oldest in queue</dt>
-      <dd class="<%= status_of(:queue_age) %>"><%= format_duration(queue_oldest_age) %></dd>
-
-      <dt>Failed, will retry</dt>
-      <dd class="<%= status_of(:failures) %>"><%= number_to_delimited(outgoing_failures) %></dd>
-
-      <dt>Partly written <small>(lines affected)</small></dt>
-      <dd class="<%= status_of(:partial) %>"><%= number_to_delimited(outgoing_partial) %></dd>
-
-      <dt>Refused and lost</dt>
-      <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
-    </dl>
-
-    <h2>Targets <small>(bucket / org)</small></h2>
-    <dl class="right">
-      <% if targets.any? %>
-        <% targets.each do |target| %>
-          <dt class="font-mono"><%= h target[:bucket] %></dt>
-          <dd class="font-mono"><%= h target[:org] %><% if target[:tokens] > 1 %> <small>(<%= target[:tokens] %> tokens)</small><% end %></dd>
-        <% end %>
-      <% else %>
-        <dt>Targets</dt>
-        <dd>–</dd>
-      <% end %>
-    </dl>
-  </section>
-
-  <section>
-    <h2>House power <small>(recalculated)</small></h2>
+    <h2>House power <small>(recalculated from the buffer)</small></h2>
     <dl class="right">
       <div class="wide">
         <dt>Written to</dt>
@@ -97,64 +99,66 @@
       <dd class="<%= status_of(:skipped_stale) %>"><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
     </dl>
 
-    <% if calculation_skips_by_sensor.any? %>
-      <h2>Missing values by sensor <small>(one skip can miss several)</small></h2>
-      <dl class="right">
-        <% calculation_skips_by_sensor.each do |sensor, count| %>
-          <dt class="font-mono"><%= h sensor %></dt>
-          <dd><%= number_to_delimited(count) %></dd>
-        <% end %>
-      </dl>
-    <% end %>
-  </section>
-
-  <section>
-    <h2>Requests <small>(from collectors)</small></h2>
+    <h2>Queue <small>(waiting for InfluxDB)</small></h2>
     <dl class="right">
-      <dt>Total</dt>
-      <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
+      <dt>Lines waiting</dt>
+      <dd class="<%= status_of(:queued) %>"><%= number_to_delimited(outgoing_total) %></dd>
 
-      <dt>Response time <small>(average)</small></dt>
-      <dd><%= value_or_dash(response_time) { |t| "#{number_to_delimited(t)} ms" } %></dd>
+      <dt>Oldest line</dt>
+      <dd class="<%= status_of(:queue_age) %>"><%= format_duration(queue_oldest_age) %></dd>
+    </dl>
+  </article>
+
+  <div class="flow__link">
+    <span class="flow__arrow" aria-hidden="true"></span>
+  </div>
+
+  <article class="flow__node">
+    <h2>Outgoing <small>(to InfluxDB)</small></h2>
+    <p class="metric">
+      <span class="metric__value"><%= value_or_dash(outgoing_delivered_values_rate) { |r| number_to_delimited(rate_number(r)) } %></span>
+      <span class="metric__unit">values /min</span>
+    </p>
+
+    <dl class="right">
+      <dt>Line throughput</dt>
+      <dd><%= value_or_dash(outgoing_delivered_rate) { |r| format_rate(r) } %></dd>
     </dl>
 
-    <h2>Responses <small>(by HTTP status)</small></h2>
+    <h2>Since start</h2>
     <dl class="right">
-      <% if Stats.counters_by(:http_response).any? %>
-        <% Stats.counters_by(:http_response).sort.each do |key, value| %>
-          <dt><%= http_status_label(key) %></dt>
-          <dd class="<%= http_status_level(key) %>"><%= number_to_delimited(value) %></dd>
+      <dt>Values delivered</dt>
+      <dd><%= number_to_delimited(outgoing_delivered_values) %></dd>
+
+      <dt>Lines delivered</dt>
+      <dd><%= number_to_delimited(outgoing_delivered) %></dd>
+
+      <dt>Failed, will retry</dt>
+      <dd class="<%= status_of(:failures) %>"><%= number_to_delimited(outgoing_failures) %></dd>
+
+      <dt>Partly written <small>(lines affected)</small></dt>
+      <dd class="<%= status_of(:partial) %>"><%= number_to_delimited(outgoing_partial) %></dd>
+
+      <dt>Refused and lost</dt>
+      <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
+    </dl>
+
+    <h2>Targets <small>(bucket / org)</small></h2>
+    <dl class="right">
+      <% if targets.any? %>
+        <% targets.each do |target| %>
+          <dt class="font-mono"><%= h target[:bucket] %></dt>
+          <dd class="font-mono"><%= h target[:org] %><% if target[:tokens] > 1 %> <small>(<%= target[:tokens] %> tokens)</small><% end %></dd>
         <% end %>
       <% else %>
-        <dt>No request yet</dt>
-        <dd>–</dd>
+        <dt>Targets</dt>
+        <dd>&ndash;</dd>
       <% end %>
     </dl>
-  </section>
+  </article>
+</section>
 
-  <section>
-    <h2>Runtime</h2>
-    <dl class="right">
-      <dt>CPU usage</dt>
-      <dd><%= number_to_percentage(cpu_usage, precision: 1) %></dd>
-
-      <dt>Memory usage</dt>
-      <dd><%= number_to_human_size(memory_usage) %></dd>
-
-      <dt>Threads</dt>
-      <dd><%= thread_count %></dd>
-    </dl>
-
-    <h2>Uptime</h2>
-    <dl class="right">
-      <dt>Ingest</dt>
-      <dd><%= duration_tag(container_uptime) %></dd>
-
-      <dt>Host</dt>
-      <dd><%= duration_tag(system_uptime) %></dd>
-    </dl>
-  </section>
-
+<div class="grid">
   <section>
     <h2>Sensor cache <small>(for the house power)</small></h2>
     <dl class="right">
@@ -172,6 +176,41 @@
 
       <dt>Interpolator queries <small>(per request)</small></dt>
       <dd><%= value_or_dash(interpolate_queries_per_request) { |v| v.round(2) } %></dd>
+    </dl>
+
+    <% if calculation_skips_by_sensor.any? %>
+      <h2>Missing values by sensor <small>(one skip can miss several)</small></h2>
+      <dl class="right">
+        <% calculation_skips_by_sensor.each do |sensor, count| %>
+          <dt class="font-mono"><%= h sensor %></dt>
+          <dd><%= number_to_delimited(count) %></dd>
+        <% end %>
+      </dl>
+    <% end %>
+  </section>
+
+  <section>
+    <h2>Runtime</h2>
+    <dl class="right">
+      <dt>CPU usage</dt>
+      <dd><%= number_to_percentage(cpu_usage, precision: 1) %></dd>
+
+      <dt>Memory usage</dt>
+      <dd><%= number_to_human_size(memory_usage) %></dd>
+
+      <dt>Threads</dt>
+      <dd><%= thread_count %></dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Uptime</h2>
+    <dl class="right">
+      <dt>Ingest</dt>
+      <dd><%= duration_tag(container_uptime) %></dd>
+
+      <dt>Host</dt>
+      <dd><%= duration_tag(system_uptime) %></dd>
     </dl>
   </section>
 </div>
