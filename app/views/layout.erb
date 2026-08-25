@@ -15,7 +15,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
     <link rel="manifest" href="/site.webmanifest">
 
-    <link rel="stylesheet" href="/dashboard.css">
+    <link rel="stylesheet" href="<%= asset_path('dashboard.css') %>">
   </head>
 
   <body>
@@ -40,7 +40,7 @@
     <footer><%= h build_info %></footer>
 
     <% if authorized? %>
-      <script src="/dashboard.js" defer></script>
+      <script src="<%= asset_path('dashboard.js') %>" defer></script>
     <% end %>
   </body>
 </html>
