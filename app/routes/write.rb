@@ -31,6 +31,12 @@ class WriteRoute < BaseRoute
     org = params['org'].presence
     halt 400, { error: 'Missing org' }.to_json unless org
 
+    # Sinatra reads the parameters before it calls this route. Rack parses a
+    # body of type application/x-www-form-urlencoded into those parameters, and
+    # that read empties the stream: the route then found no line, stored
+    # nothing and still answered 204 No Content. The rewind puts the line
+    # protocol back, whatever type the client sent it under.
+    request.body.rewind
     raw_body = request.body.read
     body = EncodingHelper.clean_utf8(raw_body)
     lines = body.strip.lines

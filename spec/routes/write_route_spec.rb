@@ -57,6 +57,27 @@ describe WriteRoute do
       end
     end
 
+    # Rack parses a body of this type into the parameters, and Sinatra reads
+    # those before the route runs. That read emptied the stream, so the route
+    # found no line, stored nothing and still answered 204: the client got a
+    # success for data that went nowhere, and no log line said so.
+    context 'when the client sends the body as a form' do
+      it 'stores the line protocol and returns 204' do
+        expect do
+          post_write(
+            custom_headers:
+              headers.merge(
+                'CONTENT_TYPE' => 'application/x-www-form-urlencoded',
+              ),
+          )
+        end.to change(Incoming, :count).by(1).and(
+          change(Outgoing, :count).by(1),
+        )
+
+        expect_status 204
+      end
+    end
+
     context 'when the request contains UTF-8 characters' do
       it 'stores the data and returns status 204' do
         expect do
