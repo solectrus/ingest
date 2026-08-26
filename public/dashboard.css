@@ -480,9 +480,13 @@ small { color: var(--fg-subtle); font-size: 0.78rem; }
   border-radius: var(--radius-lg);
   padding: 2rem;
 }
+/* The title of the login box names what the box does, so it is a sentence and
+   not a label. It thus gives up the letters of a label: the capitals, the wide
+   tracking, and the quiet colour that `h2` carries elsewhere. */
 .auth__title {
   margin: 0 0 0.35rem;
   font-size: 1.05rem;
+  text-transform: none;
   letter-spacing: -0.015em;
   font-weight: 600;
   color: var(--fg);
