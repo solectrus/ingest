@@ -13,9 +13,46 @@ class OutboxWorker
   # moment it reaches InfluxDB does not change the data.
   LINGER = 0.25
 
+  # How long the worker waits before it tries a target again that it could not
+  # reach.
+  #
+  # A queue that InfluxDB did not take announces itself to nobody: its lines
+  # are already in it, and OutboxNotifier signals arriving lines alone. So the
+  # worker waited for the next collector write, and an ingest that nobody feeds
+  # never tried again at all.
+  #
+  # The worker sleeps instead of waiting for a signal, so the rate of the
+  # retries does not follow the rate of the collectors. A wait that a line can
+  # end runs one pass per write: eight sensors of one poll would start eight
+  # passes in a few milliseconds, and each of them loads a batch and opens a
+  # connection.
+  #
+  # The delay costs no data. Every line keeps its own timestamp, so a queue
+  # that goes out later still writes the same points.
+  RETRY_DELAY = 10
+
+  class << self
+    # The last pass left lines behind, because InfluxDB did not answer for at
+    # least one target. #run_loop reads this to retry instead of waiting.
+    attr_reader :stalled
+  end
+
+  @stalled = false
+
+  # One process runs one worker, so only the tests need this.
+  def self.reset!
+    @stalled = false
+  end
+
   def self.run_loop
     loop do
       run_once
+
+      if stalled
+        sleep RETRY_DELAY
+        next
+      end
+
       OutboxNotifier.wait
       sleep LINGER
 
@@ -28,7 +65,7 @@ class OutboxWorker
     rescue StandardError => e
       warn "[OutboxWorker] Error: #{e.class} - #{e.message}"
       warn e.backtrace.join("\n")
-      sleep 1
+      sleep RETRY_DELAY
     end
   end
 
@@ -61,6 +98,8 @@ class OutboxWorker
       break if all_targets_unreachable?(unreachable)
     end
 
+    @stalled = unreachable.any?
+
     total_processed
   end
 
@@ -91,6 +130,10 @@ class OutboxWorker
     outgoings.size
   rescue InfluxWriter::ClientError => e
     reject(outgoings, target, e)
+  # InfluxWriter turns every answer of InfluxDB and every network failure into
+  # one of its two errors, so ServerError covers the whole retry case. The
+  # classes beside it are the ones that reach here from outside the client:
+  # SocketError comes from a host name that does not resolve.
   rescue InfluxWriter::ServerError,
          SocketError,
          Timeout::Error,

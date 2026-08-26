@@ -28,6 +28,7 @@ RSpec.configure do |config|
     SensorValueCache.instance.reset!
     SensorEnvConfig.reset!
     OutboxNotifier.reset!
+    OutboxWorker.reset!
     Stats.reset!
   end
 

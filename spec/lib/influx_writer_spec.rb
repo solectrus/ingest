@@ -123,7 +123,40 @@ describe InfluxWriter do
       )
     end
 
-    it 're-raises an InfluxError with an unexpected status code' do
+    # The client catches the network errors itself and wraps them into an
+    # InfluxError with an empty code, keeping the cause in #original. That
+    # error went back to the caller unchanged before, and the caller rescues
+    # ClientError and ServerError alone: a stopped InfluxDB thus escaped the
+    # delivery path, the counter of failed writes stayed at zero, and the
+    # queue got a full backtrace every second.
+    it 'raises ServerError when the client wraps a network error' do
+      error =
+        InfluxDB2::InfluxError.from_error(
+          Errno::ECONNREFUSED.new('connect(2) for "influxdb" port 8086'),
+        )
+
+      allow(write_api_double).to receive(:write).and_raise(error)
+
+      expect { described_class.write(lines, **params) }.to raise_error(
+        InfluxWriter::ServerError,
+        /Network error.*Connection refused/,
+      )
+    end
+
+    it 'raises ServerError on a timeout the client has wrapped' do
+      error = InfluxDB2::InfluxError.from_error(Timeout::Error.new('too slow'))
+
+      allow(write_api_double).to receive(:write).and_raise(error)
+
+      expect { described_class.write(lines, **params) }.to raise_error(
+        InfluxWriter::ServerError,
+        /Network error.*too slow/,
+      )
+    end
+
+    # Nothing here says that the lines are wrong, so they stay queued instead
+    # of being dropped.
+    it 'raises ServerError on an InfluxError without status and cause' do
       error =
         InfluxDB2::InfluxError.new(
           message: 'connection reset',
@@ -135,8 +168,8 @@ describe InfluxWriter do
       allow(write_api_double).to receive(:write).and_raise(error)
 
       expect { described_class.write(lines, **params) }.to raise_error(
-        InfluxDB2::InfluxError,
-        /connection reset/,
+        InfluxWriter::ServerError,
+        /Unknown error.*connection reset/,
       )
     end
 

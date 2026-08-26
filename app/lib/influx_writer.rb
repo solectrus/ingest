@@ -37,12 +37,27 @@ class InfluxWriter
     end
 
     # Maps the answer of InfluxDB to what the caller has to do with the lines:
-    # keep them for a retry (429 and 5xx), or deal with the refusal (other
-    # 4xx).
+    # keep them for a retry (429, 5xx and every network failure), or deal with
+    # the refusal (other 4xx).
+    #
+    # Every branch returns a ClientError or a ServerError, so the caller needs
+    # to know these two classes alone. It returned the InfluxError itself
+    # before, and the caller does not rescue that class: a stopped InfluxDB
+    # thus escaped the whole delivery path, see below.
     #
     # InfluxDB2::InfluxError#code is the HTTP status as a String (e.g. "400"),
     # so it must be coerced before comparing against numeric ranges.
     def translate(error)
+      # The client wraps a network failure into an InfluxError that carries no
+      # status, and puts the cause into #original. A refused connection, a
+      # reset one, a closed one and a timeout all arrive this way, so none of
+      # them ever reached the caller as the Errno or the Timeout::Error it
+      # started as.
+      #
+      # The lines are correct, InfluxDB just did not answer, so they stay
+      # queued.
+      return ServerError.new("Network error: #{error.message}") if error.original
+
       case error.code.to_i
       # The token is temporarily over its quota. The data is correct, so the
       # lines stay queued and the caller writes them again later.
@@ -56,7 +71,10 @@ class InfluxWriter
       when 500..599
         ServerError.new("Server error (#{error.code}): #{error.message}")
       else
-        error
+        # An InfluxError with no status and no cause. Nothing here says that
+        # the lines are wrong, so the caller keeps them instead of dropping
+        # them.
+        ServerError.new("Unknown error: #{error.message}")
       end
     end
 

@@ -438,7 +438,11 @@ describe OutboxWorker do
   end
 
   describe '.run_loop' do
-    before { allow(described_class).to receive(:run_once).and_return(0) }
+    before do
+      # #run_once is stubbed, so it sets no state of its own. Every example
+      # here runs a pass that reached InfluxDB unless it says otherwise.
+      allow(described_class).to receive_messages(run_once: 0, stalled: false)
+    end
 
     # A collector sends one request per sensor, and the requests of one poll
     # arrive a few milliseconds apart. The worker sent the first one alone
@@ -495,6 +499,44 @@ describe OutboxWorker do
       thread.join
 
       expect(described_class).to have_received(:run_once).at_least(:twice)
+    end
+
+    # A stalled queue gets no signal: its lines are already in it, and
+    # OutboxNotifier signals arriving lines alone. The worker waited for that
+    # signal, so an ingest that nobody feeds never tried again.
+    context 'when a pass leaves lines behind' do
+      before { allow(described_class).to receive(:stalled).and_return(true) }
+
+      it 'retries without a signal' do
+        stub_const("#{described_class}::RETRY_DELAY", 0.02)
+
+        thread = Thread.new { described_class.run_loop }
+        sleep 0.2
+
+        thread.kill
+        thread.join
+
+        expect(described_class).to have_received(:run_once).at_least(:twice)
+      end
+
+      # The rate of the retries must not follow the rate of the collectors: a
+      # poll of eight sensors would otherwise start eight passes at once.
+      it 'does not let an arriving line start a pass' do
+        stub_const("#{described_class}::RETRY_DELAY", 0.1)
+
+        thread = Thread.new { described_class.run_loop }
+        sleep 0.02
+
+        20.times { OutboxNotifier.notify! }
+        sleep 0.15
+
+        thread.kill
+        thread.join
+
+        # One pass on entering the loop, one after the delay. The signals buy
+        # no pass of their own.
+        expect(described_class).to have_received(:run_once).at_most(:twice)
+      end
     end
 
     context 'when run_once raises' do
