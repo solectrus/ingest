@@ -2,10 +2,14 @@ class CleanupWorker
   CLEANUP_INTERVAL = 1.hour
   RETENTION = ENV.fetch('RETENTION_HOURS', '12').to_i.hours
 
+  # The cleanup runs first, then it sleeps. A restart thus deletes at once what
+  # a former run left behind. If the worker slept first, every restart would
+  # delay the cleanup by a full interval, and a service that restarts often
+  # would never delete a row.
   def self.run_loop
     loop do
-      sleep CLEANUP_INTERVAL
       run
+      sleep CLEANUP_INTERVAL
     end
   end
 
@@ -14,13 +18,16 @@ class CleanupWorker
 
     deleted =
       Database.thread_safe_write do
-        Incoming.where(created_at: ..RETENTION.ago).delete_all
+        count = Incoming.where(created_at: ..RETENTION.ago).delete_all
+
+        # Reclaims the space of the deleted rows, a few megabytes per run. The
+        # vacuum writes, so it takes the same lock as every other writer.
+        Database.incremental_vacuum!
+
+        count
       end
 
     puts "[Cleanup] Deleted #{deleted} entries"
-
-    # Reclaim space from deleted rows without blocking the entire database
-    Database.incremental_vacuum!
   rescue StandardError => e
     warn "[Cleanup] Error: #{e.class} - #{e.message}"
     warn e.backtrace.join("\n")

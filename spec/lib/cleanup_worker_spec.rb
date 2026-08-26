@@ -70,5 +70,22 @@ describe CleanupWorker do
 
       expect(described_class).to have_received(:run).at_least(3).times
     end
+
+    it 'runs before it sleeps, so a restart does not delay the cleanup' do
+      order = []
+      allow(described_class).to receive(:sleep) { order << :sleep }
+      allow(described_class).to receive(:run) do
+        order << :run
+        raise 'STOP' if order.count(:run) >= 2
+      end
+
+      begin
+        described_class.run_loop
+      rescue StandardError => e
+        raise unless e.message == 'STOP'
+      end
+
+      expect(order.first).to eq(:run)
+    end
   end
 end

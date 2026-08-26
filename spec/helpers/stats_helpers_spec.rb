@@ -759,14 +759,13 @@ describe StatsHelpers do
   end
 
   # The cleanup runs once per interval, so the buffer holds more than the
-  # retention until it runs again. A restart delays the next cleanup by another
-  # interval, because the worker sleeps before it deletes.
+  # retention until it runs again.
   describe '#max_range_hours' do
-    it 'adds two cleanup intervals to the retention' do
+    it 'adds one cleanup interval to the retention' do
       expect(max_range_hours).to be > retention_hours
       expect(max_range_hours).to eq(
         (
-          CleanupWorker::RETENTION + (2 * CleanupWorker::CLEANUP_INTERVAL)
+          CleanupWorker::RETENTION + CleanupWorker::CLEANUP_INTERVAL
         ).in_hours.to_i,
       )
     end
@@ -1149,11 +1148,11 @@ describe StatsHelpers do
         expect(status_of(:range)).to eq('crit')
       end
 
-      # A restart delays the cleanup, so the range passes the retention without
-      # a fault. Red here would teach the reader to ignore red.
+      # The cleanup runs once per interval, so the range passes the retention
+      # without a fault. Red here would teach the reader to ignore red.
       it 'stays silent for a range between the retention and the ceiling' do
         allow(self).to receive(:incoming_range).and_return(
-          (retention_hours + 1).hours.to_i,
+          retention_hours.hours.to_i + 30.minutes.to_i,
         )
 
         expect(status_of(:range)).to be_nil
