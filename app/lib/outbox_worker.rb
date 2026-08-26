@@ -34,14 +34,18 @@ class OutboxWorker
   class << self
     # The last pass left lines behind, because InfluxDB did not answer for at
     # least one target. #run_loop reads this to retry instead of waiting.
-    attr_reader :stalled
+    #
+    # `tried` says whether a request ever went out, see .deliver.
+    attr_reader :stalled, :tried
   end
 
   @stalled = false
+  @tried = false
 
   # One process runs one worker, so only the tests need this.
   def self.reset!
     @stalled = false
+    @tried = false
   end
 
   def self.run_loop
@@ -123,6 +127,11 @@ class OutboxWorker
   # reached InfluxDB, or nil if InfluxDB could not be reached. A line that
   # InfluxDB refuses is dropped and does not count.
   def self.deliver(outgoings, target)
+    # A pass over an empty queue reaches this method never, and it thus
+    # learns nothing about InfluxDB. `tried` turns true with the first
+    # request, not with the first pass, and a timeout counts as well.
+    @tried = true
+
     write(outgoings, target)
     delete(outgoings)
     Stats.inc(:outgoing_delivered, outgoings.size)

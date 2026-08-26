@@ -1,0 +1,103 @@
+<section class="section">
+  <!-- The heading answers for the whole section, so it names only what holds
+       for the whole section. The count of the sensors that deliver belongs to
+       the card that lists them: it counts the sensors of the house power, and
+       the excluded ones stand in a card of their own. Above both cards the
+       number named fewer sensors than the reader could count. -->
+  <h2 class="section__label">
+    Configured sensors
+    <% if configured_sensors.empty? %>
+      <small>(no INFLUX_SENSOR_* variable is set)</small>
+    <% elsif included_sensors.empty? %>
+      <small>(the house power excludes every one of them)</small>
+    <% end %>
+  </h2>
+
+  <% if configured_sensors.any? %>
+    <div class="cards cards--wide">
+      <!-- Two cards: what the house power needs, and what it leaves out. One
+           list would carry both, and a reader would then read a missing value
+           as the same fault in each case. Only the first card can hold the
+           house power back. -->
+      <% if included_sensors.any? %>
+        <article class="card">
+          <h3 class="card__title">
+            The house power
+            <!-- Three cases, and the third one is the reason for this
+                 comment: an empty buffer holds no line of any sensor, so the
+                 page cannot tell a healthy sensor from one that nobody
+                 sends. It gave an all-clear there, which is the one thing it
+                 does not know. A fresh container reads that line first, and
+                 a wrong all-clear is worse than none. -->
+            <small>
+              <% if sensors_summary %>
+                (<span class="<%= sensors_summary_level %>"><%= sensors_summary %></span>)
+              <% elsif buffer_empty? %>
+                (no data yet)
+              <% else %>
+                (all <%= included_sensors.size %> receive data)
+              <% end %>
+            </small>
+          </h3>
+          <%= erb :_sensors, layout: false, locals: { sensors: included_sensors } %>
+        </article>
+      <% end %>
+
+      <% if excluded_sensors.any? %>
+        <article class="card">
+          <h3 class="card__title">
+            Excluded from the house power
+            <small>(INFLUX_EXCLUDE_FROM_HOUSE_POWER)</small>
+          </h3>
+          <%= erb :_sensors, layout: false, locals: { sensors: excluded_sensors } %>
+        </article>
+      <% end %>
+    </div>
+  <% end %>
+</section>
+
+<section class="section">
+  <h2 class="section__label">
+    Other incoming data
+    <small>
+      <% if other_measurement_fields_grouped.any? %>
+        (forwarded, not a configured sensor)
+      <% elsif buffer_empty? %>
+        <!-- "besides the sensors above" says that those sensors arrive. An
+             empty buffer holds no line of them either. -->
+        (nothing arrives)
+      <% else %>
+        (nothing arrives besides the sensors above)
+      <% end %>
+    </small>
+  </h2>
+
+  <div class="cards">
+    <% other_measurement_fields_grouped.each do |measurement, groups| %>
+      <article class="card">
+        <h3 class="card__title"><%= h measurement %></h3>
+        <ul class="card__list">
+          <% groups.each do |group| %>
+            <li>
+              <span class="font-mono"><%= h group[:field] %></span>
+              <%= stream_tag(group) %>
+            </li>
+          <% end %>
+        </ul>
+      </article>
+    <% end %>
+  </div>
+</section>
+
+<!-- These rates divide by the time span of the buffer, the pipeline tab
+     divides by the uptime. Same unit, different window, so the numbers do not
+     compare. The second sentence says why some rows carry a time instead of a
+     rate: the rate of a quiet stream keeps the value it had while the stream
+     ran, and only the age says that nothing arrives now. -->
+<% if incoming_range %>
+  <p class="note">
+    Rates here average over the buffered time span
+    (<%= format_duration(incoming_range) %>), not over the uptime. A stream
+    that went quiet shows the age of its last line instead.
+  </p>
+<% end %>

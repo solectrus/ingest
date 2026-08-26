@@ -273,7 +273,25 @@ Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculat
 
 ### GET `/`
 
-Shows a basic stats page (requires a password if configured), with throughput, queue size, buffer status, and more.
+Shows a stats page (requires a password if configured), with throughput, queue size, buffer status, and more.
+
+The page has three tabs. Each tab has a path of its own, so the page keeps the tab when it reloads itself every 30 seconds. A dot beside the name of a tab says that the tab needs attention.
+
+| Tab           | Path           | What it shows                                                        |
+| ------------- | -------------- | -------------------------------------------------------------------- |
+| `Pipeline`    | `/`            | What arrives, what the buffer holds, and what reaches InfluxDB       |
+| `Sensors`     | `/sensors`     | Every configured sensor, and every other stream that Ingest forwards |
+| `House power` | `/house-power` | The formula with the values of the last calculation                  |
+
+#### The house power tab
+
+The tab prints the formula term by term, with the value that each sensor contributed and the result of the sum. The terms come from the calculation itself, so what the page shows is what Ingest added up. A bar beside each term gives its share of the largest one.
+
+Below the sum stand two more rows: the house power that the collector delivered, and the difference between the two. Ingest drops the delivered value and writes its own in its place, so this difference is the correction that the service makes.
+
+The page shows a second calculation below the first one when `INFLUX_EXCLUDE_FROM_HOUSE_POWER` names a sensor. SOLECTRUS subtracts every excluded sensor from the house power again before it draws the dashboard. So Ingest writes one value, and a reader sees another one. The second block names both.
+
+#### Quiet streams
 
 While a stream delivers, the page shows its rate. If a stream sends nothing for more than 15 minutes, the page shows the age of its last line instead.
 

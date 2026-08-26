@@ -28,6 +28,25 @@ class SensorValueCache
     data
   end
 
+  # The value of one configured sensor, by its key. The configuration says
+  # which measurement and field the key reads, and #read then answers it.
+  # Returns nothing for a key that no INFLUX_SENSOR_* variable configures, and
+  # for one that the cache cannot answer.
+  def read_sensor(key:, max_timestamp:, max_age:)
+    sensor = SensorEnvConfig[key]
+    return unless sensor && sensor[:measurement] && sensor[:field]
+
+    entry =
+      read(
+        measurement: sensor[:measurement],
+        field: sensor[:field],
+        max_timestamp:,
+        max_age:,
+      )
+
+    entry&.fetch(:value)
+  end
+
   # Drops every reading. The cache lives as long as the process, so a caller
   # that must not see what an earlier write left behind has to clear it.
   def reset!

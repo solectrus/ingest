@@ -173,4 +173,35 @@ describe SensorEnvConfig do
       end
     end
   end
+
+  # SOLECTRUS subtracts these from the house power again when it draws the
+  # dashboard, so the statistics page has to name them.
+  describe '.excluded_sensor_keys' do
+    subject(:keys) { described_class.excluded_sensor_keys }
+
+    it 'names what INFLUX_EXCLUDE_FROM_HOUSE_POWER excludes' do
+      expect(keys).to eq(%i[heatpump_power])
+    end
+
+    it 'leaves out a name that no sensor variable configures' do
+      stub_const(
+        'ENV',
+        ENV.to_hash.merge('INFLUX_SENSOR_HEATPUMP_POWER' => ''),
+      )
+      described_class.reset!
+
+      expect(keys).to be_empty
+    end
+
+    # The house power is the result of the formula and never an input of it.
+    it 'cannot exclude the house power itself' do
+      stub_const(
+        'ENV',
+        ENV.to_hash.merge('INFLUX_EXCLUDE_FROM_HOUSE_POWER' => 'HOUSE_POWER'),
+      )
+      described_class.reset!
+
+      expect(keys).to be_empty
+    end
+  end
 end

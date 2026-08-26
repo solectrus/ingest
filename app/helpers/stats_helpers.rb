@@ -33,24 +33,40 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # makes a target of its own, so a row that nobody expects means that
   # somebody writes elsewhere.
   #
-  # Two collectors can write to the same bucket with different tokens. Such
-  # targets share a row, and the count of the tokens tells them apart.
+  # One row per token, not a count of them. Two collectors that write to one
+  # bucket with tokens of their own are two rows, and the masked token says
+  # which row belongs to which collector.
   #
-  # The token itself stays out of the answer. It is a secret, and the page
-  # needs only a password.
+  # The same token with a second precision is one target here. The precision
+  # belongs to the request, not to the destination.
   TARGET_COLUMNS = <<~SQL.squish
     bucket,
     org,
-    COUNT(DISTINCT influx_token) AS tokens
+    influx_token
   SQL
 
   def targets
     @targets ||=
       Target
-        .group(:bucket, :org)
+        .group(:bucket, :org, :influx_token)
         .order(Arel.sql('MIN(id)'))
         .pluck(Arel.sql(TARGET_COLUMNS))
-        .map { |bucket, org, tokens| { bucket:, org:, tokens: } }
+        .map { |bucket, org, token| { bucket:, org:, token: mask_token(token) } }
+  end
+
+  # As much of a token as the page may show. The first and the last character
+  # tell two tokens apart, and they find one again in the configuration of a
+  # collector. Everything between them stays out, and the number of dots is
+  # fixed, so the mask gives away no length either.
+  #
+  # A token is the key to an InfluxDB. The page is behind a password, and the
+  # token stays a secret behind it.
+  TOKEN_MASK = '......'.freeze
+
+  def mask_token(token)
+    return TOKEN_MASK if token.to_s.length < 2
+
+    "#{token[0]}#{TOKEN_MASK}#{token[-1]}"
   end
 
   # Lines that reached InfluxDB. The queue length alone does not say whether it
@@ -79,6 +95,21 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     60.0 * outgoing_delivered_values / container_uptime
   end
 
+  # What Ingest took out of the stream, and what it put in. Both belong to the
+  # outgoing stage, and together they explain why the delivered values are not
+  # the received ones: Ingest drops the house power that the collector sends
+  # and writes its own value in its place.
+  #
+  # Without them the page states two totals that contradict each other, and
+  # the number that resolves them sits on another tab.
+  def house_power_replaced
+    Stats.counter(:house_power_replaced)
+  end
+
+  def house_power_added
+    Stats.counter(:house_power_added)
+  end
+
   # InfluxDB refused these lines for good, so they are gone. Only the log knew
   # about it before.
   def outgoing_dropped
@@ -96,6 +127,22 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # again on the next pass.
   def outgoing_failures
     Stats.counter(:outgoing_failures)
+  end
+
+  # Whether the last pass reached InfluxDB. This is the state of the moment,
+  # so it belongs to the queue and not to a counter that runs since the start.
+  def delivery_stalled?
+    OutboxWorker.stalled
+  end
+
+  # A pass over an empty queue sends no request, so it learns nothing. The
+  # page said "reachable" for that case, and a fresh container thus reported
+  # an InfluxDB that was down as good. The first queued line answers the
+  # question within a second.
+  def influx_reachability
+    return 'not tried yet' unless OutboxWorker.tried
+
+    delivery_stalled? ? 'unreachable' : 'reachable'
   end
 
   def skipped_lines
@@ -158,16 +205,219 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # can miss more than one sensor, and it counts each of them. The numbers
   # thus add up to more than the number of skips.
   def calculation_skips_by_sensor
-    prefix = HousePowerCalculator::SKIP_STAT_PREFIX
-    Stats
-      .counters_by(prefix)
-      .transform_keys { |key| key.to_s.delete_prefix(prefix) }
-      .sort_by { |_, count| -count }
+    @calculation_skips_by_sensor ||=
+      begin
+        prefix = HousePowerCalculator::SKIP_STAT_PREFIX
+        Stats
+          .counters_by(prefix)
+          .transform_keys { |key| key.to_s.delete_prefix(prefix) }
+          .sort_by { |_, count| -count }
+      end
   end
 
   def last_calculation_age
     timestamp = Stats.value(:house_power_last_success_at)
     age_from(Time.at(timestamp)) if timestamp
+  end
+
+  # What the last calculation added up. The calculator records it, so the page
+  # prints the terms that produced the value it wrote, not an example of them.
+  def last_calculation
+    @last_calculation ||= LastCalculation.read
+  end
+
+  # One row per term of the formula: the sign, the sensor, the measurement and
+  # field its value came from, and what it contributed.
+  #
+  # While nothing is calculated yet, the rows come from the configuration and
+  # carry no value. The reader then still sees which sensors take part.
+  def formula_rows
+    calculated = last_calculation.present?
+    terms = formula_terms
+
+    # The longest bar of the box. Every other term gets its share of it, so a
+    # reader sees which term carries the result before reading a number.
+    largest = terms.map { it.value.abs }.max if calculated
+
+    terms.map do |term|
+      {
+        key: term.key,
+        sign: term.adds? ? '+' : '−',
+        adds: term.adds?,
+        source: sensor_source(term.key),
+        value: (term.value if calculated),
+        share: (term.value.abs.fdiv(largest) if calculated && largest.positive?),
+      }
+    end
+  end
+
+  # The sensors that INFLUX_EXCLUDE_FROM_HOUSE_POWER keeps out of the formula.
+  # The list of terms cannot show them, and their absence is the one thing a
+  # reader cannot explain from what stands there.
+  def formula_excluded_keys
+    SensorEnvConfig.excluded_sensor_keys
+  end
+
+  # What the collector computed itself. Ingest drops that value and writes its
+  # own in its place, so the page has to show both: a result without the value
+  # it replaced says nothing about whether the correction was needed.
+  def delivered_house_power
+    last_calculation&.fetch(:delivered)
+  end
+
+  # Where the delivered value comes from, or nothing while no
+  # INFLUX_SENSOR_HOUSE_POWER names a sensor. There is no value to compare
+  # then, and the page leaves the comparison out.
+  def delivered_source
+    sensor_source(:house_power)
+  end
+
+  # The second calculation, the one that Ingest does not make. SOLECTRUS
+  # subtracts every excluded sensor from the house power again when it draws
+  # the dashboard, see Sensor::Definitions::HousePower#calculate there. So the
+  # value that Ingest writes is not the value a reader sees, and the page has
+  # to show both or it explains only half of the number on the screen.
+  def dashboard_rows
+    excluded = last_calculation&.fetch(:excluded) || {}
+
+    [
+      {
+        sign: '',
+        key: :house_power,
+        source: house_power_destination,
+        value: written_house_power,
+      },
+      *formula_excluded_keys.map do |key|
+        {
+          sign: '−',
+          key:,
+          source: sensor_source(key),
+          value: excluded[key],
+        }
+      end,
+    ]
+  end
+
+  # Whether the page has to say why the subtraction has no result. Only a
+  # calculation that ran can miss a value.
+  #
+  # The page warned before the first calculation too, because #dashboard_result
+  # answers nothing in both cases. The formula above says "nothing calculated
+  # yet" there, so the two lines contradicted each other, and the warning
+  # stood in orange on a tab that carries no fault.
+  def dashboard_subtraction_open?
+    last_calculation && dashboard_result.nil?
+  end
+
+  # What the dashboard shows. A sensor whose value the cache could not answer
+  # leaves it open: half a subtraction is worse than none.
+  #
+  # SOLECTRUS cuts the value at zero, and so does this row. The formula cuts
+  # its own sum the same way, so the value that Ingest writes can already be
+  # 0 while an excluded sensor still draws power: a wallbox that reports more
+  # than the inverter gives makes that state last as long as the car charges.
+  # The subtraction then reached below zero, and the page showed a house that
+  # gives power back, which no dashboard ever draws.
+  def dashboard_result
+    difference = dashboard_difference
+
+    [difference, 0].max if difference
+  end
+
+  # The difference before the row cut it at zero, or nothing while it was not
+  # negative. It works like #formula_negative_sum: without this number the
+  # result would not match the two rows above it, and the reader would look
+  # for the fault in them.
+  def dashboard_negative_difference
+    difference = dashboard_difference
+
+    difference if difference&.negative?
+  end
+
+  def dashboard_difference
+    return unless last_calculation
+
+    excluded = last_calculation[:excluded]
+    return if excluded.empty? || excluded.value?(nil)
+
+    # Every row above shows a whole watt, so the subtraction uses the same
+    # whole watts. A difference of the raw values can miss the rows by one.
+    written_house_power - excluded.values.sum(&:round)
+  end
+
+  # What stands in InfluxDB. Ingest writes a whole watt, and SOLECTRUS reads
+  # that one, so the dashboard subtracts from the rounded value and not from
+  # the sum of the terms.
+  def written_house_power
+    formula_result&.round
+  end
+
+  def formula_terms
+    return last_calculation[:terms] if last_calculation
+
+    HousePowerFormula.terms_for(SensorEnvConfig.sensor_keys_for_house_power)
+  end
+
+  # What Ingest wrote for the last calculation. It is the sum of the terms,
+  # with one exception that the page has to name, see #formula_negative_sum.
+  def formula_result
+    last_calculation&.fetch(:result)
+  end
+
+  # The sum before the formula cut it at zero, or nothing while the sum was
+  # not negative. A reader who adds the terms up by hand gets this number, and
+  # the page has to say why the result is 0 instead.
+  def formula_negative_sum
+    return unless last_calculation
+
+    sum = last_calculation[:terms].sum(&:signed_value)
+    sum if sum.negative?
+  end
+
+  # The moment the values belong to. It is not the moment the calculation ran:
+  # a backfill computes old timestamps now.
+  def formula_timestamp
+    return unless last_calculation
+
+    Time.at(last_calculation[:timestamp_ns] / 1_000_000_000)
+  end
+
+  def formula_age
+    age_from(formula_timestamp)
+  end
+
+  # Where the values came from. The cache answers the newest timestamp of a
+  # batch without a query, and every older one needs the interpolator.
+  def formula_source
+    last_calculation&.fetch(:source)
+  end
+
+  # The measurement and field of one sensor key, as the configuration names it.
+  def sensor_source(key)
+    sensor = SensorEnvConfig[key]
+    return unless sensor
+
+    "#{sensor[:measurement]}:#{sensor[:field]}"
+  end
+
+  # Watts, always as a whole one. An interpolated value lands between two
+  # samples and carries a fraction, but Ingest writes a whole watt, and a
+  # decimal on the page suggests a precision that InfluxDB never gets.
+  def format_power(value)
+    return unless value
+
+    "#{number_to_delimited(value.round)} W"
+  end
+
+  # The mark of a value that divides a counter by the uptime. The pipeline tab
+  # carries three kinds of number in one list: what holds now, what the run
+  # totals, and what it averages. A word for the third kind repeated on every
+  # second row, so one character carries it instead.
+  AVERAGE_MARK =
+    '<span class="avg" title="Average since start">&oslash;</span>'.freeze
+
+  def average(text)
+    "#{AVERAGE_MARK}#{text}"
   end
 
   def response_time
@@ -312,11 +562,18 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # sensor stays out: it stands in the list of sensors above, with the same
   # throughput, and one number in two places invites a comparison that has
   # nothing to say.
+  # The fields of a card stand in the order of their name. The order of the
+  # scan looked alphabetical, but SQLite does not promise it, so the same
+  # installation could show two orders. The list of the configured sensors
+  # follows the formula, because a reader compares it against the house power
+  # tab. A forwarded stream has no such counterpart: a reader looks a field up
+  # by its name, and only a name sorts it.
   def other_measurement_fields_grouped
     @other_measurement_fields_grouped ||=
       incoming_by_target
         .filter_map { |target, entry| other_stream(target, entry) }
-        .group_by { |entry| entry[:measurement] }
+        .sort_by { it[:field] }
+        .group_by { it[:measurement] }
         .sort_by { |measurement, groups| [-groups.size, measurement] }
         .to_h
   end
@@ -450,7 +707,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
       dropped: level(outgoing_dropped, crit: 1),
       partial: level(outgoing_partial, warn: 1),
-      failures: level(outgoing_failures, warn: 1),
+      delivery: delivery_stalled? ? 'warn' : nil,
       skipped_lines: level(skipped_lines, crit: 1),
       skipped_stale: level(calculation_skipped, warn: 5, crit: 25),
       last_success: level(last_calculation_age, warn: 5.minutes, crit: 30.minutes),
@@ -470,6 +727,63 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   def page_status
     worst_level(statuses.values)
   end
+
+  # The page holds more than one screen of information, so it splits into
+  # tabs. Each tab is a link to a path of its own, and the route of that path
+  # renders it. The first tab is the page itself.
+  #
+  # A fragment or a click handler would be less work, but the page reloads
+  # itself every 30 seconds. The reload has to keep the tab, and only the URL
+  # survives it.
+  #
+  # Every tab names the statuses it carries. A tab hides what it holds, so a
+  # fault inside it must show on its own tab: the worst status of a tab
+  # colours a dot beside its name. Every key of #statuses belongs to exactly
+  # one tab, otherwise the badge in the header reports a fault that no dot
+  # points at.
+  TABS = [
+    {
+      id: 'flow',
+      path: '/',
+      label: 'Pipeline',
+      statuses: %i[
+        incoming_age
+        skipped_lines
+        http_errors
+        range
+        disk_free
+        queued
+        queue_age
+        delivery
+        partial
+        dropped
+      ],
+    },
+    {
+      id: 'sensors',
+      path: '/sensors',
+      label: 'Sensors',
+      statuses: %i[sensors_without_data sensors_stale],
+    },
+    {
+      id: 'house-power',
+      path: '/house-power',
+      label: 'House power',
+      statuses: %i[last_success skipped_stale],
+    },
+  ].freeze
+
+  def tabs
+    TABS.map do |tab|
+      tab.merge(
+        current: tab[:id] == current_tab,
+        level: worst_level(tab[:statuses].map { status_of(it) }),
+      )
+    end
+  end
+
+  # The route of the path sets it before it renders the page.
+  attr_reader :current_tab
 
   def worst_level(levels)
     return 'crit' if levels.include?('crit')
@@ -672,7 +986,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # An empty buffer would report every sensor, which says nothing. The age of
   # the newest line covers that case.
   def find_sensors_without_data
-    return [] if incoming_counts.empty?
+    return [] if buffer_empty?
 
     SensorEnvConfig.config.filter_map do |key, sensor|
       next if excluded_from_house_power?(key)
@@ -685,9 +999,16 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # One entry of the sensor list. A sensor without a line of its own carries
   # no number, and `missing` says whether that is a fault: while the buffer is
   # empty it marks every sensor, and that says nothing.
+  #
+  # An excluded sensor carries no colour. It counts in no summary and in no
+  # badge, because the configuration says that the house power must not use
+  # it. A red row that colours nothing above it reads as a fault that the
+  # page then denies, so the row reports the age like a forwarded stream and
+  # leaves the judgement to the reader.
   def configured_sensor(key, sensor)
     entry = incoming_by_target[[sensor[:measurement], sensor[:field]]]
     age = age_from(entry&.fetch(:last_at))
+    excluded = excluded_from_house_power?(key)
 
     {
       key:,
@@ -695,13 +1016,28 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
       throughput: (incoming_throughput_for(entry[:count]) if entry),
       age:,
       stale: stale?(age),
-      level: stale_level(age),
-      missing: entry.nil? && incoming_by_target.any?,
-      excluded: excluded_from_house_power?(key),
-      # Ingest calculates the house power from the other sensors, so the list
-      # marks it as the result of the formula and not as a term of it.
-      result: key == :house_power,
+      level: (stale_level(age) unless excluded),
+      missing: entry.nil? && !buffer_empty?,
+      excluded:,
+      note: (house_power_note if key == :house_power),
     }
+  end
+
+  # What Ingest does with the value that arrives for the house power. It is
+  # never a term of the formula: Ingest computes its own value from the other
+  # sensors.
+  #
+  # Which of the two happens depends on INFLUX_SENSOR_HOUSE_POWER_CALCULATED.
+  # Without it the result goes to the same field, so the incoming value never
+  # reaches InfluxDB. With it the result goes to a field of its own, and the
+  # incoming value is forwarded beside it.
+  #
+  # The row said "result" before, for both cases. That is the one thing this
+  # sensor is not: the result of the formula stands on the house power tab,
+  # and it carries the destination, which is a different field as soon as the
+  # variable names one.
+  def house_power_note
+    house_power_destination == sensor_source(:house_power) ? 'replaced' : 'kept'
   end
 
   # Whether the house power ignores this sensor.
@@ -709,8 +1045,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
   # power is the result of the formula and never an input, so the variable
   # cannot exclude it.
   def excluded_from_house_power?(key)
-    key != :house_power &&
-      SensorEnvConfig.exclude_from_house_power_keys.include?(key)
+    SensorEnvConfig.excluded_sensor_keys.include?(key)
   end
 
   # One entry of the list of forwarded streams, or nothing for a stream that a
@@ -759,6 +1094,14 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
 
   def incoming_counts
     @incoming_counts ||= incoming_by_target.transform_values { it[:count] }
+  end
+
+  # Nothing is in the buffer, so the page knows nothing about a sensor. A
+  # fresh container has this state, and so has one whose collectors stopped
+  # longer ago than the retention. The page must not report a sensor as good
+  # here: it has no line that says so.
+  def buffer_empty?
+    incoming_counts.empty?
   end
 
   def macos?

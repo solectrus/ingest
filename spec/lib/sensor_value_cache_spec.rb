@@ -103,4 +103,37 @@ describe SensorValueCache do
       expect(stats[:newest_timestamp]).to be_nil
     end
   end
+
+  # The calculation and the record of it both read a sensor by its key. The
+  # configuration says which measurement and field that key stands for.
+  describe '#read_sensor' do
+    let(:sensor) { SensorEnvConfig[:inverter_power] }
+
+    before do
+      cache.write(
+        measurement: sensor[:measurement],
+        field: sensor[:field],
+        timestamp: 1_000,
+        value: 42,
+      )
+    end
+
+    it 'answers the value behind the key' do
+      value = cache.read_sensor(key: :inverter_power, max_timestamp: 1_000, max_age: 100)
+
+      expect(value).to eq(42)
+    end
+
+    it 'answers nothing for a key that no variable configures' do
+      value = cache.read_sensor(key: :inverter_power_5, max_timestamp: 1_000, max_age: 100)
+
+      expect(value).to be_nil
+    end
+
+    it 'answers nothing for a reading that is too old' do
+      value = cache.read_sensor(key: :inverter_power, max_timestamp: 2_000, max_age: 100)
+
+      expect(value).to be_nil
+    end
+  end
 end

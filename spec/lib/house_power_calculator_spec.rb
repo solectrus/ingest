@@ -75,6 +75,104 @@ describe HousePowerCalculator do
       expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(1)
     end
 
+    # The statistics page prints the formula from this record. Without it a
+    # reader sees a number and cannot check what produced it.
+    describe 'the record of the last calculation' do
+      def last_calculation
+        Stats.value(:house_power_last_calculation)
+      end
+
+      it 'keeps the terms, the result and the timestamp' do
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:timestamp_ns]).to eq(timestamp)
+        expect(last_calculation[:result]).to eq(300)
+        expect(last_calculation[:terms].to_h { [it.key, it.signed_value] }).to eq(
+          inverter_power: 500,
+          grid_import_power: 0,
+          battery_discharging_power: 0,
+          battery_charging_power: -200,
+          grid_export_power: 0,
+          wallbox_power: 0,
+        )
+      end
+
+      # The terms have to add up to the result. A page that prints both must
+      # not invite a subtraction that fails.
+      it 'records terms that add up to the result' do
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:terms].sum(&:signed_value)).to eq(
+          last_calculation[:result],
+        )
+      end
+
+      it 'names where the values came from' do
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:source]).to eq(:cache)
+      end
+
+      # Ingest drops the value of the collector and writes its own in its
+      # place, so the page has to show what it replaced.
+      #
+      # Without INFLUX_SENSOR_HOUSE_POWER_CALCULATED the result goes to the
+      # very field that the collector delivered, as it does here. The cache
+      # still holds the delivered value: Processor stores the incoming lines,
+      # and the cache reads them, before the house power leaves the point.
+      it 'keeps the house power that the collector delivered' do
+        expect(SensorEnvConfig.house_power_destination).to eq(
+          SensorEnvConfig[:house_power],
+        )
+
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:delivered]).to eq(9999)
+        expect(last_calculation[:result]).to eq(300)
+      end
+
+      # SOLECTRUS subtracts these from the house power again when it draws the
+      # dashboard. The formula never reads them, so nothing else records them.
+      it 'keeps the value of an excluded sensor' do
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:excluded]).to eq(heatpump_power: 0)
+      end
+
+      # The formula does not need it, so a calculation must not wait for a
+      # query that only the page wants.
+      it 'leaves an excluded sensor open while the cache cannot answer it' do
+        SensorValueCache.instance.delete(measurement: 'Heatpump', field: 'power')
+
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation[:excluded]).to eq(heatpump_power: nil)
+        expect(last_calculation[:result]).to eq(300)
+      end
+
+      it 'records nothing while no calculation succeeds' do
+        allow(HousePowerFormula).to receive(:sum).and_return(nil)
+        calculator.recalculate_many(timestamps: [timestamp])
+
+        expect(last_calculation).to be_nil
+      end
+
+      # A backfill computes old timestamps now. The page shows the present, so
+      # an old timestamp must not replace what a newer one recorded.
+      it 'keeps the newest timestamp of a batch' do
+        calculator.recalculate_many(timestamps: [timestamp - 100, timestamp])
+
+        expect(last_calculation[:timestamp_ns]).to eq(timestamp)
+      end
+
+      it 'keeps the record of a newer calculation' do
+        calculator.recalculate_many(timestamps: [timestamp])
+        calculator.recalculate_many(timestamps: [timestamp - 100])
+
+        expect(last_calculation[:timestamp_ns]).to eq(timestamp)
+      end
+    end
+
     it 'tracks cache miss when requesting timestamp older than cache' do
       calculator.recalculate_many(timestamps: [timestamp - 1])
       expect(Stats.counter(:house_power_recalculate_cache_hits)).to eq(0)
@@ -183,7 +281,7 @@ describe HousePowerCalculator do
     end
 
     context 'when the formula has no result' do
-      before { allow(HousePowerFormula).to receive(:calculate).and_return(nil) }
+      before { allow(HousePowerFormula).to receive(:sum).and_return(nil) }
 
       it 'writes nothing' do
         expect { calculator.recalculate_many(timestamps: [timestamp]) }.not_to change(

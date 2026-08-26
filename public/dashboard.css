@@ -1,41 +1,75 @@
+/* ===========================================================================
+   SOLECTRUS Ingest — the whole stylesheet of the dashboard.
+
+   It is plain CSS. No build step runs over it, so what stands here is what
+   the browser gets.
+
+   The order of the file:
+     1. Tokens          the colours, the radii, the type faces
+     2. Base            the reset, the page, the focus ring
+     3. Foundations     what more than one block shares
+     4. Blocks          brand, tabs, flow, calc, grid, section, cards, lists
+     5. Forms           the login box and its controls
+     6. Utilities       the classes that the server puts on a value
+     7. Small screens   what every box does at the edge of the screen
+
+   Two rules hold the file together:
+   - A block owns its own rules. Its states, its modifiers and its media
+     queries are nested in it, so everything about a block is in one place.
+   - The blocks of section 4 declare only what makes them different. The
+     foundations of section 3 carry the rest with the same weight, and a rule
+     of the same weight that comes later wins.
+
+   Three widths split the layout. Each one has a reason of its own:
+     600px   a box reaches the edge of the screen
+     640px   two columns fit beside each other
+     700px   a row of three or four columns must break into two lines
+    1000px   three columns fit beside each other
+   =========================================================================== */
+
+/* ---------------------------------------------------------------------------
+   1. Tokens
+   --------------------------------------------------------------------------- */
+
 :root {
+  /* Both schemes stand in one place, so a colour and its counterpart cannot
+     drift apart. `light-dark()` picks by `color-scheme`, and every element
+     inherits it from here. */
   color-scheme: light dark;
-  --bg: #f4f4f5;
-  --surface: #ffffff;
-  --border: #e6e6ea;
-  --border-strong: #d4d4d8;
-  --fg: #0c0c0d;
-  --fg-muted: #4b4b52;
-  --fg-subtle: #8a8a93;
-  --accent: #059669;
-  --warn: #b45309;
-  --crit: #be123c;
+
+  --bg: light-dark(#f4f4f5, #09090b);
+  --surface: light-dark(#ffffff, #111114);
+  --border: light-dark(#e6e6ea, #1d1d22);
+  --border-strong: light-dark(#d4d4d8, #2a2a30);
+  --fg: light-dark(#0c0c0d, #fafafa);
+  --fg-muted: light-dark(#4b4b52, #a8a8b0);
+  --fg-subtle: light-dark(#8a8a93, #6e6e78);
+  --accent: light-dark(#059669, #34d399);
+  --warn: light-dark(#b45309, #fbbf24);
+  --crit: light-dark(#be123c, #fb7185);
+
   --radius-lg: 18px;
   --radius-md: 10px;
+
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #09090b;
-    --surface: #111114;
-    --border: #1d1d22;
-    --border-strong: #2a2a30;
-    --fg: #fafafa;
-    --fg-muted: #a8a8b0;
-    --fg-subtle: #6e6e78;
-    --accent: #34d399;
-    --warn: #fbbf24;
-    --crit: #fb7185;
-  }
+/* ---------------------------------------------------------------------------
+   2. Base
+   --------------------------------------------------------------------------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
-*, *::before, *::after { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
-
 html {
+  margin: 0;
+  padding: 0;
   font-family: var(--font-sans);
+  line-height: 1.45;
   background: var(--bg);
   color: var(--fg);
   -webkit-font-smoothing: antialiased;
@@ -48,34 +82,144 @@ body {
   padding: 2.25rem 1.5rem 3rem;
 }
 
+/* One ring for everything that takes the keyboard. The browser draws it only
+   after a key, never after a click, so the mouse sees nothing of it. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* A reader who asks for less motion gets the page without it. The dashes of
+   the flow and the pulse of the badge then stand still, and a colour that
+   changes does so at once. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   3. Foundations — what more than one block shares
+   --------------------------------------------------------------------------- */
+
+/* The small label of the page: the eyebrow in the header, the badge beside
+   it, a tab, the label of a section, the title of a card, and the unit below
+   a metric. They name what follows them, and they never compete with it, so
+   they share one voice. */
+.brand__eyebrow,
+.brand__live,
+.tabs__tab,
+.section__label,
+.card__title,
+.metric__unit,
+h2 {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--fg-subtle);
+}
+
+/* A `small` inside such a label is no label. It carries a name that comes
+   from the configuration, or a word that explains the label, so it keeps the
+   letters that the same text keeps everywhere else on the page. */
+.section__label small,
+.card__title small,
+.metric__unit small,
+h2 small {
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.4rem;
+}
+
+.section__label small,
+.card__title small,
+.metric__unit small {
+  font-size: 0.9em;
+}
+
+h2 small {
+  font-size: 0.85em;
+  font-weight: 400;
+}
+
+/* A box that stands on the background of the page and holds one block of
+   content. The cells of a grid are the exception: the grid paints its own
+   gaps, so a cell needs no border. */
+.calc,
+.flow__node,
+.card,
+.auth {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+/* The body of a box that holds a heading and the values below it. A node of
+   the flow and a cell of the grid hold the same thing, so they hold it the
+   same way. The two differ in what carries their border: a node carries its
+   own, and the grid paints the one around a cell. */
+.flow__node,
+.grid > section {
+  background: var(--surface);
+  padding: 1.5rem 1.75rem 1.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* The distance that a block of the page keeps to the block above it. */
+.section,
+.grid {
+  margin-top: 1.75rem;
+}
+
+/* ---------------------------------------------------------------------------
+   4. Blocks
+   --------------------------------------------------------------------------- */
+
+/* The header: the mark, the name of the service, and on the right what the
+   page says about itself. */
 header.brand {
   display: flex;
   align-items: center;
   gap: 0.85rem;
   margin-bottom: 2rem;
 }
+
 .brand__mark {
-  width: 2.25rem; height: 2.25rem;
+  width: 2.25rem;
+  height: 2.25rem;
   display: block;
   flex-shrink: 0;
+  /* The icon takes the colour of the text, so it follows the scheme. */
   background-color: var(--fg);
-  -webkit-mask: url('/icon.svg') center / contain no-repeat;
-          mask: url('/icon.svg') center / contain no-repeat;
+  mask: url('/icon.svg') center / contain no-repeat;
 }
-.brand__text { display: flex; flex-direction: column; line-height: 1; }
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
 .brand__eyebrow {
   font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--fg-subtle);
-  font-weight: 500;
 }
+
 .brand__title {
   margin-top: 0.4rem;
   font-size: 1.3rem;
   letter-spacing: -0.025em;
   font-weight: 600;
 }
+
 .brand__meta {
   margin-left: auto;
   display: inline-flex;
@@ -83,62 +227,134 @@ header.brand {
   align-items: flex-end;
   gap: 0.35rem;
 }
+
 .brand__updated {
   font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--fg-subtle);
   letter-spacing: 0.02em;
 }
+
+/* The badge that says the page holds live data. The dot beats, because a
+   still dot says the same thing about a page that lives and about one that
+   the browser froze. The `warn` and `crit` classes of the page colour the
+   text and the dot together. */
 .brand__live {
   --live-color: var(--accent);
-  display: inline-flex; align-items: center; gap: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--fg-subtle);
-  font-weight: 500;
+
+  &.warn {
+    --live-color: var(--warn);
+    color: var(--warn);
+  }
+
+  &.crit {
+    --live-color: var(--crit);
+    color: var(--crit);
+  }
+
+  &::before {
+    --pulse-color: color-mix(in srgb, var(--live-color) 55%, transparent);
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--live-color);
+    box-shadow: 0 0 0 0 var(--pulse-color);
+    animation: pulse 2.4s ease-out infinite;
+  }
 }
-.brand__live.warn { --live-color: var(--warn); color: var(--warn); }
-.brand__live.crit { --live-color: var(--crit); color: var(--crit); }
-.brand__live::before {
-  --pulse-color: color-mix(in srgb, var(--live-color) 55%, transparent);
-  content: '';
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--live-color);
-  box-shadow: 0 0 0 0 var(--pulse-color);
-  animation: pulse 2.4s ease-out infinite;
-}
+
 @keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 var(--pulse-color); }
-  70%  { box-shadow: 0 0 0 10px transparent; }
+  0% { box-shadow: 0 0 0 0 var(--pulse-color); }
+  70% { box-shadow: 0 0 0 10px transparent; }
   100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* The tabs of the page. Each one is a link, so the browser keeps the choice
+   in the URL and the reload every 30 seconds lands on the same tab.
+
+   A dot beside a name says that the tab behind it needs attention. It takes
+   its colour from the text, so the `warn` and `crit` classes of the page
+   colour it too. */
+.tabs {
+  display: flex;
+  gap: 0.15rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  /* More tabs than the screen holds: the row scrolls, and it does so without
+     a bar, because the tabs themselves show that the row continues. */
+  overflow-x: auto;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* The tabs already hold the distance to what follows them. */
+.tabs + .section {
+  margin-top: 0;
+}
+
+.tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.9rem 0.6rem;
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    color: var(--fg-muted);
+  }
+
+  /* The row scrolls, so it clips what stands outside a tab. The ring thus
+     goes inside the tab, where nothing can cut it. */
+  &:focus-visible {
+    outline-offset: -3px;
+  }
+
+  &[aria-current='page'] {
+    color: var(--fg);
+    border-bottom-color: var(--accent);
+  }
+}
+
+.tabs__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+  color: var(--fg-subtle);
+
+  &.warn { color: var(--warn); }
+  &.crit { color: var(--crit); }
 }
 
 /* The data path as a row: what the collectors send, what Ingest holds, and
    what reaches InfluxDB. The arrows between the stages are not decoration.
    Each one carries what happens on the way: a line that does not parse never
-   enters, and a line that waits for InfluxDB sits in the queue.
-
-   The middle stage is wider than the two others, because it holds the buffer
-   and the calculation that reads it. */
+   enters, and a line that waits for InfluxDB sits in the queue. */
 .flow {
   display: grid;
-  grid-template-columns:
-    minmax(0, 1fr) auto minmax(0, 1.2fr) auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
-  margin-bottom: 1.75rem;
+
+  /* Too narrow for three stages beside each other. The row becomes a column,
+     and the arrows then point down. */
+  @media (width < 1000px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
-.flow__node {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 1.5rem 1.75rem 1.65rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  min-width: 0;
-}
+
 /* Centred against the whole row, not against the tallest node: the arrow
    points from one node to the next, and the eye follows it across. */
 .flow__link {
@@ -146,70 +362,59 @@ header.brand {
   display: flex;
   align-items: center;
   padding: 0 0.7rem;
+
+  @media (width < 1000px) {
+    justify-content: center;
+    padding: 0.85rem 0;
+  }
 }
+
 /* The dashes move in the direction the data takes. A still line says the same
    thing about a stream that runs and about one that stopped. */
 .flow__arrow {
   position: relative;
   width: 3rem;
   height: 2px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    var(--border-strong) 0 6px,
-    transparent 6px 12px
-  );
+  background-image: repeating-linear-gradient(90deg, var(--border-strong) 0 6px, transparent 6px 12px);
   animation: flow-right 900ms linear infinite;
+
+  /* The head of the arrow. */
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -3px;
+    transform: translateY(-50%);
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid var(--border-strong);
+  }
+
+  @media (width < 1000px) {
+    width: 2px;
+    height: 2.75rem;
+    background-image: repeating-linear-gradient(180deg, var(--border-strong) 0 6px, transparent 6px 12px);
+    animation-name: flow-down;
+
+    &::after {
+      top: auto;
+      bottom: -3px;
+      right: 50%;
+      transform: translateX(50%);
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid var(--border-strong);
+      border-bottom: 0;
+    }
+  }
 }
-.flow__arrow::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  right: -3px;
-  transform: translateY(-50%);
-  border-top: 5px solid transparent;
-  border-bottom: 5px solid transparent;
-  border-left: 7px solid var(--border-strong);
-}
+
 @keyframes flow-right {
   to { background-position: 12px 0; }
 }
+
 @keyframes flow-down {
   to { background-position: 0 12px; }
-}
-
-/* Too narrow for three stages beside each other. The row becomes a column,
-   and the arrows then point down. */
-@media (max-width: 1000px) {
-  .flow { grid-template-columns: minmax(0, 1fr); }
-  .flow__link {
-    justify-content: center;
-    padding: 0.85rem 0;
-  }
-  .flow__arrow {
-    width: 2px;
-    height: 2.75rem;
-    background-image: repeating-linear-gradient(
-      180deg,
-      var(--border-strong) 0 6px,
-      transparent 6px 12px
-    );
-    animation-name: flow-down;
-  }
-  .flow__arrow::after {
-    top: auto;
-    bottom: -3px;
-    right: 50%;
-    transform: translateX(50%);
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 7px solid var(--border-strong);
-    border-bottom: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .flow__arrow { animation: none; }
-  .brand__live::before { animation: none; }
 }
 
 /* The one number of a stage. The unit stands below it in a smaller type, so
@@ -220,6 +425,7 @@ header.brand {
   flex-direction: column;
   gap: 0.2rem;
 }
+
 .metric__value {
   font-family: var(--font-mono);
   font-size: 2rem;
@@ -228,14 +434,195 @@ header.brand {
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
+
 .metric__unit {
   font-size: 0.68rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--fg-subtle);
-  font-weight: 500;
 }
 
+/* The mark of an average. It stands in front of the number, and it keeps out
+   of its way: a value of the moment and a total carry no mark, so the reader
+   only has to see that this one is different. */
+.avg {
+  color: var(--fg-subtle);
+  font-weight: 400;
+  /* The gap belongs to the mark, not to a space in the markup: a space would
+     carry the size of the number, and the headline sets that to 2rem. */
+  margin-right: 0.4em;
+}
+
+.metric__value .avg {
+  font-size: 0.42em;
+  vertical-align: 0.35em;
+  margin-right: 0.5em;
+}
+
+/* One target per line. A bucket and an org are names of the configuration,
+   and they are as long as somebody makes them, so a long line wraps instead
+   of pushing the card wider. */
+.targets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-wrap: anywhere;
+}
+
+/* The formula, one term per line. The signs stand in a column of their own,
+   so the eye reads the sum the way it would read it on paper, and the values
+   line up on the right for the same reason.
+
+   Five columns: the sign, the sensor, the measurement and field it reads, how
+   much the term carries, and what it contributed. */
+.calc {
+  padding: 1.35rem 1.75rem 1.45rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, max-content) minmax(0, max-content) minmax(0, 1fr) auto;
+  column-gap: 1.5rem;
+  row-gap: 0.45rem;
+  align-items: baseline;
+
+  /* Too narrow for four columns. The sign and the sensor keep the first line
+     with the value, and the measurement takes the line below. */
+  @media (width < 700px) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    row-gap: 0.9rem;
+  }
+}
+
+/* Every row shares the columns of the box, so the terms line up. */
+.calc__row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+
+  @media (width < 700px) {
+    row-gap: 0.1rem;
+
+    & > .calc__sign { grid-area: 1 / 1; }
+    & > .calc__key { grid-area: 1 / 2; }
+    & > .calc__bar { grid-area: 2 / 2 / 3 / 4; margin: 0.25rem 0 0.15rem; }
+    & > .calc__source { grid-area: 3 / 2 / 4 / 4; }
+    & > .calc__value { grid-area: 1 / 3; }
+  }
+}
+
+.calc__sign {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  color: var(--fg-subtle);
+}
+
+.calc__key {
+  font-size: 0.875rem;
+  color: var(--fg);
+  word-break: break-word;
+}
+
+.calc__source {
+  font-size: 0.8rem;
+  color: var(--fg-muted);
+  word-break: break-word;
+}
+
+/* How much of the result this term carries, against the largest one. It gives
+   the sum a shape: a reader sees which sensor decides the outcome before
+   comparing the numbers. */
+.calc__bar {
+  display: block;
+  align-self: center;
+  height: 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--border-strong) 40%, transparent);
+  overflow: hidden;
+}
+
+.calc__bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+
+  &.calc__bar-fill--plus { background: var(--accent); }
+  &.calc__bar-fill--minus { background: var(--fg-subtle); }
+}
+
+/* The sum is no term of itself, so its row carries no track. An empty track
+   there reads as a term that contributed nothing. The same holds for a whole
+   box whose rows are no terms of one sum. */
+:is(.calc__row--sum, .calc__row--result, .calc__row--compare, .calc--plain) .calc__bar {
+  background: none;
+
+  /* Narrow, the bar has a line of its own. A row without a bar must not keep
+     that line free. */
+  @media (width < 700px) {
+    display: none;
+  }
+}
+
+.calc__value {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* The line below the terms is the line of a sum, so it is solid and stronger
+   than the dashed rules that separate the blocks of a box. */
+.calc__row--sum,
+.calc__row--result {
+  margin-top: 0.35rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border-strong);
+}
+
+/* The cut at zero and the result belong together, so no second line runs
+   between them. */
+.calc__row--sum + .calc__row--result {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.calc__row--result {
+  & .calc__key { font-weight: 600; }
+
+  & .calc__value {
+    font-weight: 600;
+    font-size: 1.05rem;
+  }
+}
+
+/* What the collector delivered, against what the formula produced. It is no
+   term of the sum, so a dashed line separates it from the result, the way a
+   dashed rule separates the blocks of a box elsewhere on the page. The
+   delivered value always follows the result, so the row needs no class of its
+   own to know that it starts the group. */
+.calc__row--result + .calc__row--compare {
+  margin-top: 0.35rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border);
+}
+
+.calc__row--compare .calc__key {
+  color: var(--fg-muted);
+}
+
+/* A sentence below a box that explains what the box cannot say by itself. */
+.note {
+  margin: 0.85rem 0.25rem 0;
+  font-size: 0.8rem;
+  color: var(--fg-subtle);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+/* Boxes of equal weight beside each other. The grid paints its own gaps: it
+   carries the colour of the border, and a gap of one pixel lets it through,
+   so the cells need no border of their own. */
 .grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -244,44 +631,68 @@ header.brand {
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
-}
-@media (min-width: 640px)  { .grid { grid-template-columns: repeat(2, 1fr); } }
-@media (min-width: 1000px) { .grid { grid-template-columns: repeat(3, 1fr); } }
 
-/* Three sections in two columns leave the last cell of the row empty, and an
-   empty cell is not white here: the grid paints its gaps, so the colour of
-   the border shows. The last section takes that space instead.
-   `nth-child(odd)` asks whether it starts a row of its own. */
-@media (min-width: 640px) and (max-width: 999px) {
-  .grid > section:last-child:nth-child(odd) { grid-column: 1 / -1; }
-}
-.grid > section,
-.grid > div {
-  background: var(--surface);
-  padding: 1.5rem 1.75rem 1.65rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  min-width: 0;
+  @media (width >= 640px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (width >= 1000px) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Three sections in two columns leave the last cell of the row empty, and
+     an empty cell is not white here: the grid paints its gaps, so the colour
+     of the border shows. The last section takes that space instead.
+     `nth-child(odd)` asks whether it starts a row of its own. */
+  @media (640px <= width < 1000px) {
+    & > section:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
 }
 
-.section {
-  margin-top: 1.75rem;
+/* A grid of two boxes keeps two columns on a wide screen. The third cell
+   would stay empty, and the colour of the border would show through it. */
+@media (width >= 1000px) {
+  .grid--two {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
+
 .section__label {
   margin: 0 0 0.85rem;
   padding: 0 0.25rem;
-  font-size: 0.7rem;
-  text-transform: uppercase;
+  /* A section stands above a whole block of the page, so its label carries
+     the letters wider than the labels inside that block do. */
   letter-spacing: 0.18em;
-  color: var(--fg-subtle);
-  font-weight: 500;
 }
-.section__label small {
+
+/* A label that carries a value of its own on the right. The value keeps the
+   baseline of the label, and it drops to a line below when the two do not fit
+   beside each other. */
+.section__label--split {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.2rem 1.25rem;
+}
+
+.section__label-time {
   text-transform: none;
   letter-spacing: 0;
-  font-size: 0.9em;
-  margin-left: 0.4rem;
+  font-size: 0.95em;
+  white-space: nowrap;
+
+  & time {
+    font-family: var(--font-mono);
+  }
+
+  /* A stale age carries the colour of its state, and `time` inherits it. The
+     muted default therefore holds only while there is no state. */
+  &:not(.warn, .crit) time {
+    color: var(--fg-muted);
+  }
 }
 
 /* Columns, not a grid: a card keeps the height of its list, and the next card
@@ -291,19 +702,23 @@ header.brand {
 .cards {
   columns: 1;
   column-gap: 0.75rem;
+
+  @media (width >= 640px) { columns: 2; }
+  @media (width >= 1000px) { columns: 3; }
 }
-@media (min-width: 640px)  { .cards { columns: 2; } }
-@media (min-width: 1000px) { .cards { columns: 3; } }
 
 /* One card over the full width. A sensor name and its measurement need the
-   room: in a third of the row they break in the middle of a word. */
-.cards--wide { columns: 1; }
+   room: in a third of the row they break in the middle of a word. It follows
+   `.cards` here, so it takes back every column that `.cards` opens above. */
+.cards--wide {
+  columns: 1;
+}
 
 .card {
   break-inside: avoid;
   margin-bottom: 0.75rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  /* A card stands inside a section, so it rounds less than the box that
+     holds it. */
   border-radius: var(--radius-md);
   padding: 1rem 1.15rem 1.1rem;
   display: flex;
@@ -311,22 +726,12 @@ header.brand {
   gap: 0.55rem;
   min-width: 0;
 }
+
 .card__title {
   margin: 0;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--fg-subtle);
-  font-weight: 500;
   word-break: break-word;
 }
-/* The name of a variable is no title, so it keeps the letters of its own. */
-.card__title small {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.9em;
-  margin-left: 0.4rem;
-}
+
 .card__list {
   margin: 0;
   padding: 0;
@@ -334,24 +739,23 @@ header.brand {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-.card__list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1rem;
-  font-size: 0.85rem;
-  min-width: 0;
-}
-.card__list li > span {
-  min-width: 0;
-}
-.card__list li > small {
-  white-space: nowrap;
-}
-.card__list li .font-mono {
-  color: var(--fg-muted);
-  word-break: break-word;
+
+  & li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    font-size: 0.85rem;
+    min-width: 0;
+  }
+
+  & li > span { min-width: 0; }
+  & li > small { white-space: nowrap; }
+
+  & li .font-mono {
+    color: var(--fg-muted);
+    word-break: break-word;
+  }
 }
 
 /* One sensor per line. Two sensors per line fit on a wide screen, but the
@@ -364,54 +768,47 @@ header.brand {
    the same columns. */
 .card__list--sensors {
   display: grid;
-  grid-template-columns:
-    minmax(13rem, max-content) minmax(0, max-content) minmax(4.5rem, 1fr);
+  grid-template-columns: minmax(13rem, max-content) minmax(0, max-content) minmax(4.5rem, 1fr);
   column-gap: 2rem;
-}
-.card__list--sensors li {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-}
-.card__list--sensors li > :last-child { text-align: right; }
 
-/* Too narrow for three columns. The sensor key and what arrives for it stay
-   on one line, the measurement and field take the line below. */
-@media (max-width: 700px) {
-  /* The two lines of an entry must sit closer to each other than two
-     entries do, otherwise the eye reads the wrong pair. */
-  .card__list--sensors {
+  & li {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+
+  & li > :last-child { text-align: right; }
+
+  /* Too narrow for three columns. The sensor key and what arrives for it stay
+     on one line, the measurement and field take the line below. The two lines
+     of an entry must sit closer to each other than two entries do, otherwise
+     the eye reads the wrong pair. */
+  @media (width < 700px) {
     grid-template-columns: minmax(0, 1fr) auto;
     row-gap: 0.9rem;
+
+    & li { row-gap: 0.1rem; }
+    & li > :nth-child(1) { grid-area: 1 / 1; }
+    & li > :nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
+    & li > :nth-child(3) { grid-area: 1 / 2; }
   }
-  .card__list--sensors li { row-gap: 0.1rem; }
-  .card__list--sensors li > :nth-child(1) { grid-area: 1 / 1; }
-  .card__list--sensors li > :nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
-  .card__list--sensors li > :nth-child(3) { grid-area: 1 / 2; }
 }
 
+/* A heading inside a box, above the list that follows it. */
 h2 {
   margin: 0;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  color: var(--fg-subtle);
-  font-weight: 500;
 }
-h2 small {
-  text-transform: none;
-  letter-spacing: 0;
-  font-size: 0.85em;
-  color: var(--fg-subtle);
-  margin-left: 0.4rem;
-  font-weight: 400;
-}
+
+/* A second heading in the same box starts a new block, and the line says
+   where it starts. */
 dl + h2 {
   margin-top: 0.35rem;
   padding-top: 0.9rem;
   border-top: 1px dashed var(--border);
 }
 
+/* The label and the value of a row. The label takes the room it needs, the
+   value stands on the right, and both keep one baseline. */
 dl {
   margin: 0;
   display: grid;
@@ -420,6 +817,15 @@ dl {
   column-gap: 1.25rem;
   align-items: baseline;
 }
+
+/* Two lists in one box, like the targets. Each one holds the rows that belong
+   together, and the line says where the next one starts. */
+dl + dl {
+  margin-top: 0.7rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--border);
+}
+
 dt {
   font-size: 0.875rem;
   color: var(--fg-muted);
@@ -427,6 +833,7 @@ dt {
   min-width: 0;
   word-break: break-word;
 }
+
 dd {
   margin: 0;
   font-family: var(--font-mono);
@@ -437,8 +844,6 @@ dd {
   text-align: right;
   line-height: 1.55;
 }
-dl.left dd { text-align: left; }
-dl.right dd { text-align: right; }
 
 /* A row with a long value, like a measurement and its field. The value comes
    from the configuration, so it is as long as somebody makes it. It takes a
@@ -450,99 +855,11 @@ dl > .wide {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
-}
-dl > .wide dd {
-  text-align: left;
-  overflow-wrap: anywhere;
-}
 
-/* Two lists in one box, like the targets. Each one holds the rows that belong
-   together, and the line says where the next one starts. */
-dl + dl {
-  margin-top: 0.7rem;
-  padding-top: 0.7rem;
-  border-top: 1px dashed var(--border);
-}
-
-small { color: var(--fg-subtle); font-size: 0.78rem; }
-
-.ok   { color: var(--accent); font-weight: 500; }
-.warn { color: var(--warn);   font-weight: 500; }
-.crit { color: var(--crit);   font-weight: 500; }
-
-.font-mono { font-family: var(--font-mono); }
-
-.auth {
-  margin: 4rem auto 0;
-  max-width: 22rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 2rem;
-}
-/* The title of the login box names what the box does, so it is a sentence and
-   not a label. It thus gives up the letters of a label: the capitals, the wide
-   tracking, and the quiet colour that `h2` carries elsewhere. */
-.auth__title {
-  margin: 0 0 0.35rem;
-  font-size: 1.05rem;
-  text-transform: none;
-  letter-spacing: -0.015em;
-  font-weight: 600;
-  color: var(--fg);
-}
-.auth__hint {
-  margin: 0 0 1.25rem;
-  font-size: 0.82rem;
-  color: var(--fg-subtle);
-}
-.auth form {
-  width: 100%;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-.input-group {
-  display: flex;
-  gap: 0.55rem;
-  align-items: stretch;
-}
-input {
-  flex: 1;
-  font: inherit;
-  font-size: 0.95rem;
-  padding: 0.65rem 0.85rem;
-  background: var(--bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
-  color: var(--fg);
-  outline: none;
-  transition: border-color 120ms ease, box-shadow 120ms ease;
-  min-width: 0;
-}
-input:focus {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-}
-button {
-  font: inherit;
-  font-size: 0.95rem;
-  padding: 0.65rem 1.05rem;
-  background: var(--fg);
-  color: var(--surface);
-  border: 1px solid var(--fg);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-weight: 500;
-  transition: transform 120ms ease, opacity 120ms ease;
-}
-button:hover { opacity: 0.92; }
-button:active { transform: translateY(1px); }
-.error {
-  color: var(--crit);
-  font-size: 0.85rem;
-  margin: 0.25rem 0 0;
+  & dd {
+    text-align: left;
+    overflow-wrap: anywhere;
+  }
 }
 
 footer {
@@ -554,32 +871,164 @@ footer {
   letter-spacing: 0.04em;
 }
 
-@media (max-width: 600px) {
-  body { padding: 1.5rem 0 2rem; }
+/* ---------------------------------------------------------------------------
+   5. Forms — the login box, the only page that takes input
+   --------------------------------------------------------------------------- */
+
+.auth {
+  margin: 4rem auto 0;
+  max-width: 22rem;
+  padding: 2rem;
+
+  & form {
+    width: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+/* The title of the login box names what the box does, so it is a sentence and
+   not a label. It thus gives up the letters of a label: the capitals, the wide
+   tracking, and the quiet colour that `h2` carries elsewhere. */
+.auth__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  text-transform: none;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.auth__hint {
+  margin: 0 0 1.25rem;
+  font-size: 0.82rem;
+  color: var(--fg-subtle);
+  text-wrap: pretty;
+}
+
+/* The field and its button on one line, both of the same height. */
+.input-group {
+  display: flex;
+  gap: 0.55rem;
+  align-items: stretch;
+}
+
+input {
+  flex: 1;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.65rem 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  color: var(--fg);
+  min-width: 0;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+
+  /* The field carries a ring of its own, in the shape of the field. It thus
+     replaces the ring of the page, for the mouse and for the keyboard alike:
+     a reader who clicks into a field must see where the text lands. */
+  &:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border-strong));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+button {
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.05rem;
+  background: var(--fg);
+  color: var(--surface);
+  border: 1px solid var(--fg);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  transition: transform 120ms ease, opacity 120ms ease;
+
+  &:hover { opacity: 0.92; }
+  &:active { transform: translateY(1px); }
+}
+
+.error {
+  color: var(--crit);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Utilities — the classes that the server puts on a value
+   --------------------------------------------------------------------------- */
+
+small {
+  color: var(--fg-subtle);
+  font-size: 0.78rem;
+}
+
+.ok { color: var(--accent); font-weight: 500; }
+.warn { color: var(--warn); font-weight: 500; }
+.crit { color: var(--crit); font-weight: 500; }
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* ---------------------------------------------------------------------------
+   7. Small screens
+   --------------------------------------------------------------------------- */
+
+@media (width < 600px) {
+  body {
+    padding: 1.5rem 0 2rem;
+  }
+
+  /* The page keeps no padding any more, so everything that is not a box takes
+     the distance to the edge for itself. */
+  header.brand,
+  footer,
+  .tabs,
+  .section__label,
+  .note {
+    padding-inline: 1.25rem;
+  }
+
   header.brand {
-    padding: 0 1rem;
     margin-bottom: 1.5rem;
   }
-  footer { padding: 0 1rem; }
-  .brand__title { font-size: 1.1rem; }
+
+  .brand__title {
+    font-size: 1.1rem;
+  }
+
+  .note {
+    margin-inline: 0;
+  }
+
+  /* Every box goes edge to edge. A border beside the edge of the screen takes
+     room that the values need, and it rounds a corner against nothing. */
   .grid,
-  .flow__node {
+  .flow__node,
+  .calc,
+  .card,
+  .auth {
     border-radius: 0;
-    border-left: 0;
-    border-right: 0;
+    border-inline: 0;
   }
-  .grid > section, .grid > div, .flow__node { padding: 1.25rem 1.25rem 1.4rem; }
-  .section__label { padding: 0 1.25rem; }
-  .card {
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
+
+  .flow__node,
+  .grid > section,
+  .calc {
+    padding: 1.25rem 1.25rem 1.4rem;
   }
+
   .auth {
     max-width: none;
-    border-radius: 0;
-    border-left: 0;
-    border-right: 0;
   }
-  dl { column-gap: 0.9rem; }
+
+  dl {
+    column-gap: 0.9rem;
+  }
 }

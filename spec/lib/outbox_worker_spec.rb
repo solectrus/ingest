@@ -565,4 +565,35 @@ describe OutboxWorker do
       end
     end
   end
+
+  # The statistics page reads this to say whether InfluxDB answers. A pass
+  # over an empty queue sends no request, so it learns nothing, and the page
+  # must report no state instead of "reachable".
+  describe '.tried' do
+    it 'stays false while the queue holds nothing' do
+      Outgoing.delete_all
+      allow(InfluxWriter).to receive(:write).and_return(true)
+
+      described_class.run_once
+
+      expect(described_class.tried).to be false
+    end
+
+    it 'turns true with the first request' do
+      allow(InfluxWriter).to receive(:write).and_return(true)
+
+      described_class.run_once
+
+      expect(described_class.tried).to be true
+    end
+
+    # A timeout answers the question too: InfluxDB is not there.
+    it 'turns true after a write that failed' do
+      allow(InfluxWriter).to receive(:write).and_raise(Timeout::Error)
+
+      described_class.run_once
+
+      expect(described_class.tried).to be true
+    end
+  end
 end

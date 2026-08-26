@@ -7,40 +7,53 @@ class Processor
     points = LineBatch.new(lines).points
     return if points.empty?
 
-    outbox_written = false
-
     # Counted before the transaction runs. #drop_house_power removes a field
     # from a point, so the same count after the transaction is too low.
-    incoming_values = points.sum { it.fields.size }
-
-    # One transaction for the whole batch. A database error in the middle must
-    # not keep the lines before it. The write route answers 500 for such an
-    # error, and the client then retries the full batch. Without the
-    # transaction the retry writes those lines a second time.
-    #
-    # The lock spans the transaction, because a writer that releases it early
-    # lets a second writer run into the open transaction of the first.
-    Database.thread_safe_write do
-      ActiveRecord::Base.transaction do
-        now = Time.current
-
-        store_incoming(points, now)
-        outbox_written = outgoing_enqueued?(points, now)
-        outbox_written |= house_power_recalculated?(points, now)
-      end
-    end
+    values = points.sum { it.fields.size }
+    replaced, calculated, enqueued = store(points)
 
     # After the transaction: a rollback keeps nothing, so it must count
     # nothing. One point is one line of the request, and one value is one
     # field of such a line. A line of 26 fields is thus 1 line and 26 values,
     # and it is 26 rows in the buffer.
+    #
+    # The replaced and the added house power make the balance of the
+    # statistics page add up: the delivered values are the received ones, less
+    # what Ingest dropped, plus what it calculated.
     Stats.inc(:incoming_lines, points.size)
-    Stats.inc(:incoming_values, incoming_values)
+    Stats.inc(:incoming_values, values)
+    Stats.inc(:house_power_replaced, replaced)
+    Stats.inc(:house_power_added, calculated)
 
-    OutboxNotifier.notify! if outbox_written
+    OutboxNotifier.notify! if enqueued || calculated.positive?
   end
 
   private
+
+  # One transaction for the whole batch. A database error in the middle must
+  # not keep the lines before it. The write route answers 500 for such an
+  # error, and the client then retries the full batch. Without the transaction
+  # the retry writes those lines a second time.
+  #
+  # The lock spans the transaction, because a writer that releases it early
+  # lets a second writer run into the open transaction of the first.
+  def store(points)
+    replaced = calculated = 0
+    enqueued = false
+
+    Database.thread_safe_write do
+      ActiveRecord::Base.transaction do
+        now = Time.current
+
+        store_incoming(points, now)
+        replaced = drop_house_power(points)
+        enqueued = outgoing_enqueued?(points, now)
+        calculated = house_power_calculated(points, now)
+      end
+    end
+
+    [replaced, calculated, enqueued]
+  end
 
   def target
     @target ||= Target.fetch(**@target_args)
@@ -75,7 +88,8 @@ class Processor
 
   def cache_values_from_rows(rows)
     rows.each do |row|
-      value = extract_value(row)
+      # We need to cache Integer and Float only
+      value = row[:value_int] || row[:value_float]
       next unless value
 
       SensorValueCache.instance.write(
@@ -87,15 +101,9 @@ class Processor
     end
   end
 
-  def extract_value(row)
-    # We need to cache Integer and Float only
-    row[:value_int] || row[:value_float]
-  end
-
   def outgoing_enqueued?(points, now)
     rows =
       points.filter_map do |point|
-        drop_house_power(point)
         next if point.fields.empty?
 
         {
@@ -114,11 +122,18 @@ class Processor
 
   # Ingest calculates house power itself and replaces the incoming value, so
   # the incoming field never reaches InfluxDB.
-  def drop_house_power(point)
+  #
+  # It returns how many fields it removed. The statistics page needs that
+  # number: without it the page shows more delivered values than received
+  # ones, and nothing on it explains the difference.
+  def drop_house_power(points)
     house = SensorEnvConfig.house_power_destination
-    return unless point.name == house[:measurement]
+    return 0 unless house
 
-    point.fields.delete(house[:field])
+    points.count do |point|
+      point.name == house[:measurement] &&
+        !point.fields.delete(house[:field]).nil?
+    end
   end
 
   # House power depends on every sensor at one point in time, so one timestamp
@@ -130,11 +145,12 @@ class Processor
   #
   # The whole batch goes to the calculator at once, so it can answer every
   # timestamp with a few queries and queue the results in one statement.
-  def house_power_recalculated?(points, now)
+  # Returns how many lines it queued.
+  def house_power_calculated(points, now)
     timestamps = house_power_timestamps(points, now)
-    return false if timestamps.empty?
+    return 0 if timestamps.empty?
 
-    HousePowerCalculator.new(target).recalculate_many(timestamps:).positive?
+    HousePowerCalculator.new(target).recalculate_many(timestamps:)
   end
 
   def house_power_timestamps(points, now)

@@ -269,6 +269,40 @@ describe Processor do
           'SENEC grid_power_plus=500i 1000000000',
         )
       end
+
+      # The statistics page subtracts this number from the received values.
+      # Without it the page shows more delivered values than received ones and
+      # explains the difference nowhere.
+      it 'counts the field it dropped' do
+        expect { run }.to change { Stats.counter(:house_power_replaced) }.by(1)
+      end
+    end
+
+    # The other half of the same balance: what Ingest puts into the stream in
+    # place of what it dropped.
+    context 'when the calculator queues a line' do
+      let(:line) { 'SENEC inverter_power=500.0 1000000000' }
+
+      before do
+        allow(HousePowerCalculator).to receive(:new).and_return(
+          instance_spy(HousePowerCalculator, recalculate_many: 3),
+        )
+      end
+
+      it 'counts the lines it added' do
+        expect { run }.to change { Stats.counter(:house_power_added) }.by(3)
+      end
+    end
+
+    context 'when no line carries a house power sensor' do
+      let(:line) { 'SENEC case_temp=30.0 1000000000' }
+
+      it 'counts nothing as replaced or added' do
+        run
+
+        expect(Stats.counter(:house_power_replaced)).to be_zero
+        expect(Stats.counter(:house_power_added)).to be_zero
+      end
     end
 
     context 'when line contains house_power only' do

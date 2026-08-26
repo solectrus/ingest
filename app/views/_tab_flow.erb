@@ -1,0 +1,193 @@
+<!-- The three stages of the data path, in the order the data takes. Both
+     stages that carry values report them per minute, so the reader can
+     compare what arrives with what leaves. What holds a line back stands in
+     the box that holds it: an invalid line never leaves the incoming stage,
+     and a line that waits for InfluxDB waits inside Ingest.
+
+     A rate here divides a counter by the uptime, so it is an average over
+     the whole run and not the rate of this minute. A backfill raises it for
+     hours. The mark in front of such a number says so, and "Last line" is
+     the one row that answers for the moment.
+
+     What Ingest calculates from the buffer has a tab of its own. This tab
+     follows the lines, not the arithmetic. -->
+<section class="flow">
+  <article class="flow__node">
+    <h2>Incoming <small>(from collectors)</small></h2>
+    <p class="metric">
+      <span class="metric__value"><%= value_or_dash(incoming_values_rate) { |r| average(number_to_delimited(rate_number(r))) } %></span>
+      <span class="metric__unit">values /min</span>
+    </p>
+
+    <dl>
+      <dt>Line throughput</dt>
+      <dd><%= value_or_dash(incoming_lines_rate) { |r| average(format_rate(r)) } %></dd>
+
+      <dt>Last line</dt>
+      <dd class="<%= status_of(:incoming_age) %>"><%= value_or_dash(incoming_age) { |a| format_age(a) } %></dd>
+    </dl>
+
+    <h2>Since start</h2>
+    <dl>
+      <dt>Values received</dt>
+      <dd><%= number_to_delimited(incoming_values) %></dd>
+
+      <dt>Lines received</dt>
+      <dd><%= number_to_delimited(incoming_lines) %></dd>
+
+      <dt>Requests</dt>
+      <dd><%= number_to_delimited(Stats.counter(:http_requests)) %></dd>
+
+      <dt>Response time</dt>
+      <dd><%= value_or_dash(response_time) { |t| average("#{number_to_delimited(t)} ms") } %></dd>
+
+      <dt>Invalid lines <small>(not parsable)</small></dt>
+      <dd class="<%= status_of(:skipped_lines) %>"><%= number_to_delimited(skipped_lines) %></dd>
+    </dl>
+
+    <h2>Responses <small>(what they get back)</small></h2>
+    <dl>
+      <% if Stats.counters_by(:http_response).any? %>
+        <% Stats.counters_by(:http_response).sort.each do |key, value| %>
+          <dt><%= http_status_label(key) %></dt>
+          <dd class="<%= http_status_level(key) %>"><%= number_to_delimited(value) %></dd>
+        <% end %>
+      <% else %>
+        <dt>No request yet</dt>
+        <dd>&ndash;</dd>
+      <% end %>
+    </dl>
+  </article>
+
+  <div class="flow__link">
+    <span class="flow__arrow" aria-hidden="true"></span>
+  </div>
+
+  <article class="flow__node">
+    <h2>Buffer <small>(SQLite on disk)</small></h2>
+    <p class="metric">
+      <span class="metric__value"><%= number_to_delimited(incoming_total) %></span>
+      <span class="metric__unit">values buffered</span>
+    </p>
+
+    <dl>
+      <dt>Retention</dt>
+      <dd><%= retention_hours %>h</dd>
+
+      <dt>Time span <small>(max <%= max_range_hours %>h)</small></dt>
+      <dd class="<%= status_of(:range) %>"><%= format_duration(incoming_range) %></dd>
+
+      <dt>Database size</dt>
+      <dd><%= number_to_human_size(database_size) %></dd>
+
+      <dt>Disk free</dt>
+      <dd class="<%= status_of(:disk_free) %>"><%= number_to_human_size(disk_free) %></dd>
+    </dl>
+
+    <h2>Queue <small>(waiting for InfluxDB)</small></h2>
+    <dl>
+      <dt>Lines waiting</dt>
+      <dd class="<%= status_of(:queued) %>"><%= number_to_delimited(outgoing_total) %></dd>
+
+      <dt>Oldest line</dt>
+      <dd class="<%= status_of(:queue_age) %>"><%= format_duration(queue_oldest_age) %></dd>
+
+      <!-- The state of the moment. The counter of failed writes below runs
+           since the start, so it cannot say whether InfluxDB answers now:
+           five old failures and two new ones are the same number there. This
+           row also reports an outage before the age of the queue does. -->
+      <dt>InfluxDB</dt>
+      <dd class="<%= status_of(:delivery) %>"><%= influx_reachability %></dd>
+    </dl>
+  </article>
+
+  <div class="flow__link">
+    <span class="flow__arrow" aria-hidden="true"></span>
+  </div>
+
+  <article class="flow__node">
+    <h2>Outgoing <small>(to InfluxDB)</small></h2>
+    <p class="metric">
+      <span class="metric__value"><%= value_or_dash(outgoing_delivered_values_rate) { |r| average(number_to_delimited(rate_number(r))) } %></span>
+      <span class="metric__unit">values /min</span>
+    </p>
+
+    <dl>
+      <dt>Line throughput</dt>
+      <dd><%= value_or_dash(outgoing_delivered_rate) { |r| average(format_rate(r)) } %></dd>
+    </dl>
+
+    <!-- Ingest takes the house power of the collector out and puts its own
+         value in. Without these two rows the page states that more values
+         leave than arrive and explains it nowhere. -->
+    <h2>Since start</h2>
+    <dl>
+      <dt>House power removed</dt>
+      <dd><%= number_to_delimited(house_power_replaced) %></dd>
+
+      <dt>House power added</dt>
+      <dd><%= number_to_delimited(house_power_added) %></dd>
+
+      <dt>Values delivered</dt>
+      <dd><%= number_to_delimited(outgoing_delivered_values) %></dd>
+
+      <dt>Lines delivered</dt>
+      <dd><%= number_to_delimited(outgoing_delivered) %></dd>
+
+      <dt>Failed, retried</dt>
+      <dd><%= number_to_delimited(outgoing_failures) %></dd>
+
+      <dt>Partly written <small>(lines affected)</small></dt>
+      <dd class="<%= status_of(:partial) %>"><%= number_to_delimited(outgoing_partial) %></dd>
+
+      <dt>Refused and lost</dt>
+      <dd class="<%= status_of(:dropped) %>"><%= number_to_delimited(outgoing_dropped) %></dd>
+    </dl>
+
+    <!-- One row per target: the bucket, the org and the token that reaches
+         it. The token is masked, and it is here so that two collectors that
+         write to one bucket are two rows a reader can tell apart. -->
+    <h2>Targets <small>(bucket / org / token)</small></h2>
+    <% if targets.any? %>
+      <ul class="targets font-mono">
+        <% targets.each do |target| %>
+          <li><%= h target[:bucket] %> / <%= h target[:org] %> / <%= h target[:token] %></li>
+        <% end %>
+      </ul>
+    <% else %>
+      <!-- The heading already says "Targets", so the row says what is
+           missing instead, like "No request yet" above it. -->
+      <dl>
+        <dt>No target yet</dt>
+        <dd>&ndash;</dd>
+      </dl>
+    <% end %>
+  </article>
+</section>
+
+<div class="grid grid--two">
+  <section>
+    <h2>Runtime</h2>
+    <dl>
+      <dt>CPU usage</dt>
+      <dd><%= number_to_percentage(cpu_usage, precision: 1) %></dd>
+
+      <dt>Memory usage</dt>
+      <dd><%= number_to_human_size(memory_usage) %></dd>
+
+      <dt>Threads</dt>
+      <dd><%= thread_count %></dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Uptime</h2>
+    <dl>
+      <dt>Ingest</dt>
+      <dd><%= format_duration(container_uptime) %></dd>
+
+      <dt>Host</dt>
+      <dd><%= format_duration(system_uptime) %></dd>
+    </dl>
+  </section>
+</div>

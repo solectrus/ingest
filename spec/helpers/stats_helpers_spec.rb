@@ -27,6 +27,20 @@ describe StatsHelpers do
           .to eq(%w[a b])
       end
 
+      # SQLite does not promise the order of a grouped scan, so the list sorts
+      # the fields itself. A reader looks a field up by its name.
+      it 'sorts the fields of a measurement by name' do
+        allow(self).to receive(:incoming_by_target).and_return(
+          {
+            %w[SENEC b] => { count: 1, last_at: Time.current },
+            %w[SENEC a] => { count: 1, last_at: Time.current },
+          },
+        )
+
+        expect(other_measurement_fields_grouped['SENEC'].map { it[:field] })
+          .to eq(%w[a b])
+      end
+
       # The list of sensors above already names it, with the same throughput.
       it 'leaves out a field that a configured sensor reads' do
         measurement, field =
@@ -611,18 +625,35 @@ describe StatsHelpers do
     end
   end
 
-  describe 'the result of the formula' do
+  describe 'what happens to the incoming house power' do
     def sensor(key)
       configured_sensors.find { |entry| entry[:key] == key }
     end
 
     # Ingest calculates the house power from the other sensors. The list holds
-    # it beside them, so the row has to say that it is the result.
-    it 'marks the house power and nothing else' do
-      expect(sensor(:house_power)).to include(result: true)
+    # the incoming one beside them, so the row has to say what Ingest does
+    # with it. No other sensor carries such a note.
+    it 'notes the house power and nothing else' do
+      expect(sensor(:house_power)).to include(note: 'replaced')
 
       others = configured_sensors.reject { it[:key] == :house_power }
-      expect(others).to all(include(result: false))
+      expect(others).to all(include(note: nil))
+    end
+
+    # Without INFLUX_SENSOR_HOUSE_POWER_CALCULATED the result goes to the same
+    # field, so the incoming value never reaches InfluxDB.
+    it 'says "replaced" while the result goes to the same field' do
+      expect(house_power_destination).to eq(sensor_source(:house_power))
+      expect(house_power_note).to eq('replaced')
+    end
+
+    # With it the result goes to a field of its own, and the incoming value is
+    # forwarded beside it.
+    it 'says "kept" while the result goes to a field of its own' do
+      allow(SensorEnvConfig).to receive(:house_power_destination)
+        .and_return({ measurement: 'Calculated', field: 'house_power' })
+
+      expect(house_power_note).to eq('kept')
     end
   end
 
@@ -681,6 +712,20 @@ describe StatsHelpers do
       target.incomings.create!(measurement:, field:, value: 1)
 
       expect(sensor(:inverter_power)).to include(level: nil)
+    end
+
+    # An excluded sensor counts in no summary and in no badge. A red row would
+    # thus report a fault that the header of the same page denies, so the row
+    # reports the age like a forwarded stream.
+    it 'gives an excluded sensor that stopped no colour' do
+      key = SensorEnvConfig.exclude_from_house_power_keys.first
+      measurement, field = SensorEnvConfig[key].values_at(:measurement, :field)
+      target.incomings.create!(
+        measurement:, field:, value: 1, created_at: 20.minutes.ago,
+      )
+
+      expect(sensor(key)).to include(stale: true, level: nil)
+      expect(status_of(:sensors_stale)).to be_nil
     end
   end
 
@@ -1056,31 +1101,36 @@ describe StatsHelpers do
       expect(targets).to be_empty
     end
 
-    # The token is a secret. The page needs a password only, so it must not
-    # carry the token of an InfluxDB.
-    it 'names the bucket and the org, never the token' do
+    # The token is the key to an InfluxDB. The page is behind a password, and
+    # the token stays a secret behind it.
+    it 'names the bucket and the org, and masks the token' do
       Target.create!(influx_token: 'super-secret', bucket: 'b', org: 'o')
 
-      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 1 }])
+      expect(targets).to eq([{ bucket: 'b', org: 'o', token: 's......t' }])
       expect(targets.to_s).not_to include('super-secret')
     end
 
     # Two collectors can write to one bucket with tokens of their own. The
-    # rows would look the same, so the count of the tokens tells them apart.
-    it 'counts the tokens of a bucket' do
+    # rows would look the same, so the masked token tells them apart.
+    it 'gives every token of a bucket a row' do
       Target.create!(influx_token: 'one', bucket: 'b', org: 'o')
       Target.create!(influx_token: 'two', bucket: 'b', org: 'o')
 
-      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 2 }])
+      expect(targets).to eq(
+        [
+          { bucket: 'b', org: 'o', token: 'o......e' },
+          { bucket: 'b', org: 'o', token: 't......o' },
+        ],
+      )
     end
 
     # A collector that changes the precision makes a target of its own. That
-    # is the same token, and it must not count twice.
-    it 'counts one token of two precisions once' do
+    # is the same destination, and it must not appear twice.
+    it 'gives one token of two precisions one row' do
       Target.create!(influx_token: 'one', bucket: 'b', org: 'o', precision: 's')
       Target.create!(influx_token: 'one', bucket: 'b', org: 'o', precision: 'ms')
 
-      expect(targets).to eq([{ bucket: 'b', org: 'o', tokens: 1 }])
+      expect(targets).to eq([{ bucket: 'b', org: 'o', token: 'o......e' }])
     end
 
     it 'keeps the order in which the targets appeared' do
@@ -1088,6 +1138,25 @@ describe StatsHelpers do
       Target.create!(influx_token: 't', bucket: 'first', org: 'o')
 
       expect(targets.map { it[:bucket] }).to eq(%w[second first])
+    end
+  end
+
+  describe '#mask_token' do
+    it 'keeps the first and the last character' do
+      expect(mask_token('abcdefgh')).to eq('a......h')
+    end
+
+    # The number of dots is fixed, so the mask gives away no length.
+    it 'gives a long and a short token the same mask' do
+      expect(mask_token('ab')).to eq('a......b')
+      expect(mask_token('a' * 88)).to eq('a......a')
+    end
+
+    # One character is the whole token, so the mask cannot show it twice.
+    it 'shows nothing of a token that is too short' do
+      expect(mask_token('a')).to eq('......')
+      expect(mask_token('')).to eq('......')
+      expect(mask_token(nil)).to eq('......')
     end
   end
 
@@ -1138,6 +1207,44 @@ describe StatsHelpers do
         Stats.inc(:outgoing_dropped)
 
         expect(status_of(:dropped)).to eq('crit')
+      end
+
+      it 'warns while the delivery cannot reach InfluxDB' do
+        allow(OutboxWorker).to receive_messages(stalled: true, tried: true)
+
+        expect(status_of(:delivery)).to eq('warn')
+        expect(influx_reachability).to eq('unreachable')
+      end
+
+      # A pass over an empty queue sends no request. The page said
+      # "reachable" for that case, so a fresh container reported an InfluxDB
+      # that was down as good.
+      it 'reports no state before the first request' do
+        allow(OutboxWorker).to receive_messages(stalled: false, tried: false)
+
+        expect(status_of(:delivery)).to be_nil
+        expect(influx_reachability).to eq('not tried yet')
+      end
+
+      # A restart of InfluxDB raises the counter of failed writes, and nothing
+      # lowers it again. The page stayed yellow for a fault that had cured
+      # itself and left no line behind.
+      it 'stays silent once the queue goes out again' do
+        Stats.inc(:outgoing_failures, 3)
+        allow(OutboxWorker).to receive_messages(stalled: false, tried: true)
+
+        expect(outgoing_failures).to eq(3)
+        expect(status_of(:delivery)).to be_nil
+        expect(influx_reachability).to eq('reachable')
+      end
+
+      # Five old failures and two new ones are the same number, so a colour on
+      # that counter says nothing about the outage of the moment.
+      it 'leaves the counter of failed writes uncoloured while one fails' do
+        Stats.inc(:outgoing_failures, 7)
+        allow(OutboxWorker).to receive(:stalled).and_return(true)
+
+        expect(statuses).not_to have_key(:failures)
       end
 
       it 'reports a range above the ceiling as critical' do
@@ -1214,6 +1321,372 @@ describe StatsHelpers do
 
         expect(page_status).to eq('crit')
       end
+    end
+  end
+
+  # What the page prints as the formula. It has to be the calculation itself,
+  # not a second copy of it in the page.
+  describe 'the formula' do
+    let(:powers) do
+      {
+        inverter_power: 3000,
+        grid_import_power: 500,
+        battery_charging_power: 100,
+      }
+    end
+
+    def record(values = powers, timestamp_ns: 1_000_000_000, source: :cache, delivered: nil)
+      terms = HousePowerFormula.terms(**values)
+
+      Stats.set(
+        :house_power_last_calculation,
+        {
+          timestamp_ns:,
+          terms:,
+          result: HousePowerFormula.sum(terms),
+          source:,
+          delivered:,
+        },
+      )
+    end
+
+    describe '#formula_rows' do
+      context 'with a calculation on record' do
+        before { record }
+
+        it 'prints one row per term, with its sign and its value' do
+          expect(formula_rows.map { it.values_at(:sign, :key, :value) }).to eq(
+            [
+              ['+', :inverter_power, 3000],
+              ['+', :grid_import_power, 500],
+              ['−', :battery_charging_power, 100],
+            ],
+          )
+        end
+
+        it 'names the measurement and field behind every term' do
+          expect(formula_rows.first[:source]).to eq('SENEC:inverter_power')
+        end
+
+        # The bar of a term. Without the share a reader has to compare the
+        # numbers to see which sensor decides the result.
+        it 'gives the largest term the full bar and the others their share' do
+          expect(formula_rows.map { it[:share] }).to eq([1.0, 500 / 3000.0, 100 / 3000.0])
+        end
+      end
+
+      # Integer values come straight from the cache, so a share that divides
+      # them as integers is 0 for every term but the largest.
+      it 'measures the share of a whole watt against the largest term' do
+        record({ inverter_power: 500, grid_export_power: 100 })
+
+        expect(formula_rows.last[:share]).to be_within(0.001).of(0.2)
+      end
+
+      it 'gives no bar while every term is zero' do
+        record({ inverter_power: 0, grid_export_power: 0 })
+
+        expect(formula_rows.map { it[:share] }).to all(be_nil)
+      end
+
+      # The page shows which sensors take part before the first calculation
+      # runs, so a reader can check the configuration right after a start.
+      context 'without a calculation' do
+        it 'takes the terms from the configuration' do
+          expect(formula_rows.map { it[:key] }).to eq(
+            %i[
+              inverter_power
+              grid_import_power
+              battery_discharging_power
+              battery_charging_power
+              grid_export_power
+              wallbox_power
+            ],
+          )
+        end
+
+        # The configuration of the test environment names a total and a part.
+        # The formula uses the total, so the part must not stand in the list:
+        # a reader would add a value that Ingest never adds.
+        it 'leaves out an inverter part while the total is configured' do
+          expect(SensorEnvConfig.sensor_keys_for_house_power).to include(
+            :inverter_power_1,
+          )
+          expect(formula_rows.map { it[:key] }).not_to include(:inverter_power_1)
+        end
+
+        it 'carries no value and no bar' do
+          expect(formula_rows.map { it[:value] }).to all(be_nil)
+          expect(formula_rows.map { it[:share] }).to all(be_nil)
+        end
+      end
+    end
+
+    describe '#formula_result' do
+      it 'answers what the calculation wrote' do
+        record
+
+        expect(formula_result).to eq(3400)
+      end
+
+      it 'answers nothing without a calculation' do
+        expect(formula_result).to be_nil
+      end
+    end
+
+    # The formula cuts a negative sum at zero, so the result stops matching
+    # the terms above it. The page has to name the number that they give.
+    describe '#formula_negative_sum' do
+      it 'answers the sum that the formula cut away' do
+        record({ inverter_power: 100, grid_export_power: 400 })
+
+        expect(formula_result).to eq(0)
+        expect(formula_negative_sum).to eq(-300)
+      end
+
+      it 'answers nothing while the sum stands' do
+        record
+
+        expect(formula_negative_sum).to be_nil
+      end
+    end
+
+    describe '#formula_timestamp' do
+      it 'answers the moment the values belong to' do
+        record(timestamp_ns: 1_700_000_000_000_000_000)
+
+        expect(formula_timestamp).to eq(Time.at(1_700_000_000))
+      end
+    end
+
+    # A backfill computes an old timestamp now, so the values can be older
+    # than the calculation that produced them.
+    describe '#formula_age' do
+      it 'measures the distance to the moment the values belong to' do
+        record(timestamp_ns: 60.seconds.ago.to_i * 1_000_000_000)
+
+        expect(formula_age).to be_within(1).of(60)
+      end
+
+      it 'answers nothing without a calculation' do
+        expect(formula_age).to be_nil
+      end
+    end
+
+    # Ingest drops the value of the collector and writes its own in its place.
+    # A result without the value it replaced says nothing about whether the
+    # correction was needed.
+    describe 'the delivered house power' do
+      it 'answers what the collector computed itself' do
+        record(delivered: 3100)
+
+        expect(delivered_house_power).to eq(3100)
+      end
+
+      it 'names where that value came from' do
+        expect(delivered_source).to eq('SENEC:house_power')
+      end
+
+      it 'answers nothing without a calculation' do
+        expect(delivered_house_power).to be_nil
+      end
+    end
+
+    describe '#formula_source' do
+      it 'answers where the values came from' do
+        record(source: :interpolator)
+
+        expect(formula_source).to eq(:interpolator)
+      end
+    end
+
+    # A sensor that the configuration keeps out cannot appear among the terms,
+    # and its absence is the one thing the terms cannot explain.
+    describe '#formula_excluded_keys' do
+      it 'names what INFLUX_EXCLUDE_FROM_HOUSE_POWER leaves out' do
+        expect(formula_excluded_keys).to eq(%i[heatpump_power])
+      end
+    end
+  end
+
+  # SOLECTRUS subtracts every excluded sensor from the house power again when
+  # it draws the dashboard. Ingest writes one value, and a reader sees another
+  # one, so the page has to show both.
+  describe 'the dashboard value' do
+    let(:powers) { { inverter_power: 3000, grid_export_power: 400 } }
+
+    def record(excluded)
+      terms = HousePowerFormula.terms(**powers)
+
+      Stats.set(
+        :house_power_last_calculation,
+        {
+          timestamp_ns: 1_000_000_000,
+          terms:,
+          result: HousePowerFormula.sum(terms),
+          source: :cache,
+          excluded:,
+        },
+      )
+    end
+
+    describe '#dashboard_rows' do
+      it 'starts with what Ingest wrote and subtracts every excluded sensor' do
+        record(heatpump_power: 600)
+
+        expect(dashboard_rows.map { it.values_at(:sign, :key, :value) }).to eq(
+          [
+            ['', :house_power, 2600],
+            ['−', :heatpump_power, 600],
+          ],
+        )
+      end
+
+      it 'names where the value of an excluded sensor comes from' do
+        record(heatpump_power: 600)
+
+        expect(dashboard_rows.last[:source]).to eq('Heatpump:power')
+      end
+
+      # Ingest writes a whole watt, and SOLECTRUS reads that one out of
+      # InfluxDB. A subtraction that starts at the unrounded sum names a value
+      # that the dashboard never shows.
+      it 'starts at the value that Ingest wrote, not at the sum' do
+        terms = HousePowerFormula.terms(inverter_power: 3000.4, grid_export_power: 400)
+        Stats.set(
+          :house_power_last_calculation,
+          {
+            timestamp_ns: 1_000_000_000,
+            terms:,
+            result: HousePowerFormula.sum(terms),
+            source: :cache,
+            excluded: { heatpump_power: 600 },
+          },
+        )
+
+        expect(formula_result).to be_within(0.01).of(2600.4)
+        expect(dashboard_rows.first[:value]).to eq(2600)
+        expect(dashboard_result).to eq(2000)
+      end
+
+      it 'carries no value without a calculation' do
+        expect(dashboard_rows.map { it[:value] }).to all(be_nil)
+      end
+    end
+
+    describe '#dashboard_result' do
+      it 'answers the value that the dashboard draws' do
+        record(heatpump_power: 600)
+
+        expect(dashboard_result).to eq(2000)
+      end
+
+      # Every row of the box shows a whole watt. A subtraction of the raw
+      # values can miss the rows above the result by one.
+      it 'subtracts the whole watts that the page shows' do
+        record(heatpump_power: 599.6)
+
+        expect(dashboard_result).to eq(2000)
+      end
+
+      # Half a subtraction is worse than none: it would name a value that the
+      # dashboard never shows.
+      it 'answers nothing while an excluded sensor has no value' do
+        record(heatpump_power: nil)
+
+        expect(dashboard_result).to be_nil
+      end
+
+      it 'answers nothing without a calculation' do
+        expect(dashboard_result).to be_nil
+      end
+
+      it 'reports no negative difference while the result is positive' do
+        record(heatpump_power: 600)
+
+        expect(dashboard_negative_difference).to be_nil
+      end
+
+      # A wallbox that reports more power than the inverter gives makes the
+      # formula cut its own sum at zero, and it stays there as long as the car
+      # charges. The subtraction then reached below zero, and the page showed
+      # a house that gives power back. The dashboard draws no such value.
+      context 'when the formula cut its sum at zero' do
+        let(:powers) do
+          { inverter_power: 7570, grid_export_power: 55, wallbox_power: 7597 }
+        end
+
+        it 'cuts a negative difference at zero' do
+          record(heatpump_power: 21)
+
+          expect(written_house_power).to eq(0)
+          expect(dashboard_result).to eq(0)
+          expect(dashboard_negative_difference).to eq(-21)
+        end
+      end
+    end
+
+    # The page says why the subtraction has no result. Only a calculation
+    # that ran can miss a value: before the first one the formula above says
+    # that nothing is calculated yet, and a warning would contradict it.
+    describe '#dashboard_subtraction_open?' do
+      it 'is open while an excluded sensor has no value' do
+        record(heatpump_power: nil)
+
+        expect(dashboard_subtraction_open?).to be true
+      end
+
+      it 'is closed once the subtraction has a result' do
+        record(heatpump_power: 600)
+
+        expect(dashboard_subtraction_open?).to be false
+      end
+
+      it 'is closed before the first calculation' do
+        expect(dashboard_subtraction_open?).to be_falsey
+      end
+    end
+  end
+
+  # The pipeline tab carries three kinds of number in one list: what holds
+  # now, what the run totals, and what it averages over the uptime. The mark
+  # tells the third apart from the other two.
+  describe '#average' do
+    it 'puts the mark in front of the value' do
+      expect(average('55 /min')).to eq(
+        '<span class="avg" title="Average since start">&oslash;</span>55 /min',
+      )
+    end
+  end
+
+  describe '#format_power' do
+    it 'writes a whole watt without a decimal' do
+      expect(format_power(3000)).to eq('3,000 W')
+    end
+
+    # An interpolated value lands between two samples, but Ingest writes a
+    # whole watt, so the page shows a whole watt too.
+    it 'rounds an interpolated value' do
+      expect(format_power(1234.56)).to eq('1,235 W')
+    end
+
+    it 'drops a decimal that is zero' do
+      expect(format_power(1234.0)).to eq('1,234 W')
+    end
+
+    it 'answers nothing for no value' do
+      expect(format_power(nil)).to be_nil
+    end
+  end
+
+  # A tab hides what it holds. The badge in the header reports every fault of
+  # the page, so every fault needs a tab that points at it, otherwise a reader
+  # sees a red badge and finds nothing.
+  describe 'StatsHelpers::TABS' do
+    it 'gives every status of the page exactly one tab' do
+      assigned = StatsHelpers::TABS.flat_map { it[:statuses] }
+
+      expect(assigned).to match_array(statuses.keys)
     end
   end
 

@@ -1,0 +1,216 @@
+<!-- What Ingest computes, term by term, with the values that produced the last
+     result. The number alone cannot be checked: a reader who sees 1,742 W
+     does not know whether a sensor is missing or whether one of them is
+     wrong. The terms below add up in front of them.
+
+     The list comes from the calculation itself, not from a copy of the
+     formula in this page. What stands here is what Ingest added up. -->
+<section class="section">
+  <h2 class="section__label section__label--split">
+    <span>
+      The formula
+      <small>
+        <% if last_calculation %>
+          (the last calculation, <%= formula_source == :cache ? 'from the sensor cache' : 'interpolated between samples' %>)
+        <% elsif formula_rows.any? %>
+          (from the configuration, nothing calculated yet)
+        <% else %>
+          (<span class="crit">the configuration cannot produce a house power</span>)
+        <% end %>
+      </small>
+    </span>
+
+    <!-- How old the values are. A backfill puts that moment in the past while
+         the calculation itself runs now, so the age is what the reader has to
+         see. The moment itself answers no question that the age does not, and
+         it stays in the tooltip for whoever needs it. -->
+    <% if formula_timestamp %>
+      <span class="section__label-time <%= stale_level(formula_age) %>">
+        <time
+          datetime="<%= formula_timestamp.iso8601 %>"
+          title="<%= formula_timestamp.strftime('%Y-%m-%d %H:%M:%S') %>"
+        ><%= format_age(formula_age) %></time>
+      </span>
+    <% end %>
+  </h2>
+
+  <% if formula_rows.any? %>
+    <div class="calc">
+      <% formula_rows.each do |row| %>
+        <div class="calc__row">
+          <span class="calc__sign"><%= row[:sign] %></span>
+          <span class="calc__key"><%= row[:key] %></span>
+          <span class="calc__source font-mono"><%= h row[:source] %></span>
+          <!-- The share of the largest term. It says which sensor carries the
+               result before the reader compares the numbers. -->
+          <span class="calc__bar" aria-hidden="true">
+            <% if row[:share] %>
+              <span class="calc__bar-fill <%= row[:adds] ? 'calc__bar-fill--plus' : 'calc__bar-fill--minus' %>" style="width: <%= (row[:share] * 100).round(1) %>%"></span>
+            <% end %>
+          </span>
+          <span class="calc__value"><%= value_or_dash(row[:value]) { format_power(it) } %></span>
+        </div>
+      <% end %>
+
+      <!-- A house cannot give power back, so the formula cuts a negative sum
+           at zero. Without this row the result would not match the terms
+           above it, and the reader would look for the fault in the terms. -->
+      <% if formula_negative_sum %>
+        <div class="calc__row calc__row--sum">
+          <span class="calc__sign">=</span>
+          <span class="calc__key">sum <small>(negative, so it becomes zero)</small></span>
+          <span class="calc__source"></span>
+          <span class="calc__bar" aria-hidden="true"></span>
+          <span class="calc__value warn"><%= format_power(formula_negative_sum) %></span>
+        </div>
+      <% end %>
+
+      <div class="calc__row calc__row--result">
+        <span class="calc__sign">=</span>
+        <span class="calc__key">house_power <small>(calculated)</small></span>
+        <span class="calc__source font-mono"><%= value_or_dash(house_power_destination) { h it } %></span>
+        <span class="calc__bar" aria-hidden="true"></span>
+        <span class="calc__value"><%= value_or_dash(formula_result) { format_power(it) } %></span>
+      </div>
+
+      <!-- What the collector computed itself. It belongs beside the result: a
+           result without the value it replaces says nothing about whether the
+           correction was needed. The two stand one above the other, so the
+           page needs no third row for their difference. -->
+      <% if delivered_source %>
+        <div class="calc__row calc__row--compare">
+          <span class="calc__sign"></span>
+          <span class="calc__key">house_power <small>(as delivered)</small></span>
+          <span class="calc__source font-mono"><%= h delivered_source %></span>
+          <span class="calc__bar" aria-hidden="true"></span>
+          <span class="calc__value"><%= value_or_dash(delivered_house_power) { format_power(it) } %></span>
+        </div>
+      <% end %>
+    </div>
+
+    <% unless last_calculation %>
+      <p class="note">
+        The values appear as soon as a collector sends a sensor of this
+        formula.
+      </p>
+    <% end %>
+  <% else %>
+    <p class="note">
+      The formula needs at least one sensor that brings power into the house,
+      and at least one that takes power out of it. Check the
+      <span class="font-mono">INFLUX_SENSOR_*</span> variables.
+    </p>
+  <% end %>
+</section>
+
+<!-- The second calculation, the one that Ingest does not make. SOLECTRUS
+     subtracts every excluded sensor from the house power again before it
+     draws the dashboard. So the value that Ingest writes is not the value a
+     reader sees there, and a page that shows only the first number explains
+     half of what is on the screen. -->
+<% if formula_excluded_keys.any? %>
+  <section class="section">
+    <h2 class="section__label">
+      In the SOLECTRUS dashboard
+      <small>(house power minus what INFLUX_EXCLUDE_FROM_HOUSE_POWER names)</small>
+    </h2>
+
+    <div class="calc calc--plain">
+      <% dashboard_rows.each do |row| %>
+        <div class="calc__row">
+          <span class="calc__sign"><%= row[:sign] %></span>
+          <span class="calc__key"><%= row[:key] %></span>
+          <span class="calc__source font-mono"><%= value_or_dash(row[:source]) { h it } %></span>
+          <span class="calc__bar" aria-hidden="true"></span>
+          <span class="calc__value"><%= value_or_dash(row[:value]) { format_power(it) } %></span>
+        </div>
+      <% end %>
+
+      <!-- The dashboard draws no house that gives power back, so it cuts the
+           difference at zero. The formula above cuts its own sum the same
+           way, and the value that Ingest writes can thus be 0 while an
+           excluded sensor still draws power. Without this row the result
+           would not match the two rows above it. -->
+      <% if dashboard_negative_difference %>
+        <div class="calc__row calc__row--sum">
+          <span class="calc__sign">=</span>
+          <span class="calc__key">difference <small>(negative, so it becomes zero)</small></span>
+          <span class="calc__source"></span>
+          <span class="calc__bar" aria-hidden="true"></span>
+          <span class="calc__value warn"><%= format_power(dashboard_negative_difference) %></span>
+        </div>
+      <% end %>
+
+      <div class="calc__row calc__row--result">
+        <span class="calc__sign">=</span>
+        <span class="calc__key">house_power <small>(as the dashboard shows it)</small></span>
+        <span class="calc__source"></span>
+        <span class="calc__bar" aria-hidden="true"></span>
+        <span class="calc__value"><%= value_or_dash(dashboard_result) { format_power(it) } %></span>
+      </div>
+    </div>
+
+    <% if dashboard_subtraction_open? %>
+      <p class="note warn">
+        The last calculation had no value for an excluded sensor, so the page
+        cannot complete the subtraction.
+      </p>
+    <% end %>
+  </section>
+<% end %>
+
+<!-- The third box appears only while a calculation missed a value. "Skipped"
+     in the first box already says that none did, and an empty box that repeats
+     it takes a third of the row. -->
+<div class="grid <%= 'grid--two' if calculation_skips_by_sensor.empty? %>">
+  <section>
+    <h2>Calculation</h2>
+    <!-- The destination has no row of its own. The result row of the formula
+         above already carries it. -->
+    <dl>
+      <dt>Values calculated</dt>
+      <dd><%= number_to_delimited(calculation_count) %></dd>
+
+      <dt>Calculation rate</dt>
+      <dd><%= value_or_dash(calculation_rate) { |r| average(format_rate(r)) } %></dd>
+
+      <dt>Last calculation</dt>
+      <dd class="<%= status_of(:last_success) %>"><%= value_or_dash(last_calculation_age) { |a| format_age(a) } %></dd>
+
+      <dt>Skipped <small>(value missing)</small></dt>
+      <dd class="<%= status_of(:skipped_stale) %>"><%= value_or_dash(calculation_skipped) { |v| number_to_percentage(v, precision: 1) } %></dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Sensor cache <small>(what feeds the formula)</small></h2>
+    <dl>
+      <dt>Sensors cached</dt>
+      <dd><%= number_to_delimited(cache_size) %></dd>
+
+      <dt>Cached time span</dt>
+      <dd><%= format_duration(cache_range) %></dd>
+
+      <dt>Cache hits <small>(of all calculations)</small></dt>
+      <dd><%= value_or_dash(calculation_cache_hits) { |v| number_to_percentage(v, precision: 0) } %></dd>
+
+      <dt>Interpolator queries <small>(after a miss)</small></dt>
+      <dd><%= number_to_delimited(interpolate_queries) %></dd>
+
+      <dt>Interpolator queries <small>(per request)</small></dt>
+      <dd><%= value_or_dash(interpolate_queries_per_request) { |v| v.round(2) } %></dd>
+    </dl>
+  </section>
+
+  <% if calculation_skips_by_sensor.any? %>
+    <section>
+      <h2>Missing values by sensor <small>(one skip can miss several)</small></h2>
+      <dl>
+        <% calculation_skips_by_sensor.each do |sensor, count| %>
+          <dt class="font-mono"><%= h sensor %></dt>
+          <dd><%= number_to_delimited(count) %></dd>
+        <% end %>
+      </dl>
+    </section>
+  <% end %>
+</div>

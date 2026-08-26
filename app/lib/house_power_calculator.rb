@@ -47,7 +47,7 @@ class HousePowerCalculator
     timestamps_ns.each do |timestamp_ns|
       if (powers = fetch_cached_powers(timestamp_ns))
         Stats.inc(:house_power_recalculate_cache_hits)
-        result[timestamp_ns] = powers
+        result[timestamp_ns] = [powers, :cache]
       else
         uncached << timestamp_ns
       end
@@ -67,7 +67,7 @@ class HousePowerCalculator
       missing = sensor_keys.reject { |key| powers.key?(key) }
 
       if missing.empty?
-        result[timestamp_ns] = powers
+        result[timestamp_ns] = [powers, :interpolator]
       else
         track_stale_skip(missing)
       end
@@ -76,10 +76,14 @@ class HousePowerCalculator
 
   def build_rows(powers)
     now = Time.current
+    newest_ns = powers.keys.max
 
-    powers.filter_map do |timestamp_ns, sensor_powers|
-      house_power = HousePowerFormula.calculate(**sensor_powers)
+    powers.filter_map do |timestamp_ns, (sensor_powers, source)|
+      terms = HousePowerFormula.terms(**sensor_powers)
+      house_power = HousePowerFormula.sum(terms)
       next unless house_power
+
+      LastCalculation.record(timestamp_ns:, terms:, result: house_power, source:) if timestamp_ns == newest_ns
 
       {
         target_id: target.id,
@@ -102,20 +106,15 @@ class HousePowerCalculator
 
   def fetch_cached_powers(timestamp_ns)
     sensor_keys.each_with_object({}) do |key, result|
-      sensor = SensorEnvConfig[key]
-      return nil unless sensor && sensor[:measurement] && sensor[:field]
-
-      cached =
-        SensorValueCache.instance.read(
-          measurement: sensor[:measurement],
-          field: sensor[:field],
+      value =
+        SensorValueCache.instance.read_sensor(
+          key:,
           max_timestamp: timestamp_ns,
           max_age: MAX_SENSOR_AGE_NS,
         )
+      return nil unless value
 
-      return nil unless cached
-
-      result[key] = cached[:value]
+      result[key] = value
     end
   end
 
