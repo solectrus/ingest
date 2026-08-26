@@ -35,6 +35,26 @@ describe HousePowerCalculator do
   end
 
   describe '#recalculate_many' do
+    # Neither INFLUX_SENSOR_HOUSE_POWER nor INFLUX_SENSOR_HOUSE_POWER_CALCULATED
+    # names a field, while the sensors of the formula are configured. There is
+    # no field to write the result to, and the calculator used to read the
+    # destination without asking whether it had one.
+    context 'without a destination for the result' do
+      before do
+        allow(SensorEnvConfig).to receive(:house_power_destination)
+          .and_return(nil)
+      end
+
+      it 'queues nothing instead of raising' do
+        expect { calculator.recalculate_many(timestamps: [timestamp]) }
+          .not_to change(Outgoing, :count)
+      end
+
+      it 'answers zero' do
+        expect(calculator.recalculate_many(timestamps: [timestamp])).to eq(0)
+      end
+    end
+
     it 'calculates house power and stores outgoing line' do
       expect { calculator.recalculate_many(timestamps: [timestamp]) }.to change(Outgoing, :count).by(1)
 

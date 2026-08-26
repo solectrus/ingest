@@ -15,6 +15,13 @@ class HousePowerCalculator
   # per collector poll, so a request of 5000 points made 5000 queries and 5000
   # inserts, all of them inside the write lock of the process.
   def recalculate_many(timestamps:)
+    # Without a destination there is no field to write the result to. That
+    # happens when neither INFLUX_SENSOR_HOUSE_POWER nor
+    # INFLUX_SENSOR_HOUSE_POWER_CALCULATED names one, while the sensors of the
+    # formula are configured. #line_protocol read the destination without
+    # asking, so every such write ended in a NoMethodError.
+    return 0 unless destination
+
     timestamps_ns = timestamps.map { target.timestamp_ns(it) }.uniq
     return 0 if timestamps_ns.empty?
 
@@ -122,16 +129,16 @@ class HousePowerCalculator
 
   def line_protocol(house_power, timestamp_ns)
     InfluxDB2::Point.new(
-      name: SensorEnvConfig.house_power_destination[:measurement],
+      name: destination[:measurement],
       fields: {
-        SensorEnvConfig.house_power_destination[:field] => house_power.round,
+        destination[:field] => house_power.round,
       },
       time: target.timestamp(timestamp_ns),
       precision: target.precision,
     ).to_line_protocol
   end
 
-  def sensor_keys
-    SensorEnvConfig.sensor_keys_for_house_power
-  end
+  def destination = SensorEnvConfig.house_power_destination
+
+  def sensor_keys = SensorEnvConfig.sensor_keys_for_house_power
 end
