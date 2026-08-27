@@ -887,16 +887,25 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     "#{number_to_delimited(rate_number(value))} /min"
   end
 
+  # The memory that Ingest holds.
+  #
+  # `RssAnon` is the anonymous part of the resident set, which is what Ingest
+  # allocated itself. It matches the `anon` of the cgroup to the megabyte, and
+  # it needs no cgroup to read, so a container, a host and LXC all answer from
+  # the same file. One process holds all of it, because Puma runs in single
+  # mode, see config/puma.rb.
+  #
+  # `VmRSS` counts the file backed pages of the mapped binaries as well. The
+  # kernel reclaims those when the host needs memory and faults them back in
+  # later, so VmRSS moves while Ingest allocates nothing: under a tight limit
+  # 90 MB of mapped pages fell to 69 MB, and the anonymous part stood still.
+  #
+  # macOS has no RssAnon, and `ps` reports the full resident set there. The
+  # number is thus less exact on a development machine than in production.
   def memory_usage
     return rss_from_ps_macos if macos?
 
-    # Prefer cgroup usage if available (Docker etc.)
-    if (cgroup_path = detect_cgroup_memory_path)
-      return File.read(cgroup_path).to_i
-    end
-
-    # Fallback for LXC: /proc/self/status
-    rss_from_procfs || 'N/A'
+    anon_from_procfs || 'N/A'
   rescue StandardError => e
     # simplecov:disable
     e.message
@@ -1134,17 +1143,12 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     1
   end
 
-  def detect_cgroup_memory_path
-    paths = [
-      '/sys/fs/cgroup/memory/memory.usage_in_bytes', # cgroups v1
-      '/sys/fs/cgroup/memory.current', # cgroups v2
-    ]
-    paths.find { |p| File.exist?(p) }
-  end
-
-  def rss_from_procfs
+  # No fallback to VmRSS for a kernel older than 4.5, which is where RssAnon
+  # starts. VmRSS is the number this method exists to avoid, so a page that
+  # cannot have the right one shows none.
+  def anon_from_procfs
     status = File.read('/proc/self/status')
-    if (match = status.match(/^VmRSS:\s+(\d+)\s+kB/))
+    if (match = status.match(/^RssAnon:\s+(\d+)\s+kB/))
       match[1].to_i * 1024
     end
   end

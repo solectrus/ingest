@@ -926,46 +926,30 @@ describe StatsHelpers do
       end
     end
 
-    context 'when running on Linux with cgroups' do
+    context 'when running on Linux' do
       before do
         allow(self).to receive(:macos?).and_return(false)
-        allow(File).to receive(:exist?).and_call_original
-        allow(File).to receive(:exist?).with(
-          '/sys/fs/cgroup/memory/memory.usage_in_bytes',
-        ).and_return(true)
-        allow(File).to receive(:read).and_call_original
-        allow(File).to receive(:read).with(
-          '/sys/fs/cgroup/memory/memory.usage_in_bytes',
-        ).and_return("123456\n")
-      end
-
-      it 'reads the usage from the cgroup file' do
-        expect(memory_usage).to eq(123_456)
-      end
-    end
-
-    context 'when running on Linux without cgroups' do
-      before do
-        allow(self).to receive_messages(
-          macos?: false,
-          detect_cgroup_memory_path: nil,
-        )
         allow(File).to receive(:read).and_call_original
         allow(File).to receive(:read).with('/proc/self/status').and_return(
           status,
         )
       end
 
-      context 'when the status file has VmRSS' do
-        let(:status) { "Name:\truby\nVmRSS:\t    2048 kB\n" }
+      # Not VmRSS beside it: that line counts the mapped binaries as well, and
+      # the kernel reclaims those, so it moves without Ingest allocating.
+      context 'when the status file has RssAnon' do
+        let(:status) do
+          "Name:\truby\nVmRSS:\t    8192 kB\nRssAnon:\t    2048 kB\n"
+        end
 
-        it 'reads the RSS from procfs' do
+        it 'reads the anonymous resident set from procfs' do
           expect(memory_usage).to eq(2048 * 1024)
         end
       end
 
-      context 'when the status file has no VmRSS' do
-        let(:status) { "Name:\truby\n" }
+      # A kernel older than 4.5. VmRSS is there, and it is not used.
+      context 'when the status file has no RssAnon' do
+        let(:status) { "Name:\truby\nVmRSS:\t    8192 kB\n" }
 
         it 'returns N/A' do
           expect(memory_usage).to eq('N/A')
