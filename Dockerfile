@@ -50,8 +50,7 @@ LABEL maintainer="georg@ledermann.dev"
 # Add tzdata to get correct timezone, and curl for healthcheck
 RUN apk add --no-cache tzdata curl
 
-ENV MALLOC_ARENA_MAX=2 \
-    RUBYOPT=--yjit \
+ENV RUBYOPT=--yjit \
     APP_ENV=production \
     RACK_ENV=production
 
