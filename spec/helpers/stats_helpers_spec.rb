@@ -787,6 +787,19 @@ describe StatsHelpers do
     end
   end
 
+  describe '#sensor_source' do
+    it 'names the measurement and the field of a configured sensor' do
+      expect(sensor_source(:inverter_power)).to eq('SENEC:inverter_power')
+    end
+
+    # A key that no INFLUX_SENSOR_* variable names has no source to show, and
+    # the page prints a dash for it instead of half a name.
+    it 'returns nothing for a key that nothing configures' do
+      expect(SensorEnvConfig[:inverter_power_5]).to be_nil
+      expect(sensor_source(:inverter_power_5)).to be_nil
+    end
+  end
+
   describe '#http_status_label' do
     it 'adds the text of the status to the code' do
       expect(http_status_label(:http_response_204)).to eq('204 No Content')
@@ -1497,6 +1510,11 @@ describe StatsHelpers do
         record(source: :interpolator)
 
         expect(formula_source).to eq(:interpolator)
+      end
+
+      # A container that has calculated nothing yet holds no source either.
+      it 'answers nothing while no calculation has run' do
+        expect(formula_source).to be_nil
       end
     end
 

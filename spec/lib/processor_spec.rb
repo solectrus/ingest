@@ -278,6 +278,31 @@ describe Processor do
       end
     end
 
+    # Neither INFLUX_SENSOR_HOUSE_POWER nor INFLUX_SENSOR_HOUSE_POWER_CALCULATED
+    # names a field, so there is no field to drop and no result to write. The
+    # incoming house power must then pass through, because dropping it would
+    # take a value out of the stream and put nothing in its place.
+    context 'without a house power destination' do
+      let(:line) { 'SENEC house_power=300i,grid_power_plus=500i 1000000000' }
+
+      before do
+        allow(SensorEnvConfig).to receive(:house_power_destination)
+          .and_return(nil)
+      end
+
+      it 'forwards the incoming house power untouched' do
+        run
+
+        expect(Outgoing.last.line_protocol).to eq(
+          'SENEC grid_power_plus=500i,house_power=300i 1000000000',
+        )
+      end
+
+      it 'counts nothing as replaced' do
+        expect { run }.not_to(change { Stats.counter(:house_power_replaced) })
+      end
+    end
+
     # The other half of the same balance: what Ingest puts into the stream in
     # place of what it dropped.
     context 'when the calculator queues a line' do
