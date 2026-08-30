@@ -33,7 +33,7 @@ SimpleCov.minimum_coverage(line: 100, branch: 100) if ENV['CI']
 # that already holds the schema runs no migration, so the files never load and
 # never count. The same suite thus reports a different number on a developer
 # machine than on CI, and a threshold on that number guards nothing.
-SimpleCov.add_filter 'db/migrate'
+SimpleCov.skip 'db/migrate'
 
 SimpleCov.configure do
   group 'Models', 'app/models'
