@@ -167,7 +167,11 @@ The buffer has two useful side effects:
 - If InfluxDB is unreachable, no data is lost. Ingest keeps the lines and retries with the next batch.
 - The stats page shows the rate of every sensor, so you find a collector that stopped.
 
-A background worker forwards the queue to InfluxDB in batches and removes old data periodically.
+The database holds two sets of rows, and they have different lifetimes.
+
+The incoming rows hold every value that the collectors sent. The interpolation reads them, and a background worker removes an incoming row that is older than `RETENTION_HOURS`.
+
+The outgoing rows hold every line that still waits for InfluxDB. Another background worker sends them in batches and removes each line that arrives. `RETENTION_HOURS` does not touch the outgoing rows, and their number has no limit. If InfluxDB stays unreachable, the database grows until InfluxDB accepts the lines again. The stats page shows the two counts as **Values buffered** and **Lines waiting**.
 
 ## Example Docker Compose
 
@@ -262,7 +266,7 @@ Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
 | `INFLUX_HOST`                          | InfluxDB host, for example `influxdb`     | Required        |
 | `INFLUX_PORT`                          | InfluxDB port                             | Default: `8086` |
 | `INFLUX_SCHEMA`                        | InfluxDB schema                           | Default: `http` |
-| `RETENTION_HOURS`                      | SQLite retention period in hours          | Default: `12`   |
+| `RETENTION_HOURS`                      | How long Ingest keeps the incoming rows   | Default: `12`   |
 | `STATS_PASSWORD`                       | Password for stats endpoint               | Optional        |
 
 ## Endpoints
