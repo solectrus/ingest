@@ -72,16 +72,11 @@ If you have one inverter only, your house power is already correct. Ingest then 
 
 [HELIOS](https://github.com/solectrus/helios) configures your SOLECTRUS installation. It adds Ingest to your Docker Compose file and sets every environment variable. You do not install or configure Ingest yourself.
 
-HELIOS adds Ingest only when both of these are true:
+HELIOS adds Ingest as soon as your configuration has at least one balcony sensor. It then points every collector it manages at Ingest. For these collectors you do not have to do anything.
 
-- Your configuration has at least one balcony sensor.
-- Every sensor of the formula comes from a collector that HELIOS manages.
+You must act only for a sensor that comes from a source outside HELIOS. The SOLECTRUS integrations for [Home Assistant](https://github.com/solectrus/ha-integration) and [ioBroker](https://github.com/solectrus/iobroker-adapter) write to InfluxDB, and other software can do the same. Point such a source at Ingest yourself. The address is the only change, because Ingest reads the same InfluxDB v2 Line Protocol and answers `/ping` and `/api/v2/query` as these sources expect. The token, the organization and the bucket stay the same, and HELIOS shows the address for every sensor that needs it.
 
-If one input arrives from an external source, HELIOS leaves Ingest out. Ingest then sees a part of the data only, and a house power from partial data is worse than no correction at all. In this case the external source must deliver a correct house power itself.
-
-This is why the SOLECTRUS integrations for [Home Assistant](https://github.com/solectrus/ha-integration) and [ioBroker](https://github.com/solectrus/iobroker-adapter) do not use Ingest. They write to InfluxDB directly, and you compute the house power on that side.
-
-Ingest still accepts what these integrations send. Both write InfluxDB v2 Line Protocol, and Ingest answers `/ping` and `/api/v2/query` in a way that both accept. So the switch costs one URL. But the switch does not make the result correct. Ingest adds up the terms that reach it. If one sensor of the formula writes to InfluxDB directly, Ingest never sees its value. Ingest then writes no house power at all, and it drops the value that the collector delivered. Your dashboard shows a gap where the house power was.
+Every sensor of the formula must write to Ingest. Ingest adds up only the values that reach it. If one sensor still writes to InfluxDB, Ingest never sees its value. Ingest then writes no house power, and it drops the values that the collectors delivered. Your dashboard shows a gap where the house power was.
 
 ## Architecture
 
