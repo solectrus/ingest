@@ -2,6 +2,8 @@ require 'bundler/setup'
 require 'dotenv/load' if Gem.loaded_specs.key?('dotenv') # simplecov:disable branch — dotenv is always loaded in tests
 require 'sinatra/base'
 require 'json'
+require 'zlib'
+require 'stringio'
 require 'influxdb-client'
 require 'active_record'
 

@@ -78,6 +78,63 @@ describe WriteRoute do
       end
     end
 
+    # The InfluxDB client for JavaScript compresses every body above 1000
+    # bytes. Ingest read those bytes as text, so no line parsed and the client
+    # got 400 for correct data.
+    context 'when the client sends a gzipped body' do
+      def gzipped(content)
+        buffer = StringIO.new(+'', 'wb')
+        Zlib::GzipWriter.wrap(buffer) { it.write(content) }
+        buffer.string
+      end
+
+      let(:gzip_headers) { headers.merge('HTTP_CONTENT_ENCODING' => 'gzip') }
+
+      it 'stores the line protocol and returns 204' do
+        expect do
+          post_write(
+            body: gzipped('FOO system_status="37° • Charging" 1743943068000000000'),
+            custom_headers: gzip_headers,
+          )
+        end.to change(Incoming, :count).by(1).and(
+          change(Outgoing, :count).by(1),
+        )
+
+        expect_status 204
+      end
+
+      it 'returns 400 when the body is not gzip' do
+        post_write(custom_headers: gzip_headers)
+
+        expect_status 400
+        expect_body 'Invalid gzip body'
+        expect(Stats.counter(:http_response_400)).to eq(1)
+      end
+
+      # A body of zeros compresses about 1000 times, so 200 KB on the wire
+      # become 200 MB in memory. The limit stops that before it allocates.
+      it 'returns 413 when the body is larger than the limit when unzipped' do
+        oversized = gzipped('x' * (WriteRoute::MAX_UNZIPPED_BYTES + 1))
+
+        expect(oversized.bytesize).to be < 100_000
+
+        expect do
+          post_write(body: oversized, custom_headers: gzip_headers)
+        end.not_to change(Incoming, :count)
+
+        expect_status 413
+        expect_body 'exceeds'
+        expect(Stats.counter(:http_response_413)).to eq(1)
+      end
+
+      it 'returns 204 for an empty body' do
+        post_write(body: '', custom_headers: gzip_headers)
+
+        expect_status 204
+        expect_body nil
+      end
+    end
+
     context 'when the request contains UTF-8 characters' do
       it 'stores the data and returns status 204' do
         expect do

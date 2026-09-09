@@ -119,6 +119,8 @@ graph LR
 
 Ingest accepts InfluxDB v2 [Line Protocol](https://docs.influxdata.com/influxdb/v2/reference/syntax/line-protocol/) over HTTP, so a collector needs a new destination URL and nothing else. It forwards every line. If one line does not parse, Ingest skips that line and forwards the rest of the request.
 
+A client can compress the body. Ingest unzips a request that carries the header `Content-Encoding: gzip`, and it reads a plain body as before. The InfluxDB client for JavaScript compresses every body above 1000 bytes, so a writer built on it needs no change. If a body holds more than 8 MB after Ingest unzips it, Ingest answers 413 and stores nothing.
+
 ## House Power Calculation
 
 Ingest recalculates the house power with this formula:
@@ -273,7 +275,7 @@ Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
 
 ### POST `/api/v2/write`
 
-Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculation of house power if relevant.
+Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculation of house power if relevant. Accepts a gzipped body, see above.
 
 ### GET `/`
 
