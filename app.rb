@@ -14,6 +14,7 @@ class App < Sinatra::Base
   # takes almost all requests, so it goes first.
   use WriteRoute
   use HealthRoute
+  use QueryRoute
   use StatsRoute
   use LoginRoute
 end

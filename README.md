@@ -81,6 +81,8 @@ If one input arrives from an external source, HELIOS leaves Ingest out. Ingest t
 
 This is why the SOLECTRUS integrations for [Home Assistant](https://github.com/solectrus/ha-integration) and [ioBroker](https://github.com/solectrus/iobroker-adapter) do not use Ingest. They write to InfluxDB directly, and you compute the house power on that side.
 
+Ingest still accepts what these integrations send. Both write InfluxDB v2 Line Protocol, and Ingest answers `/ping` and `/api/v2/query` in a way that both accept. So the switch costs one URL. But the switch does not make the result correct. Ingest adds up the terms that reach it. If one sensor of the formula writes to InfluxDB directly, Ingest never sees its value. Ingest then writes no house power at all, and it drops the value that the collector delivered. Your dashboard shows a gap where the house power was.
+
 ## Architecture
 
 ### Without Ingest
@@ -276,6 +278,12 @@ Total inverter power = INFLUX_SENSOR_INVERTER_POWER_1 +
 ### POST `/api/v2/write`
 
 Stores and forwards incoming Line Protocol data to InfluxDB. Triggers recalculation of house power if relevant. Accepts a gzipped body, see above.
+
+### POST `/api/v2/query`
+
+Answers 403 for every query. Ingest does not answer Flux queries, because it keeps the incoming rows for its own calculation only.
+
+A client that reads 404 stops and reports a wrong address. A client that reads 403 sees a token without read permission. The SOLECTRUS integration for Home Assistant asks for the field types of a bucket before its first write, and 403 is the answer that lets it start against Ingest.
 
 ### GET `/`
 
