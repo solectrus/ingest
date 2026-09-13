@@ -16,13 +16,8 @@ Keep every section, an empty one included.
 
 ## New features
 
-- Write endpoint: a request body that carries `Content-Encoding: gzip` is unzipped now, so a client such as the InfluxDB client for JavaScript can write compressed data. A body that expands above 8 MB gets 413 and is not stored.
-- Query endpoint: `/api/v2/query` answers 403 instead of 404. A client that asks for the field types of a bucket before its first write, such as the SOLECTRUS integration for Home Assistant, reads that as a token without read permission and finishes its setup.
-
 ## Improvements
 
 ## Fixes
 
 ## Maintenance
-
-- Dependencies updated
