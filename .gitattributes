@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Append-only list. Keep both sides instead of raising a conflict on rebase.
+.changelog/unreleased.md merge=union
