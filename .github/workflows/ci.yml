@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
 
     env:
@@ -49,9 +49,9 @@ jobs:
       matrix:
         include:
           - platform: linux/amd64
-            runner: ubuntu-24.04
+            runner: ubuntu-26.04
           - platform: linux/arm64
-            runner: ubuntu-24.04-arm
+            runner: ubuntu-26.04-arm
 
     runs-on: ${{ matrix.runner }}
 
@@ -122,7 +122,7 @@ jobs:
           retention-days: 1
 
   merge:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: build
 
     permissions:
@@ -169,7 +169,7 @@ jobs:
           docker buildx imagetools inspect ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
 
   deploy:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: merge
     if: ${{ github.actor != 'dependabot[bot]' }}
     timeout-minutes: 3

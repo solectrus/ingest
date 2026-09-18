@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   delete:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
 
     steps:
       - name: Delete untagged ghcr
