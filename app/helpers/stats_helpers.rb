@@ -702,7 +702,7 @@ module StatsHelpers # rubocop:disable Metrics/ModuleLength
     @statuses ||= {
       incoming_age: stale_level(incoming_age),
       sensors_without_data: level(sensors_without_data.size, warn: 1),
-      sensors_stale: worst_level(stale_sensors.map { it[:level] }),
+      sensors_stale: worst_level(stale_sensors.pluck(:level)),
       queued: level(outgoing_total, warn: 1_000, crit: 10_000),
       queue_age: level(queue_oldest_age, warn: 1.minute, crit: 10.minutes),
       dropped: level(outgoing_dropped, crit: 1),

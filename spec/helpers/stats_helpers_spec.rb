@@ -23,7 +23,7 @@ describe StatsHelpers do
     describe '#other_measurement_fields_grouped' do
       it 'groups the fields by measurement' do
         expect(other_measurement_fields_grouped.keys).to eq(%w[SENEC])
-        expect(other_measurement_fields_grouped['SENEC'].map { it[:field] })
+        expect(other_measurement_fields_grouped['SENEC'].pluck(:field))
           .to eq(%w[a b])
       end
 
@@ -37,7 +37,7 @@ describe StatsHelpers do
           },
         )
 
-        expect(other_measurement_fields_grouped['SENEC'].map { it[:field] })
+        expect(other_measurement_fields_grouped['SENEC'].pluck(:field))
           .to eq(%w[a b])
       end
 
@@ -51,7 +51,7 @@ describe StatsHelpers do
           other_measurement_fields_grouped
             .values
             .flatten
-            .map { |entry| entry[:field] }
+            .pluck(:field)
 
         expect(fields).not_to include(field)
       end
@@ -82,7 +82,7 @@ describe StatsHelpers do
         sql = Incoming.group(:measurement, :field).select(Arel.sql(described_class::INCOMING_COLUMNS)).to_sql
         plan = ActiveRecord::Base.connection.select_all("EXPLAIN QUERY PLAN #{sql}")
 
-        expect(plan.map { it['detail'] }).to all(include('COVERING INDEX'))
+        expect(plan.pluck('detail')).to all(include('COVERING INDEX'))
       end
 
       # A line that arrived once and stopped keeps its throughput for the
@@ -492,7 +492,7 @@ describe StatsHelpers do
     it 'names a sensor that stopped' do
       deliver_all(stopped: :inverter_power, ago: 20.minutes)
 
-      expect(stale_sensors.map { it[:key] }).to eq([:inverter_power])
+      expect(stale_sensors.pluck(:key)).to eq([:inverter_power])
       expect(status_of(:sensors_stale)).to eq('crit')
       expect(page_status).to eq('crit')
       expect(sensors_summary).to eq("1 of #{included_sensors.size} stale")
@@ -607,8 +607,8 @@ describe StatsHelpers do
     let(:excluded) { SensorEnvConfig.exclude_from_house_power_keys.first }
 
     it 'splits the configuration along INFLUX_EXCLUDE_FROM_HOUSE_POWER' do
-      expect(excluded_sensors.map { it[:key] }).to eq([excluded])
-      expect(included_sensors.map { it[:key] }).not_to include(excluded)
+      expect(excluded_sensors.pluck(:key)).to eq([excluded])
+      expect(included_sensors.pluck(:key)).not_to include(excluded)
       expect(included_sensors.size + excluded_sensors.size).to eq(
         configured_sensors.size,
       )
@@ -621,7 +621,7 @@ describe StatsHelpers do
         .and_return(Set[:house_power])
 
       expect(excluded_sensors).to be_empty
-      expect(included_sensors.map { it[:key] }).to include(:house_power)
+      expect(included_sensors.pluck(:key)).to include(:house_power)
     end
   end
 
@@ -1134,7 +1134,7 @@ describe StatsHelpers do
       Target.create!(influx_token: 't', bucket: 'second', org: 'o')
       Target.create!(influx_token: 't', bucket: 'first', org: 'o')
 
-      expect(targets.map { it[:bucket] }).to eq(%w[second first])
+      expect(targets.pluck(:bucket)).to eq(%w[second first])
     end
   end
 
@@ -1368,7 +1368,7 @@ describe StatsHelpers do
         # The bar of a term. Without the share a reader has to compare the
         # numbers to see which sensor decides the result.
         it 'gives the largest term the full bar and the others their share' do
-          expect(formula_rows.map { it[:share] }).to eq([1.0, 500 / 3000.0, 100 / 3000.0])
+          expect(formula_rows.pluck(:share)).to eq([1.0, 500 / 3000.0, 100 / 3000.0])
         end
       end
 
@@ -1383,14 +1383,14 @@ describe StatsHelpers do
       it 'gives no bar while every term is zero' do
         record({ inverter_power: 0, grid_export_power: 0 })
 
-        expect(formula_rows.map { it[:share] }).to all(be_nil)
+        expect(formula_rows.pluck(:share)).to all(be_nil)
       end
 
       # The page shows which sensors take part before the first calculation
       # runs, so a reader can check the configuration right after a start.
       context 'without a calculation' do
         it 'takes the terms from the configuration' do
-          expect(formula_rows.map { it[:key] }).to eq(
+          expect(formula_rows.pluck(:key)).to eq(
             %i[
               inverter_power
               grid_import_power
@@ -1409,12 +1409,12 @@ describe StatsHelpers do
           expect(SensorEnvConfig.sensor_keys_for_house_power).to include(
             :inverter_power_1,
           )
-          expect(formula_rows.map { it[:key] }).not_to include(:inverter_power_1)
+          expect(formula_rows.pluck(:key)).not_to include(:inverter_power_1)
         end
 
         it 'carries no value and no bar' do
-          expect(formula_rows.map { it[:value] }).to all(be_nil)
-          expect(formula_rows.map { it[:share] }).to all(be_nil)
+          expect(formula_rows.pluck(:value)).to all(be_nil)
+          expect(formula_rows.pluck(:share)).to all(be_nil)
         end
       end
     end
@@ -1572,7 +1572,7 @@ describe StatsHelpers do
       end
 
       it 'carries no value without a calculation' do
-        expect(dashboard_rows.map { it[:value] }).to all(be_nil)
+        expect(dashboard_rows.pluck(:value)).to all(be_nil)
       end
     end
 
