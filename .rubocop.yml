@@ -71,6 +71,12 @@ RSpec/NoExpectationExample:
 
 # Rails
 
+Rails/ApplicationRecord:
+  Enabled: false
+
+Rails/HttpPositionalArguments:
+  Enabled: false
+
 Rails/CreateTableWithTimestamps:
   Enabled: false
 
