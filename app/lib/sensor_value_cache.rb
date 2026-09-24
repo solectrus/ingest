@@ -64,7 +64,7 @@ class SensorValueCache
   end
 
   def stats
-    timestamps = @cache.values.map { |entry| entry[:timestamp] }
+    timestamps = @cache.values.pluck(:timestamp)
 
     {
       size: @cache.size,
