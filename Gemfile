@@ -28,6 +28,9 @@ gem 'json'
 gem 'rake'
 
 group :development do
+  # Interactive Ruby command-line tool for REPL (Read Eval Print Loop). (https://github.com/ruby/irb)
+  gem 'irb', require: false
+
   # Listen to file modifications (https://github.com/guard/listen)
   gem 'listen', require: false
 
