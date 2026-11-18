@@ -28,9 +28,6 @@ gem 'json'
 gem 'rake'
 
 group :development do
-  # Guard gem for RSpec (https://github.com/guard/guard-rspec)
-  gem 'guard-rspec', require: false
-
   # Listen to file modifications (https://github.com/guard/listen)
   gem 'listen', require: false
 

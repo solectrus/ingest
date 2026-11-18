@@ -18,9 +18,8 @@ SimpleCov.enable_coverage :branch
 # reason for it. The threshold thus turns every gap into a decision that the
 # diff shows.
 #
-# CI alone, because the threshold measures the whole suite. Guard runs the one
-# file that changed, see the Guardfile, and every other file of the project is
-# then untested by definition.
+# CI alone, because the threshold measures the whole suite. A local run of one
+# spec file leaves every other file of the project untested by definition.
 SimpleCov.minimum_coverage(line: 100, branch: 100) if ENV['CI']
 
 # Migrations stay out of the number, for two reasons.
