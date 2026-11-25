@@ -36,6 +36,8 @@ jobs:
         run: bundle exec rspec
 
       - uses: qltysh/qlty-action/coverage@v2
+        # Dependabot and fork PRs get no repository secrets, so the token is empty
+        if: github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           token: ${{secrets.QLTY_COVERAGE_TOKEN}}
           files: coverage/.resultset.json
