@@ -21,3 +21,5 @@ Keep every section, an empty one included.
 ## Fixes
 
 ## Maintenance
+
+- Update Rack and Puma to versions with security fixes
